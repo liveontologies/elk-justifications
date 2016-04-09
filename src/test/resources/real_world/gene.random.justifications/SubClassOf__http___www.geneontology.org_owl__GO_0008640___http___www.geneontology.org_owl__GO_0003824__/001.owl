@@ -1,0 +1,22 @@
+Prefix(:=<Justification_1_for_SubClassOf__http___www.geneontology.org_owl__GO_0008640___http___www.geneontology.org_owl__GO_0003824__#>)
+Prefix(owl:=<http://www.w3.org/2002/07/owl#>)
+Prefix(rdf:=<http://www.w3.org/1999/02/22-rdf-syntax-ns#>)
+Prefix(xml:=<http://www.w3.org/XML/1998/namespace>)
+Prefix(xsd:=<http://www.w3.org/2001/XMLSchema#>)
+Prefix(rdfs:=<http://www.w3.org/2000/01/rdf-schema#>)
+
+
+Ontology(<Justification_1_for_SubClassOf__http___www.geneontology.org_owl__GO_0008640___http___www.geneontology.org_owl__GO_0003824__>
+
+Declaration(Class(<http://www.geneontology.org/owl/#GO_0003824>))
+Declaration(Class(<http://www.geneontology.org/owl/#GO_0008639>))
+Declaration(Class(<http://www.geneontology.org/owl/#GO_0008640>))
+
+
+SubClassOf(<http://www.geneontology.org/owl/#GO_0008639> <http://www.geneontology.org/owl/#GO_0003824>)
+
+
+SubClassOf(<http://www.geneontology.org/owl/#GO_0008640> <http://www.geneontology.org/owl/#GO_0008639>)
+
+
+)
