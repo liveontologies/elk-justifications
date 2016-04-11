@@ -76,13 +76,9 @@ public class BottomUpJustificationComputation
 
 	private void process(OWLExpression exp) throws ProofGenerationException {
 
-		toDo_.add(exp);
+		toDo(exp);
 
 		while ((exp = toDo_.poll()) != null) {
-			if (!done_.add(exp)) {
-				// already processed
-				continue;
-			}
 			LOGGER_.trace("{}: new lemma", exp);
 
 			if (exp instanceof OWLAxiomExpression) {
@@ -102,15 +98,21 @@ public class BottomUpJustificationComputation
 
 	}
 
-	private void process(OWLInference inf) {
+	private void toDo(OWLExpression exp) {
+		if (done_.add(exp)) {
+			toDo_.add(exp);
+		}
+	}
+
+	private void process(OWLInference inf) throws ProofGenerationException {
 		LOGGER_.trace("{}: new inference", inf);
 		// new inference, propagate existing the justification for premises
 		List<Set<OWLAxiom>> conclusionJusts = new ArrayList<Set<OWLAxiom>>();
 		conclusionJusts.add(new HashSet<OWLAxiom>());
 		for (OWLExpression premise : inf.getPremises()) {
 			inferencesByPremises_.put(premise, inf);
-			toDo_.add(premise);
-			conclusionJusts = getProduct(conclusionJusts,
+			toDo(premise);
+			conclusionJusts = join(conclusionJusts,
 					justsByConcls_.get(premise));
 		}
 		OWLExpression conclusion = inf.getConclusion();
@@ -121,13 +123,25 @@ public class BottomUpJustificationComputation
 
 	/**
 	 * propagates the newly computed justification until the fixpoint
+	 * 
+	 * @throws ProofGenerationException
 	 */
-	private void process(Job job) {
+	private void process(Job job) throws ProofGenerationException {
 		toDoJustifications_.add(job);
 		while ((job = toDoJustifications_.poll()) != null) {
 			LOGGER_.trace("{}: new justification: {}", job.expr, job.just);
 
-			if (merge(job.expr, job.just)) {
+			if (job.just.isEmpty()) {
+				// all justifications are computed,
+				// the inferences are not needed anymore
+				for (OWLInference inf : job.expr.getInferences()) {
+					for (OWLExpression premise : inf.getPremises()) {
+						inferencesByPremises_.remove(premise, inf);
+					}
+				}
+			}
+
+			if (merge(job.just, justsByConcls_.get(job.expr))) {
 
 				/*
 				 * propagating justification over inferences
@@ -138,7 +152,7 @@ public class BottomUpJustificationComputation
 					conclusionJusts.add(new HashSet<OWLAxiom>(job.just));
 					for (final OWLExpression premise : inf.getPremises()) {
 						if (!premise.equals(job.expr)) {
-							conclusionJusts = getProduct(conclusionJusts,
+							conclusionJusts = join(conclusionJusts,
 									justsByConcls_.get(premise));
 						}
 					}
@@ -156,30 +170,61 @@ public class BottomUpJustificationComputation
 
 	}
 
-	private boolean merge(final OWLExpression conclusion,
-			final Set<OWLAxiom> just) {
-
-		Set<Set<OWLAxiom>> oldJusts = justsByConcls_.get(conclusion);
-		for (final Set<OWLAxiom> oldJust : oldJusts) {
-			if (just.containsAll(oldJust)) {
+	/**
+	 * Merges a given justification into a given collection of justifications.
+	 * The justification is added to the collection unless its subset is already
+	 * contained in the collection. Furthermore, all proper subsets of the
+	 * justification are removed from the collection.
+	 * 
+	 * @param just
+	 * @param justs
+	 * @return {@code true} if the collection is modified as a result of this
+	 *         operation and {@code false} otherwise
+	 */
+	private boolean merge(Set<OWLAxiom> just, Collection<Set<OWLAxiom>> justs) {
+		int justSize = just.size();
+		final Iterator<Set<OWLAxiom>> oldJustIter = justs.iterator();
+		boolean justNew = false; // true if the justification is new
+		while (oldJustIter.hasNext()) {
+			final Set<OWLAxiom> oldJust = oldJustIter.next();
+			if (justSize < oldJust.size()) {
+				if (oldJust.containsAll(just)) {
+					// new justification is smaller
+					oldJustIter.remove();
+					justNew = true;
+				}
+			} else if (!justNew & just.containsAll(oldJust)) {
 				// a subset is already a justification
 				return false;
 			}
 		}
+		// justification survived all tests, it is new
+		justs.add(just);
+		return true;
+	}
 
-		final Iterator<Set<OWLAxiom>> oldJustIter = oldJusts.iterator();
-		while (oldJustIter.hasNext()) {
-			final Set<OWLAxiom> oldJust = oldJustIter.next();
-			if (oldJust.containsAll(just)) {
-				// new justification is smaller
-				oldJustIter.remove();
+	/**
+	 * @param first
+	 * @param second
+	 * @return the list of all pairwise unions of the sets in the first and the
+	 *         second collections
+	 */
+	private static <T> List<Set<T>> join(Collection<? extends Set<T>> first,
+			Collection<? extends Set<T>> second) {
+		if (first.isEmpty() || second.isEmpty()) {
+			return Collections.emptyList();
+		}
+		List<Set<T>> result = new ArrayList<Set<T>>(
+				first.size() * second.size());
+		for (Set<T> firstSet : first) {
+			for (Set<T> secondSet : second) {
+				Set<T> union = new HashSet<T>();
+				union.addAll(firstSet);
+				union.addAll(secondSet);
+				result.add(union);
 			}
 		}
-
-		// justification is new
-		justsByConcls_.put(conclusion, just);
-
-		return true;
+		return result;
 	}
 
 	private static class Job {
@@ -196,25 +241,6 @@ public class BottomUpJustificationComputation
 			return getClass().getSimpleName() + "(" + expr + ", " + just + ")";
 		}
 
-	}
-
-	private static <T> List<Set<T>> getProduct(
-			Collection<? extends Set<T>> first,
-			Collection<? extends Set<T>> second) {
-		if (second.isEmpty() || second.isEmpty()) {
-			return Collections.emptyList();
-		}
-		List<Set<T>> result = new ArrayList<Set<T>>(
-				first.size() * second.size());
-		for (Set<T> firstSet : first) {
-			for (Set<T> secondSet : second) {
-				Set<T> union = new HashSet<T>();
-				union.addAll(firstSet);
-				union.addAll(secondSet);
-				result.add(union);
-			}
-		}
-		return result;
 	}
 
 }
