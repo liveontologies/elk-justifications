@@ -2,6 +2,7 @@ package org.semanticweb.elk.justifications;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -16,16 +17,45 @@ import org.semanticweb.owlapitools.proofs.OWLInference;
 import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
 import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
 import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.SetMultimap;
 
 public class BottomUpJustificationComputation
 		extends CancellableJustificationComputation {
 
-	private Multimap<OWLExpression, OWLInference> inferencesForPremises;
-	private Queue<Job> newJustifications;
-	
+	private static final Logger LOGGER_ = LoggerFactory
+			.getLogger(BottomUpJustificationComputation.class);
+
+	/**
+	 * conclusions for which to compute justifications
+	 */
+	private final Queue<OWLExpression> toDo_ = new LinkedList<OWLExpression>();
+
+	/**
+	 * caches conclusions for which justification computation has started
+	 */
+	private final Set<OWLExpression> done_ = new HashSet<OWLExpression>();
+
+	/**
+	 * a map from conclusions to inferences in which they participate
+	 */
+	private final Multimap<OWLExpression, OWLInference> inferencesByPremises_ = HashMultimap
+			.create();
+	/**
+	 * newly computed justifications to be propagated
+	 */
+	private final Queue<Job> toDoJustifications_ = new LinkedList<Job>();
+
+	/**
+	 * a map from conclusions to their justifications
+	 */
+	private final SetMultimap<OWLExpression, Set<OWLAxiom>> justsByConcls_ = HashMultimap
+			.create();
+
 	public BottomUpJustificationComputation(
 			final ExplainingOWLReasoner reasoner) {
 		super(reasoner);
@@ -34,202 +64,157 @@ public class BottomUpJustificationComputation
 	@Override
 	public Set<Set<OWLAxiom>> computeJustifications(
 			final OWLSubClassOfAxiom conclusion)
-					throws ProofGenerationException, InterruptedException {
-		
-		final OWLAxiomExpression expression =
-				reasoner.getDerivedExpression(conclusion);
-		
-		/* 
-		 * Collect mapping from premises to inferences in which they are used
-		 * and axioms that are asserted.
-		 */
-		/* 
-		 * Start with the asserted expressions.
-		 */
-		initialize(expression);
-		
-		final HashMultimap<OWLExpression, Set<OWLAxiom>> justsForConcls = HashMultimap.create();
-		
-		for (;;) {
-			final Job next = newJustifications.poll();
-			if (next == null) {
-				break;
+			throws ProofGenerationException, InterruptedException {
+
+		final OWLAxiomExpression expression = reasoner
+				.getDerivedExpression(conclusion);
+
+		process(expression);
+
+		return justsByConcls_.get(expression);
+	}
+
+	private void process(OWLExpression exp) throws ProofGenerationException {
+
+		toDo_.add(exp);
+
+		while ((exp = toDo_.poll()) != null) {
+			if (!done_.add(exp)) {
+				// already processed
+				continue;
 			}
-			
-			final Set<Set<OWLAxiom>> oldJusts = justsForConcls.get(next.expr);
-			
-			for (final Set<OWLAxiom> newJust : next.justs) {
-				
-				if (checkMinimalityAndPut(newJust, oldJusts, justsForConcls, next.expr)) {
-//				// If the NOT MINIMIZED justification is new, add it and do the job.
-//				if (justsForConcls.put(next.expr, newJust)) {
-					
-					/* 
-					 * Update justifications of conclusion of each inference that
-					 * uses this expression as a premise.
-					 * 
-					 * The new justifications are product of justifications of all
-					 * other premises and this new justification.
-					 */
-					for (final OWLInference inf : inferencesForPremises.get(next.expr)) {
-						
-						final Collection<? extends OWLExpression> premises =
-								inf.getPremises();
-						final List<Set<Set<OWLAxiom>>> premiseJusts =
-								new ArrayList<Set<Set<OWLAxiom>>>(premises.size());
-						for (final OWLExpression premise : premises) {
-							if (!premise.equals(next.expr)) {
-								premiseJusts.add(justsForConcls.get(premise));
-							}
-						}
-						
-						final Set<Set<OWLAxiom>> conclJusts = product(premiseJusts);
-						for (final Set<OWLAxiom> j : conclJusts) {
-							j.addAll(newJust);
-						}
-						
-						if (!conclJusts.isEmpty()) {
-							newJustifications.add(new Job(inf.getConclusion(), conclJusts));
+			LOGGER_.trace("{}: new lemma", exp);
+
+			if (exp instanceof OWLAxiomExpression) {
+				final OWLAxiomExpression axExp = (OWLAxiomExpression) exp;
+				if (axExp.isAsserted()) {
+					final Set<OWLAxiom> just = new HashSet<OWLAxiom>();
+					just.add(axExp.getAxiom());
+					process(new Job(axExp, just));
+				}
+			}
+
+			for (OWLInference inf : exp.getInferences()) {
+				process(inf);
+			}
+
+		}
+
+	}
+
+	private void process(OWLInference inf) {
+		LOGGER_.trace("{}: new inference", inf);
+		// new inference, propagate existing the justification for premises
+		List<Set<OWLAxiom>> conclusionJusts = new ArrayList<Set<OWLAxiom>>();
+		conclusionJusts.add(new HashSet<OWLAxiom>());
+		for (OWLExpression premise : inf.getPremises()) {
+			inferencesByPremises_.put(premise, inf);
+			toDo_.add(premise);
+			conclusionJusts = getProduct(conclusionJusts,
+					justsByConcls_.get(premise));
+		}
+		OWLExpression conclusion = inf.getConclusion();
+		for (Set<OWLAxiom> just : conclusionJusts) {
+			process(new Job(conclusion, just));
+		}
+	}
+
+	/**
+	 * propagates the newly computed justification until the fixpoint
+	 */
+	private void process(Job job) {
+		toDoJustifications_.add(job);
+		while ((job = toDoJustifications_.poll()) != null) {
+			LOGGER_.trace("{}: new justification: {}", job.expr, job.just);
+
+			if (merge(job.expr, job.just)) {
+
+				/*
+				 * propagating justification over inferences
+				 */
+				for (OWLInference inf : inferencesByPremises_.get(job.expr)) {
+
+					Collection<Set<OWLAxiom>> conclusionJusts = new ArrayList<Set<OWLAxiom>>();
+					conclusionJusts.add(new HashSet<OWLAxiom>(job.just));
+					for (final OWLExpression premise : inf.getPremises()) {
+						if (!premise.equals(job.expr)) {
+							conclusionJusts = getProduct(conclusionJusts,
+									justsByConcls_.get(premise));
 						}
 					}
-					
+
+					for (Set<OWLAxiom> conclJust : conclusionJusts) {
+						toDoJustifications_
+								.add(new Job(inf.getConclusion(), conclJust));
+					}
+
 				}
-				
+
 			}
-			
+
 		}
-		
-		return justsForConcls.get(expression);
+
 	}
-	
-	private static boolean checkMinimalityAndPut(final Set<OWLAxiom> newJust,
-			final Set<Set<OWLAxiom>> oldJusts,
-			final HashMultimap<OWLExpression, Set<OWLAxiom>> justsForConcls,
-			final OWLExpression key) {
-		
-		/* 
-		 * If this justification is a superset of some we already have,
-		 * do nothing.
-		 */
-		boolean isASuperset = false;
+
+	private boolean merge(final OWLExpression conclusion,
+			final Set<OWLAxiom> just) {
+
+		Set<Set<OWLAxiom>> oldJusts = justsByConcls_.get(conclusion);
 		for (final Set<OWLAxiom> oldJust : oldJusts) {
-			if (newJust.containsAll(oldJust)) {
-				isASuperset = true;
-				break;
+			if (just.containsAll(oldJust)) {
+				// a subset is already a justification
+				return false;
 			}
 		}
-		if (isASuperset) {
-			return false;
-		}
-		
-		/* 
-		 * If this justification is a subset of some we already have,
-		 * remove that one and continue.
-		 * (It's subjustifications will be recomputed.)
-		 */
-		final Iterator<Set<OWLAxiom>> it = oldJusts.iterator();
-		while (it.hasNext()) {
-			final Set<OWLAxiom> oldJust = it.next();
-			if (oldJust.containsAll(newJust)) {
-				it.remove();
+
+		final Iterator<Set<OWLAxiom>> oldJustIter = oldJusts.iterator();
+		while (oldJustIter.hasNext()) {
+			final Set<OWLAxiom> oldJust = oldJustIter.next();
+			if (oldJust.containsAll(just)) {
+				// new justification is smaller
+				oldJustIter.remove();
 			}
 		}
-		
-		// If this justification is really new, add it and do the job.
-		justsForConcls.put(key, newJust);
-		
+
+		// justification is new
+		justsByConcls_.put(conclusion, just);
+
 		return true;
 	}
 
-	private void initialize(final OWLAxiomExpression expression)
-			throws ProofGenerationException {
-		
-		inferencesForPremises = HashMultimap.create();
-		newJustifications = new LinkedList<Job>();
-		
-		final Queue<OWLExpression> toDo = new LinkedList<OWLExpression>();
-		final Set<OWLExpression> done = new HashSet<OWLExpression>();
-		
-		toDo.add(expression);
-		
-		for (;;) {
-			final OWLExpression next = toDo.poll();
-			
-			if (next == null) {
-				break;
-			}
-			
-			if (done.add(next)) {
-				
-				if (next instanceof OWLAxiomExpression) {
-					final OWLAxiomExpression axExp = (OWLAxiomExpression) next;
-					if (axExp.isAsserted()) {
-						final Set<OWLAxiom> just = new HashSet<OWLAxiom>();
-						just.add(axExp.getAxiom());
-						final Set<Set<OWLAxiom>> justs = new HashSet<Set<OWLAxiom>>();
-						justs.add(just);
-						newJustifications.add(new Job(axExp, justs));
-					}
-				}
-				
-				for (final OWLInference inf : next.getInferences()) {
-					final Collection<? extends OWLExpression> premises =
-							inf.getPremises();
-					if (premises.isEmpty()) {// TODO: The other inferences are useless, because the empty just will be subset of all others!!!
-						// This is a tautology, so it is justified by an empty set!
-						final Set<OWLAxiom> just = new HashSet<OWLAxiom>();
-						final Set<Set<OWLAxiom>> justs = new HashSet<Set<OWLAxiom>>();
-						justs.add(just);
-						newJustifications.add(new Job(next, justs));
-					}
-					for (final OWLExpression premise : premises) {
-						inferencesForPremises.put(premise, inf);
-						toDo.add(premise);
-					}
-				}
-				
-			}
-		}
-		
-	}
-	
 	private static class Job {
-		public final OWLExpression expr;
-		public final Set<Set<OWLAxiom>> justs;
-		public Job(final OWLExpression expr, final Set<Set<OWLAxiom>> justs) {
+		final OWLExpression expr;
+		final Set<OWLAxiom> just;
+
+		public Job(final OWLExpression expr, final Set<OWLAxiom> just) {
 			this.expr = expr;
-			this.justs = justs;
+			this.just = just;
 		}
+
 		@Override
 		public String toString() {
-			return getClass().getSimpleName() + "(" + expr + ", " + justs + ")";
+			return getClass().getSimpleName() + "(" + expr + ", " + just + ")";
 		}
+
 	}
-	
-	private static Set<Set<OWLAxiom>> product(List<Set<Set<OWLAxiom>>> arg) {
-		if (arg == null || arg.isEmpty()) {
-			final Set<Set<OWLAxiom>> result = new HashSet<Set<OWLAxiom>>();
-			result.add(new HashSet<OWLAxiom>());
-			return result;
-		} else if (arg.size() == 1) {
-			// Return a deep copy !!
-			final Set<Set<OWLAxiom>> result = new HashSet<Set<OWLAxiom>>();
-			for (final Set<OWLAxiom> set : arg.get(0)) {
-				result.add(new HashSet<OWLAxiom>(set));
-			}
-			return result;
-		} else {
-			final Set<Set<OWLAxiom>> result = new HashSet<Set<OWLAxiom>>();
-			for (final Set<OWLAxiom> set2
-					: product(arg.subList(1, arg.size()))) {
-				for (final Set<OWLAxiom> set1 : arg.get(0)) {
-					final HashSet<OWLAxiom> set = new HashSet<OWLAxiom>(set1);
-					set.addAll(set2);
-					result.add(set);
-				}
-			}
-			return result;
+
+	private static <T> List<Set<T>> getProduct(
+			Collection<? extends Set<T>> first,
+			Collection<? extends Set<T>> second) {
+		if (second.isEmpty() || second.isEmpty()) {
+			return Collections.emptyList();
 		}
+		List<Set<T>> result = new ArrayList<Set<T>>(
+				first.size() * second.size());
+		for (Set<T> firstSet : first) {
+			for (Set<T> secondSet : second) {
+				Set<T> union = new HashSet<T>();
+				union.addAll(firstSet);
+				union.addAll(secondSet);
+				result.add(union);
+			}
+		}
+		return result;
 	}
-	
+
 }
