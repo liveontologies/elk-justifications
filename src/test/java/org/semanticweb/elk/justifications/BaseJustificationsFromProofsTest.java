@@ -1,7 +1,7 @@
 package org.semanticweb.elk.justifications;
 
 import java.lang.reflect.Constructor;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.junit.Assert;
@@ -20,6 +20,7 @@ import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
+import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 /**
  * Unit test for simple App.
@@ -39,7 +40,8 @@ public abstract class BaseJustificationsFromProofsTest {
 
 	protected abstract OWLOntology getInputOntology() throws Exception;
 
-	protected JustificationComputation getJustificationComputation()
+	@SuppressWarnings("unchecked")
+	protected JustificationComputation<OWLExpression, OWLAxiom> getJustificationComputation()
 					throws ReflectiveOperationException {
 		
 		final Constructor<? extends JustificationComputation> constructor =
@@ -79,13 +81,13 @@ public abstract class BaseJustificationsFromProofsTest {
 					reasoner.getSubClasses(conclusion.getSuperClass(), false)
 					.containsEntity((OWLClass) conclusion.getSubClass()));
 			
-			final JustificationComputation computation =
+			final JustificationComputation<OWLExpression, OWLAxiom> computation =
 					getJustificationComputation();
 			
-			final Collection<Set<OWLAxiom>> justifications =
-					computation.computeJustifications(reasoner.getDerivedExpression(conclusion));
+			final Set<Set<OWLAxiom>> justifications = new HashSet<Set<OWLAxiom>>(
+					computation.computeJustifications(reasoner.getDerivedExpression(conclusion)));
 			
-			final Collection<Set<OWLAxiom>> expected = getExpectedJustifications(
+			final Set<Set<OWLAxiom>> expected = getExpectedJustifications(
 					conclusionIndex++, conclusion);
 			
 			Assert.assertEquals("number of justifications for\n"

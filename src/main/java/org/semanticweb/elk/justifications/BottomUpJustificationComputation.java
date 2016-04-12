@@ -15,9 +15,9 @@ import org.semanticweb.elk.proofs.InferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.SetMultimap;
 
 public class BottomUpJustificationComputation<C, A>
 		extends CancellableJustificationComputation<C, A> {
@@ -38,7 +38,7 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * a map from conclusions to inferences in which they participate
 	 */
-	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = HashMultimap
+	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 	/**
 	 * newly computed justifications to be propagated
@@ -48,14 +48,14 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * a map from conclusions to their justifications
 	 */
-	private final SetMultimap<C, Set<A>> justsByConcls_ = HashMultimap.create();
+	private final ListMultimap<C, Set<A>> justsByConcls_ = ArrayListMultimap.create();
 
 	public BottomUpJustificationComputation(InferenceSet<C, A> inferences) {
 		super(inferences);
 	}
 
 	@Override
-	public Set<Set<A>> computeJustifications(C conclusion)
+	public Collection<Set<A>> computeJustifications(C conclusion)
 			throws InterruptedException {
 
 		process(conclusion);
