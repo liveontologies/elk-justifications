@@ -48,7 +48,8 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * a map from conclusions to their justifications
 	 */
-	private final ListMultimap<C, Set<A>> justsByConcls_ = ArrayListMultimap.create();
+	private final ListMultimap<C, Set<A>> justsByConcls_ = ArrayListMultimap
+			.create();
 
 	public BottomUpJustificationComputation(InferenceSet<C, A> inferences) {
 		super(inferences);
@@ -88,7 +89,7 @@ public class BottomUpJustificationComputation<C, A>
 		LOGGER_.trace("{}: new inference", inf);
 		// new inference, propagate existing the justification for premises
 		List<Set<A>> conclusionJusts = new ArrayList<Set<A>>();
-		conclusionJusts.add(new HashSet<A>(inf.getJustification()));
+		conclusionJusts.add(createSet(inf.getJustification()));
 		for (C premise : inf.getPremises()) {
 			inferencesByPremises_.put(premise, inf);
 			toDo(premise);
@@ -128,7 +129,7 @@ public class BottomUpJustificationComputation<C, A>
 						.get(job.expr)) {
 
 					Collection<Set<A>> conclusionJusts = new ArrayList<Set<A>>();
-					Set<A> just = new HashSet<A>(job.just);
+					Set<A> just = createSet(job.just);
 					just.addAll(inf.getJustification());
 					conclusionJusts.add(just);
 					for (final C premise : inf.getPremises()) {
@@ -199,13 +200,16 @@ public class BottomUpJustificationComputation<C, A>
 				first.size() * second.size());
 		for (Set<T> firstSet : first) {
 			for (Set<T> secondSet : second) {
-				Set<T> union = new HashSet<T>();
-				union.addAll(firstSet);
+				Set<T> union = createSet(firstSet);
 				union.addAll(secondSet);
 				result.add(union);
 			}
 		}
 		return result;
+	}
+
+	private static <E> Set<E> createSet(Collection<? extends E> elements) {
+		return new CountingHashSet<E>(elements);
 	}
 
 	private static class Job<C, A> {
