@@ -1,22 +1,19 @@
 package org.semanticweb.elk.justifications;
 
+import java.util.Collection;
 import java.util.Set;
 
-import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
-import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
+import org.semanticweb.elk.proofs.DelegatingInferenceSet;
+import org.semanticweb.elk.proofs.InferenceSet;
 
-public abstract class JustificationComputation {
+public abstract class JustificationComputation<C, A>
+		extends DelegatingInferenceSet<C, A> {
 
-	protected final ExplainingOWLReasoner reasoner;
-
-	public JustificationComputation(final ExplainingOWLReasoner reasoner) {
-		this.reasoner = reasoner;
+	public JustificationComputation(InferenceSet<C, A> inferences) {
+		super(inferences);
 	}
-	
-	public abstract Set<Set<OWLAxiom>> computeJustifications(
-			final OWLSubClassOfAxiom conclusion)
-					throws ProofGenerationException, InterruptedException;
-	
+
+	public abstract Collection<Set<A>> computeJustifications(C conclusion)
+			throws InterruptedException;
+
 }

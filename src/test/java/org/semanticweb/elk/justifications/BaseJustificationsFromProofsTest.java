@@ -1,12 +1,15 @@
 package org.semanticweb.elk.justifications;
 
 import java.lang.reflect.Constructor;
+import java.util.Collection;
 import java.util.Set;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+import org.semanticweb.elk.proofs.InferenceSet;
+import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
@@ -36,14 +39,13 @@ public abstract class BaseJustificationsFromProofsTest {
 
 	protected abstract OWLOntology getInputOntology() throws Exception;
 
-	protected JustificationComputation getJustificationComputation(
-			final ExplainingOWLReasoner reasoner)
+	protected JustificationComputation getJustificationComputation()
 					throws ReflectiveOperationException {
 		
 		final Constructor<? extends JustificationComputation> constructor =
-				computationClass.getConstructor(ExplainingOWLReasoner.class);
+				computationClass.getConstructor(InferenceSet.class);
 		
-		return constructor.newInstance(reasoner);
+		return constructor.newInstance(new OWLExpressionInferenceSetAdapter());
 	}
 	
 	protected abstract Iterable<OWLSubClassOfAxiom> getConclusions()
@@ -78,12 +80,12 @@ public abstract class BaseJustificationsFromProofsTest {
 					.containsEntity((OWLClass) conclusion.getSubClass()));
 			
 			final JustificationComputation computation =
-					getJustificationComputation(reasoner);
+					getJustificationComputation();
 			
-			final Set<Set<OWLAxiom>> justifications =
-					computation.computeJustifications(conclusion);
+			final Collection<Set<OWLAxiom>> justifications =
+					computation.computeJustifications(reasoner.getDerivedExpression(conclusion));
 			
-			final Set<Set<OWLAxiom>> expected = getExpectedJustifications(
+			final Collection<Set<OWLAxiom>> expected = getExpectedJustifications(
 					conclusionIndex++, conclusion);
 			
 			Assert.assertEquals("number of justifications for\n"

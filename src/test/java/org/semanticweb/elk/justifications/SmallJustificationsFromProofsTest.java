@@ -37,12 +37,12 @@ public class SmallJustificationsFromProofsTest extends
 					"<(?<" + SUPER_GROUP + ">[^>]+)>\\s*" +
 			"\\).*");
 
+	@SuppressWarnings("rawtypes")
 	@Parameters
 	public static Collection<Object[]> data() {
 		
 		final List<Class<? extends JustificationComputation>> computations =
 				new ArrayList<Class<? extends JustificationComputation>>();
-		computations.add(SimpleJustificationComputation.class);
 		computations.add(BottomUpJustificationComputation.class);
 		
 		final String[] fileNames = new String[] {
@@ -66,6 +66,7 @@ public class SmallJustificationsFromProofsTest extends
 	private final String inputFileName;
 	private final String expectedDirName;
 	
+	@SuppressWarnings("rawtypes")
 	public SmallJustificationsFromProofsTest(
 			final Class<? extends JustificationComputation> computationClass,
 			final String fileName) {

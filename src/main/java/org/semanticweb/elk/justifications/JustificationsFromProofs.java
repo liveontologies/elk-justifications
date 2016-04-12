@@ -4,11 +4,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
 import org.semanticweb.owlapi.model.AxiomType;
@@ -23,6 +25,7 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
 import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
+import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,9 +96,8 @@ public class JustificationsFromProofs {
 			for (final OWLSubClassOfAxiom conclusion
 					: Iterables.cycle(conclusions)) {
 				
-				final JustificationComputation computation =
-//						new SimpleJustificationComputation(reasoner);
-						new BottomUpJustificationComputation(reasoner);
+				final JustificationComputation<OWLExpression, OWLAxiom> computation = new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
+						new OWLExpressionInferenceSetAdapter());
 				
 				LOG.info("... {} ...", count);
 				withTimeout(20000, new Runnable() {
@@ -103,7 +105,7 @@ public class JustificationsFromProofs {
 					public void run() {
 						
 						try {
-							computation.computeJustifications(conclusion);
+							computation.computeJustifications(reasoner.getDerivedExpression(conclusion));
 						} catch (final ProofGenerationException e) {
 							throw new RuntimeException(e);
 						} catch (final InterruptedException e) {
@@ -127,12 +129,11 @@ public class JustificationsFromProofs {
 				record.print("\",");
 				record.flush();
 				
-				final JustificationComputation computation =
-//						new SimpleJustificationComputation(reasoner);
-						new BottomUpJustificationComputation(reasoner);
+				final JustificationComputation<OWLExpression, OWLAxiom> computation = new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
+						new OWLExpressionInferenceSetAdapter());
 				
-				final AtomicReference<Set<Set<OWLAxiom>>> result =
-						new AtomicReference<Set<Set<OWLAxiom>>>(null);
+				final AtomicReference<Collection<Set<OWLAxiom>>> result =
+						new AtomicReference<Collection<Set<OWLAxiom>>>(null);
 				final AtomicLong time2 = new AtomicLong();
 				
 				LOG.info("Obtaining justifications for {} ...", conclusion);
@@ -144,8 +145,8 @@ public class JustificationsFromProofs {
 						
 						try {
 							
-							final Set<Set<OWLAxiom>> justifications =
-									computation.computeJustifications(conclusion);
+							final Collection<Set<OWLAxiom>> justifications =
+									computation.computeJustifications(reasoner.getDerivedExpression(conclusion));
 							final long t = System.currentTimeMillis() - s;
 							time2.set(t);
 							result.set(justifications);
@@ -176,7 +177,7 @@ public class JustificationsFromProofs {
 				} else {
 					LOG.info("... took {}s", time2.get()/1000.0);
 					
-					final Set<Set<OWLAxiom>> justifications = result.get();
+					final Collection<Set<OWLAxiom>> justifications = result.get();
 					LOG.info("found {} justifications.", justifications.size());
 					
 					record.print(time2.get());
