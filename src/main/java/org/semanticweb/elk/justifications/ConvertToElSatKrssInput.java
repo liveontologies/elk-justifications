@@ -33,7 +33,7 @@ public class ConvertToElSatKrssInput {
 		final File inputFile = new File(args[0]);
 		final File outputFile = new File(args[1]);
 		if (outputFile.exists()) {
-			recursiveDelete(outputFile);
+			Utils.recursiveDelete(outputFile);
 		}
 		
 		final OWLOntologyManager manager =
@@ -75,7 +75,7 @@ public class ConvertToElSatKrssInput {
 		
 	}
 	
-	private static class ElSatPrinterVisitor extends KrssSyntaxPrinterVisitor {
+	static class ElSatPrinterVisitor extends KrssSyntaxPrinterVisitor {
 
 		Set<Object> ignored;
 		
@@ -103,16 +103,6 @@ public class ConvertToElSatKrssInput {
 			return null;
 		}
 		
-	}
-	
-	private static boolean recursiveDelete(final File file) {
-		boolean success = true;
-		if (file.isDirectory()) {
-			for (final File f : file.listFiles()) {
-				success = recursiveDelete(f) && success;
-			}
-		}
-		return file.delete() && success;
 	}
 
 }

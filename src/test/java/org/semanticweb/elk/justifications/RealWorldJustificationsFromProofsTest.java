@@ -93,7 +93,7 @@ public class RealWorldJustificationsFromProofsTest extends
 				new Predicate<OWLSubClassOfAxiom>() {
 					@Override
 					public boolean apply(final OWLSubClassOfAxiom axiom) {
-						return new File(justDir, toFileName(axiom)).exists();
+						return new File(justDir, Utils.toFileName(axiom)).exists();
 					}
 				});
 	}
@@ -106,7 +106,7 @@ public class RealWorldJustificationsFromProofsTest extends
 		final Set<Set<OWLAxiom>> expected = new HashSet<Set<OWLAxiom>>();
 		final File expectedDir = new File(
 				getFileFromResource(INPUT_FILE_DIR, expectedDirName),
-				toFileName(conclusion));
+				Utils.toFileName(conclusion));
 		for (final File expectedFile : expectedDir.listFiles()) {
 			final OWLOntology expectedOnt = manager
 					.loadOntologyFromOntologyDocument(expectedFile);
@@ -126,15 +126,12 @@ public class RealWorldJustificationsFromProofsTest extends
 		return expected;
 	}
 	
+	// TODO: Move to Utils
 	private static File getFileFromResource(final String resourceName,
 			final String fileName) throws URISyntaxException {
 		return new File(new File(
 				RealWorldJustificationsFromProofsTest.class.getClassLoader()
 				.getResource(resourceName).toURI()), fileName);
-	}
-	
-	private static String toFileName(final Object obj) {
-		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
 	}
 
 }

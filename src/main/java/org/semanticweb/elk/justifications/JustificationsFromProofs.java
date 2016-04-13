@@ -37,8 +37,6 @@ public class JustificationsFromProofs {
 	
 	public static void main(String[] args) {
 		
-		LOG.debug("Ahoj!");
-		
 		if (args.length < 5) {
 			LOG.error("Insufficient arguments!");
 			System.exit(1);
@@ -48,13 +46,13 @@ public class JustificationsFromProofs {
 		final String conclusionsFileName = args[1];
 		final long timeOut = Long.parseLong(args[2]);
 		final File outputDirectory = new File(args[3]);
-		if (!cleanDir(outputDirectory)) {
+		if (!Utils.cleanDir(outputDirectory)) {
 			LOG.error("Could not prepare the output directory!");
 			System.exit(2);
 		}
 		final File recordFile = new File(args[4]);
 		if (recordFile.exists()) {
-			recursiveDelete(recordFile);
+			Utils.recursiveDelete(recordFile);
 		}
 		
 		PrintWriter record = null;
@@ -73,13 +71,18 @@ public class JustificationsFromProofs {
 					new File(ontologyFileName));
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
-			LOG.info("Loaded ontology: {}", ont);
+			LOG.info("Loaded ontology: {}", ont.getOntologyID());
 			
+			LOG.info("Loading conclusions ...");
+			start = System.currentTimeMillis();
 			final OWLOntology conclusionsOnt =
 					manager.loadOntologyFromOntologyDocument(
 							new File(conclusionsFileName));
 			final Set<OWLSubClassOfAxiom> conclusions =
 					conclusionsOnt.getAxioms(AxiomType.SUBCLASS_OF);
+			LOG.info("... took {}s",
+					(System.currentTimeMillis() - start)/1000.0);
+			LOG.info("Number of conclusions: {}", conclusions.size());
 			
 			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
 			final ExplainingOWLReasoner reasoner =
@@ -185,7 +188,7 @@ public class JustificationsFromProofs {
 					record.print(justifications.size());
 					record.println();
 					
-					final String conclName = toFileName(conclusion);
+					final String conclName = Utils.toFileName(conclusion);
 					final File outDir = new File(outputDirectory, conclName);
 					outDir.mkdirs();
 					int i = 0;
@@ -246,28 +249,6 @@ public class JustificationsFromProofs {
 		}
 		
 		return didTimeOut;
-	}
-	
-	private static boolean cleanDir(final File dir) {
-		boolean success = true;
-		if (dir.exists()) {
-			success = recursiveDelete(dir) && success;
-		}
-		return dir.mkdirs() && success;
-	}
-	
-	private static boolean recursiveDelete(final File file) {
-		boolean success = true;
-		if (file.isDirectory()) {
-			for (final File f : file.listFiles()) {
-				success = recursiveDelete(f) && success;
-			}
-		}
-		return file.delete() && success;
-	}
-	
-	private static String toFileName(final Object obj) {
-		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
 	}
 	
 }
