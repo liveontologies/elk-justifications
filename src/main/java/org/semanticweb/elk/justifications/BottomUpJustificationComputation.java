@@ -61,6 +61,9 @@ public class BottomUpJustificationComputation<C, A>
 
 		process(conclusion);
 
+		BloomHashSet.printStatistics();
+		BloomHashSet.resetStatistics();
+
 		return justsByConcls_.get(conclusion);
 	}
 
@@ -209,7 +212,7 @@ public class BottomUpJustificationComputation<C, A>
 	}
 
 	private static <E> Set<E> createSet(Collection<? extends E> elements) {
-		return new CountingHashSet<E>(elements);
+		return new BloomHashSet<E>(elements);
 	}
 
 	private static class Job<C, A> {

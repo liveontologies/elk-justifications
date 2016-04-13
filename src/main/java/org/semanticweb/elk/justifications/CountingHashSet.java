@@ -4,6 +4,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A set with optimized implementation of inclusion of a collection, in case the
  * collection is of the same type.
@@ -19,7 +22,17 @@ class CountingHashSet<E> extends HashSet<E> {
 
 	private static final long serialVersionUID = -2805422564617676450L;
 
-	private static final int MASK_ = 15;
+	private static final Logger LOGGER_ = LoggerFactory
+			.getLogger(CountingHashSet.class);
+
+	private static final boolean COLLECT_STATS_ = true;
+
+	private static int STATS_CONTAINS_ALL_COUNT_ = 0,
+			STATS_CONTAINS_ALL_FILTERED_ = 0;
+
+	private static final short SHIFT_ = 3;
+
+	private static final int MASK_ = (1 << SHIFT_) - 1;
 
 	private final int[] counts_ = new int[MASK_ + 1];
 
@@ -64,15 +77,38 @@ class CountingHashSet<E> extends HashSet<E> {
 
 	@Override
 	public boolean containsAll(Collection<?> other) {
+		if (COLLECT_STATS_) {
+			STATS_CONTAINS_ALL_COUNT_++;
+		}
 		if (other instanceof CountingHashSet<?>) {
 			int[] otherCounts = ((CountingHashSet<?>) other).counts_;
 			for (int i = 0; i < counts_.length; i++) {
 				if (counts_[i] < otherCounts[i]) {
+					if (COLLECT_STATS_) {
+						STATS_CONTAINS_ALL_FILTERED_++;
+					}
 					return false;
 				}
 			}
 		}
 		return super.containsAll(other);
+	}
+
+	public static void printStatistics() {
+		if (LOGGER_.isDebugEnabled()) {
+			float containsAllSuccessRatio = STATS_CONTAINS_ALL_COUNT_ == 0 ? 0f
+					: (float) STATS_CONTAINS_ALL_FILTERED_
+							/ STATS_CONTAINS_ALL_COUNT_;
+			LOGGER_.debug(
+					"{} out of {} ({}%) containsAll(Collection) tests filtered",
+					STATS_CONTAINS_ALL_FILTERED_, STATS_CONTAINS_ALL_COUNT_,
+					String.format("%.2f", containsAllSuccessRatio * 100));
+		}
+	}
+
+	public static void resetStatistics() {
+		STATS_CONTAINS_ALL_COUNT_ = 0;
+		STATS_CONTAINS_ALL_FILTERED_ = 0;
 	}
 
 }
