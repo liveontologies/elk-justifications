@@ -34,15 +34,16 @@ import org.slf4j.LoggerFactory;
 
 public class OwlapiExperiment extends Experiment {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(OwlapiExperiment.class);
+	private static final Logger LOG = LoggerFactory.getLogger(
+			OwlapiExperiment.class);
 
-	private final File outputDirectory;
-	private final OWLOntologyManager manager;
-	private final ExplainingOWLReasoner reasoner;
-	private final List<OWLSubClassOfAxiom> conclusions;
-	private final JustificationComputation<OWLExpression, OWLAxiom> computation;
+	private final File outputDirectory_;
+	private final OWLOntologyManager manager_;
+	private final ExplainingOWLReasoner reasoner_;
+	private final List<OWLSubClassOfAxiom> conclusions_;
+	private final JustificationComputation<OWLExpression, OWLAxiom> computation_;
 	
-	private Collection<Set<OWLAxiom>> justifications;
+	private Collection<Set<OWLAxiom>> justifications_;
 	
 	public OwlapiExperiment(final String[] args) throws ExperimentException {
 		super(args);
@@ -53,19 +54,19 @@ public class OwlapiExperiment extends Experiment {
 		
 		final String ontologyFileName = args[0];
 		final String conclusionsFileName = args[1];
-		outputDirectory = new File(args[2]);
-		if (!Utils.cleanDir(outputDirectory)) {
+		outputDirectory_ = new File(args[2]);
+		if (!Utils.cleanDir(outputDirectory_)) {
 			LOG.error("Could not prepare the output directory!");
 			System.exit(2);
 		}
 		
-		manager = OWLManager.createOWLOntologyManager();
+		manager_ = OWLManager.createOWLOntologyManager();
 		
 		try {
 			
 			LOG.info("Loading ontology ...");
 			long start = System.currentTimeMillis();
-			final OWLOntology ont = manager.loadOntologyFromOntologyDocument(
+			final OWLOntology ont = manager_.loadOntologyFromOntologyDocument(
 					new File(ontologyFileName));
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
@@ -74,21 +75,21 @@ public class OwlapiExperiment extends Experiment {
 			LOG.info("Loading conclusions ...");
 			start = System.currentTimeMillis();
 			final OWLOntology conclusionsOnt =
-					manager.loadOntologyFromOntologyDocument(
+					manager_.loadOntologyFromOntologyDocument(
 							new File(conclusionsFileName));
-			conclusions = new ArrayList<OWLSubClassOfAxiom>(
+			conclusions_ = new ArrayList<OWLSubClassOfAxiom>(
 					conclusionsOnt.getAxioms(AxiomType.SUBCLASS_OF));
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
-			LOG.info("Number of conclusions: {}", conclusions.size());
+			LOG.info("Number of conclusions: {}", conclusions_.size());
 			
 			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
-			reasoner =
+			reasoner_ =
 					(ExplainingOWLReasoner) reasonerFactory.createReasoner(ont);
 			
 			LOG.info("Classifying ...");
 			start = System.currentTimeMillis();
-			reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY);
+			reasoner_.precomputeInferences(InferenceType.CLASS_HIERARCHY);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
 			
@@ -96,7 +97,7 @@ public class OwlapiExperiment extends Experiment {
 			throw new ExperimentException(e);
 		}
 		
-		this.computation =
+		this.computation_ =
 				new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
 							new OWLExpressionInferenceSetAdapter());
 		
@@ -104,22 +105,23 @@ public class OwlapiExperiment extends Experiment {
 
 	@Override
 	public int getInputSize() {
-		return conclusions.size();
+		return conclusions_.size();
 	}
 
 	@Override
 	public String getInputName(final int inputIndex)
 			throws ExperimentException {
-		return conclusions.get(inputIndex).toString();
+		return conclusions_.get(inputIndex).toString();
 	}
 
 	@Override
 	public int run(final int inputIndex)
 			throws ExperimentException, InterruptedException {
 		try {
-			justifications = computation.computeJustifications(
-					reasoner.getDerivedExpression(conclusions.get(inputIndex)));
-			return justifications.size();
+			justifications_ = computation_.computeJustifications(
+					reasoner_.getDerivedExpression(
+							conclusions_.get(inputIndex)));
+			return justifications_.size();
 		} catch (final UnsupportedEntailmentTypeException e) {
 			throw new ExperimentException(e);
 		} catch (final ProofGenerationException e) {
@@ -130,21 +132,21 @@ public class OwlapiExperiment extends Experiment {
 	@Override
 	public void processResult(final int inputIndex) throws ExperimentException {
 		
-		final OWLSubClassOfAxiom conclusion = conclusions.get(inputIndex);
+		final OWLSubClassOfAxiom conclusion = conclusions_.get(inputIndex);
 		
 		try {
 			
 			final String conclName = Utils.toFileName(conclusion);
-			final File outDir = new File(outputDirectory, conclName);
+			final File outDir = new File(outputDirectory_, conclName);
 			outDir.mkdirs();
 			int i = 0;
-			for (final Set<OWLAxiom> justification : justifications) {
+			for (final Set<OWLAxiom> justification : justifications_) {
 				
 				final String fileName = String.format("%03d.owl", ++i);
-				final OWLOntology outOnt = manager.createOntology(
+				final OWLOntology outOnt = manager_.createOntology(
 						justification,
 						IRI.create("Justification_" + i + "_for_" + conclName));
-				manager.saveOntology(outOnt,
+				manager_.saveOntology(outOnt,
 						new FunctionalSyntaxDocumentFormat(),
 						new FileOutputStream(new File(outDir, fileName)));
 				
