@@ -5,10 +5,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
 
-import org.semanticweb.owlapitools.proofs.OWLInference;
+import org.semanticweb.elk.proofs.Inference;
+import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpressionVisitor;
 
 import com.google.common.base.Function;
 
@@ -40,37 +39,38 @@ public final class Utils {
 		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
 	}
 	
-	public static <IO, EO> void traverseProofs(final OWLExpression expression,
-			final boolean justOne,
-			final Function<OWLInference, IO> perInference,
-			final OWLExpressionVisitor<EO> perExpression)
+	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
+			final InferenceSet<C, A> inferenceSet,
+			final Function<Inference<C, A>, IO> perInference,
+			final Function<C, CO> perConclusion,
+			final Function<A, AO> perAxiom)
 			throws ProofGenerationException {
 		
-		final LinkedList<OWLExpression> toDo = new LinkedList<OWLExpression>();
-		final Set<OWLExpression> done = new HashSet<OWLExpression>();
+		final LinkedList<C> toDo = new LinkedList<C>();
+		final Set<C> done = new HashSet<C>();
 		
 		toDo.add(expression);
 		
 		for (;;) {
-			final OWLExpression next = toDo.poll();
+			final C next = toDo.poll();
 			
 			if (next == null) {
 				break;
 			}
 			
 			if (done.add(next)) {
-				next.accept(perExpression);
+				perConclusion.apply(next);
 				
-				for (final OWLInference inf : next.getInferences()) {
+				for (final Inference<C, A> inf
+						: inferenceSet.getInferences(next)) {
 					perInference.apply(inf);
 					
-					for (final OWLExpression premise : inf.getPremises()) {
-						toDo.addFirst(premise);
+					for (final A axiom : inf.getJustification()) {
+						perAxiom.apply(axiom);
 					}
 					
-					if (justOne) {
-						// if only interested in one inference per derived expression (that is sufficient to reconstruct one proof)
-						break;
+					for (final C premise : inf.getPremises()) {
+						toDo.addFirst(premise);
 					}
 				}
 			}

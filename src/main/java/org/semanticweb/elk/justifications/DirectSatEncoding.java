@@ -17,8 +17,11 @@ import java.util.TreeMap;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.owlapi.wrapper.OwlConverter;
+import org.semanticweb.elk.proofs.Inference;
+import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.AxiomType;
+import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
@@ -28,12 +31,9 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
 import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
-import org.semanticweb.owlapitools.proofs.OWLInference;
 import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
 import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
 import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpressionVisitor;
-import org.semanticweb.owlapitools.proofs.expressions.OWLLemmaExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,56 +142,60 @@ public class DirectSatEncoding {
 			
 			final OWLAxiomExpression expression = reasoner
 					.getDerivedExpression(conclusion);
+			final OWLExpressionInferenceSetAdapter inferenceSet =
+					new OWLExpressionInferenceSetAdapter();
 			
-			final Set<OWLAxiomExpression> axiomExprs =
-					new HashSet<OWLAxiomExpression>();
-			final Set<OWLLemmaExpression> lemmaExprs =
-					new HashSet<OWLLemmaExpression>();
+			final Set<OWLAxiom> axiomExprs =
+					new HashSet<OWLAxiom>();
+			final Set<OWLExpression> lemmaExprs =
+					new HashSet<OWLExpression>();
 			
-			Utils.traverseProofs(expression, false,
-					Functions.<OWLInference>identity(),
-					new OWLExpressionVisitor<Void>() {
+			Utils.traverseProofs(expression, inferenceSet,
+					Functions.<Inference<OWLExpression, OWLAxiom>>identity(),
+					new Function<OWLExpression, Void>(){
 						@Override
-						public Void visit(final OWLAxiomExpression expression) {
-							axiomExprs.add(expression);
+						public Void apply(final OWLExpression expr) {
+							lemmaExprs.add(expr);
 							return null;
 						}
+					},
+					new Function<OWLAxiom, Void>(){
 						@Override
-						public Void visit(final OWLLemmaExpression expression) {
-							lemmaExprs.add(expression);
+						public Void apply(final OWLAxiom axiom) {
+							axiomExprs.add(axiom);
 							return null;
 						}
-			});
+					}
+			);
 			
 			final Counter literalCounter = new Counter(1);
 			final Counter clauseCounter = new Counter();
 			
+			final Map<OWLAxiom, Integer> axiomIndex =
+					new HashMap<OWLAxiom, Integer>();
+			for (final OWLAxiom axExpr : axiomExprs) {
+				axiomIndex.put(axExpr, literalCounter.next());
+			}
 			final Map<OWLExpression, Integer> conclusionIndex =
 					new HashMap<OWLExpression, Integer>();
-			final Set<Integer> axiomLiterals = new HashSet<Integer>();
-			for (final OWLAxiomExpression axExpr : axiomExprs) {
-				if (isAsserted(axExpr)) {
-					final int literal = literalCounter.next();
-					conclusionIndex.put(axExpr, literal);
-					axiomLiterals.add(literal);
-				}
-			}
-			for (final OWLAxiomExpression axExpr : axiomExprs) {
-				if (!isAsserted(axExpr)) {
-					conclusionIndex.put(axExpr, literalCounter.next());
-				}
-			}
-			for (final OWLLemmaExpression expr : lemmaExprs) {
+			for (final OWLExpression expr : lemmaExprs) {
 				conclusionIndex.put(expr, literalCounter.next());
 			}
 			
 			// cnf
-			Utils.traverseProofs(expression, false,
-					new Function<OWLInference, Void>() {
+			Utils.traverseProofs(expression, inferenceSet,
+					new Function<Inference<OWLExpression, OWLAxiom>, Void>() {
 						@Override
-						public Void apply(final OWLInference inf) {
+						public Void apply(
+								final Inference<OWLExpression, OWLAxiom> inf) {
 							
 							LOG.trace("processing {}", inf);
+							
+							for (final OWLAxiom axiom :
+									inf.getJustification()) {
+								cnf.print(-axiomIndex.get(axiom));
+								cnf.print(" ");
+							}
 							
 							for (final OWLExpression premise :
 									inf.getPremises()) {
@@ -206,7 +210,8 @@ public class DirectSatEncoding {
 							return null;
 						}
 					},
-					DUMMY_EXPRESSION_VISITOR);
+					Functions.<OWLExpression>identity(),
+					Functions.<OWLAxiom>identity());
 			
 			final int lastLiteral = literalCounter.next();
 			
@@ -215,11 +220,11 @@ public class DirectSatEncoding {
 					+ " " + clauseCounter.next());
 			
 			// ppp
-			writeLines(axiomLiterals, pppFile);
+			writeLines(axiomIndex.values(), pppFile);
 			
 			// ppp.g.u
 			final List<Integer> orderedAxioms =
-					new ArrayList<Integer>(axiomLiterals);
+					new ArrayList<Integer>(axiomIndex.values());
 			Collections.sort(orderedAxioms);
 			writeLines(orderedAxioms, pppguFile);
 			
@@ -228,31 +233,29 @@ public class DirectSatEncoding {
 					questionFile);
 			
 			// zzz
-			final SortedMap<Integer, OWLExpression> gcis =
-					new TreeMap<Integer, OWLExpression>();
-			final SortedMap<Integer, OWLExpression> ris =
-					new TreeMap<Integer, OWLExpression>();
+			final SortedMap<Integer, OWLAxiom> gcis =
+					new TreeMap<Integer, OWLAxiom>();
+			final SortedMap<Integer, OWLAxiom> ris =
+					new TreeMap<Integer, OWLAxiom>();
+			for (final Entry<OWLAxiom, Integer> entry
+					: axiomIndex.entrySet()) {
+				final OWLAxiom expr = entry.getKey();
+				final int lit = entry.getValue();
+				if (expr instanceof OWLPropertyAxiom) {
+					ris.put(lit, expr);
+				} else {
+					gcis.put(lit, expr);
+				}
+			}
 			final SortedMap<Integer, OWLExpression> lemmas =
 					new TreeMap<Integer, OWLExpression>();
 			for (final Entry<OWLExpression, Integer> entry
 					: conclusionIndex.entrySet()) {
-				final OWLExpression expr = entry.getKey();
-				final int lit = entry.getValue();
-				
-				if (axiomLiterals.contains(lit)) {
-					if (((OWLAxiomExpression) expression).getAxiom() instanceof OWLPropertyAxiom) {
-						ris.put(lit, expr);
-					} else {
-						gcis.put(lit, expr);
-					}
-				} else {
-					lemmas.put(lit, expr);
-				}
-				
+				lemmas.put(entry.getValue(), entry.getKey());
 			}
 			
-			writeLines(Iterables.transform(gcis.entrySet(), PRINT), zzzgciFile);
-			writeLines(Iterables.transform(ris.entrySet(), PRINT), zzzriFile);
+			writeLines(Iterables.transform(gcis.entrySet(), PRINT2), zzzgciFile);
+			writeLines(Iterables.transform(ris.entrySet(), PRINT2), zzzriFile);
 			writeLines(Iterables.transform(lemmas.entrySet(), PRINT), zzzFile);
 			
 		} finally {
@@ -314,14 +317,25 @@ public class DirectSatEncoding {
 		
 	};
 	
-	private static boolean isAsserted(final OWLExpression expression) {
-		if (expression instanceof OWLAxiomExpression) {
-			if (((OWLAxiomExpression) expression).isAsserted()) {
-				return true;
-			}
+	private static final Function<Entry<Integer, OWLAxiom>, String> PRINT2 =
+			new Function<Entry<Integer, OWLAxiom>, String>() {
+		
+		@Override
+		public String apply(final Entry<Integer, OWLAxiom> entry) {
+			final StringBuilder result = new StringBuilder();
+			
+			result.append(entry.getKey()).append(" ");
+			
+			final ElSatPrinterVisitor printer = new ElSatPrinterVisitor(result);
+			
+			OWLCONVERTER.convert(entry.getValue()).accept(printer);
+			
+			result.setLength(result.length() - 1);// Remove the last line end.
+			
+			return result.toString();
 		}
-		return false;
-	}
+		
+	};
 	
 	private static class Counter {
 		private int counter;
@@ -335,20 +349,5 @@ public class DirectSatEncoding {
 			return counter++;
 		}
 	}
-	
-	private static final OWLExpressionVisitor<Void> DUMMY_EXPRESSION_VISITOR =
-			new OWLExpressionVisitor<Void>() {
-
-		@Override
-		public Void visit(final OWLAxiomExpression expression) {
-			return null;
-		}
-
-		@Override
-		public Void visit(final OWLLemmaExpression expression) {
-			return null;
-		}
-		
-	};
 	
 }

@@ -6,5 +6,6 @@ plugin.xml
 .project
 .idea
 *.iml
+/experiments/
 catalog-v???.xml
 
