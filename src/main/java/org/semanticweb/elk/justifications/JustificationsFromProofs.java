@@ -2,105 +2,62 @@ package org.semanticweb.elk.justifications;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.PrintWriter;
-import java.util.Collection;
-import java.util.Set;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
-import org.semanticweb.elk.owlapi.ElkReasonerFactory;
-import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
-import org.semanticweb.owlapi.apibinding.OWLManager;
-import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
-import org.semanticweb.owlapi.model.AxiomType;
-import org.semanticweb.owlapi.model.IRI;
-import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapi.model.OWLOntology;
-import org.semanticweb.owlapi.model.OWLOntologyCreationException;
-import org.semanticweb.owlapi.model.OWLOntologyManager;
-import org.semanticweb.owlapi.model.OWLOntologyStorageException;
-import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
-import org.semanticweb.owlapi.reasoner.InferenceType;
-import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
-import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
+import org.semanticweb.elk.justifications.experiments.Experiment;
+import org.semanticweb.elk.justifications.experiments.ExperimentException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Iterables;
 
 public class JustificationsFromProofs {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(JustificationsFromProofs.class);
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		
-		if (args.length < 5) {
+		if (args.length < 3) {
 			LOG.error("Insufficient arguments!");
 			System.exit(1);
 		}
 		
-		final String ontologyFileName = args[0];
-		final String conclusionsFileName = args[1];
-		final long timeOut = Long.parseLong(args[2]);
-		final File outputDirectory = new File(args[3]);
-		if (!Utils.cleanDir(outputDirectory)) {
-			LOG.error("Could not prepare the output directory!");
-			System.exit(2);
-		}
-		final File recordFile = new File(args[4]);
+		final File recordFile = new File(args[0]);
 		if (recordFile.exists()) {
 			Utils.recursiveDelete(recordFile);
 		}
+		final long timeOut = Long.parseLong(args[1]);
+		final String experimentClassName = args[2];
 		
 		PrintWriter record = null;
 		
-		final OWLOntologyManager manager =
-				OWLManager.createOWLOntologyManager();
-		
 		try {
 			
+			final Class<?> experimentClass = JustificationsFromProofs.class
+					.getClassLoader().loadClass(experimentClassName);
+			final Constructor<?> constructor =
+					experimentClass.getConstructor(String[].class);
+			final Object object = constructor.newInstance(
+					(Object) Arrays.copyOfRange(args, 3, args.length));
+			if (!(object instanceof Experiment)) {
+				LOG.error("The passed argument is not a subclass of Experiment!");
+				System.exit(2);
+			}
+			final Experiment experiment = (Experiment) object;
+			
 			record = new PrintWriter(recordFile);
-			record.println("conclusion, didTimeOut, time, nJust");
-			
-			LOG.info("Loading ontology ...");
-			long start = System.currentTimeMillis();
-			final OWLOntology ont = manager.loadOntologyFromOntologyDocument(
-					new File(ontologyFileName));
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start)/1000.0);
-			LOG.info("Loaded ontology: {}", ont.getOntologyID());
-			
-			LOG.info("Loading conclusions ...");
-			start = System.currentTimeMillis();
-			final OWLOntology conclusionsOnt =
-					manager.loadOntologyFromOntologyDocument(
-							new File(conclusionsFileName));
-			final Set<OWLSubClassOfAxiom> conclusions =
-					conclusionsOnt.getAxioms(AxiomType.SUBCLASS_OF);
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start)/1000.0);
-			LOG.info("Number of conclusions: {}", conclusions.size());
-			
-			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
-			final ExplainingOWLReasoner reasoner =
-					(ExplainingOWLReasoner) reasonerFactory.createReasoner(ont);
-			
-			LOG.info("Classifying ...");
-			start = System.currentTimeMillis();
-			reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY);
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start)/1000.0);
+			record.println("conclusion,didTimeOut,time,nJust");
 			
 			LOG.info("Warm Up ...");
+			final int inputSize = experiment.getInputSize();
+			int inputIndex = 0;
 			int count = 30;
-			for (final OWLSubClassOfAxiom conclusion
-					: Iterables.cycle(conclusions)) {
+			while (count > 0) {
 				
-				final JustificationComputation<OWLExpression, OWLAxiom> computation = new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
-						new OWLExpressionInferenceSetAdapter());
+				final int i = inputIndex;
 				
 				LOG.info("... {} ...", count);
 				withTimeout(20000, new Runnable() {
@@ -108,8 +65,8 @@ public class JustificationsFromProofs {
 					public void run() {
 						
 						try {
-							computation.computeJustifications(reasoner.getDerivedExpression(conclusion));
-						} catch (final ProofGenerationException e) {
+							experiment.run(i);
+						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
 						} catch (final InterruptedException e) {
 							// Do nothing.
@@ -118,26 +75,27 @@ public class JustificationsFromProofs {
 					}
 				});
 				
-				if (--count <= 0) {
-					break;
+				--count;
+				if (++inputIndex >= inputSize) {
+					inputIndex = 0;
 				}
 				
 			}
 			LOG.info("... that's enough");
 			
-			for (final OWLSubClassOfAxiom conclusion : conclusions) {
+			for (inputIndex = 0; inputIndex < inputSize; inputIndex++) {
+				
+				final String conclusion = experiment.getInputName(inputIndex);
 				
 				record.print("\"");
 				record.print(conclusion);
 				record.print("\",");
 				record.flush();
 				
-				final JustificationComputation<OWLExpression, OWLAxiom> computation = new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
-						new OWLExpressionInferenceSetAdapter());
+				final AtomicInteger justSize = new AtomicInteger();
+				final AtomicLong time = new AtomicLong();
 				
-				final AtomicReference<Collection<Set<OWLAxiom>>> result =
-						new AtomicReference<Collection<Set<OWLAxiom>>>(null);
-				final AtomicLong time2 = new AtomicLong();
+				final int i = inputIndex;
 				
 				LOG.info("Obtaining justifications for {} ...", conclusion);
 				final boolean didTimeOut = withTimeout(timeOut, new Runnable() {
@@ -148,13 +106,12 @@ public class JustificationsFromProofs {
 						
 						try {
 							
-							final Collection<Set<OWLAxiom>> justifications =
-									computation.computeJustifications(reasoner.getDerivedExpression(conclusion));
+							final int js = experiment.run(i);
 							final long t = System.currentTimeMillis() - s;
-							time2.set(t);
-							result.set(justifications);
+							time.set(t);
+							justSize.set(js);
 							
-						} catch (final ProofGenerationException e) {
+						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
 						} catch (final InterruptedException e) {
 							LOG.info("... interrupted ...");
@@ -178,31 +135,17 @@ public class JustificationsFromProofs {
 					record.println();
 					
 				} else {
-					LOG.info("... took {}s", time2.get()/1000.0);
+					LOG.info("... took {}s", time.get()/1000.0);
 					
-					final Collection<Set<OWLAxiom>> justifications = result.get();
-					LOG.info("found {} justifications.", justifications.size());
+					final int justificationSize = justSize.get();
+					LOG.info("found {} justifications.", justificationSize);
 					
-					record.print(time2.get());
+					record.print(time.get());
 					record.print(",");
-					record.print(justifications.size());
+					record.print(justificationSize);
 					record.println();
 					
-					final String conclName = Utils.toFileName(conclusion);
-					final File outDir = new File(outputDirectory, conclName);
-					outDir.mkdirs();
-					int i = 0;
-					for (final Set<OWLAxiom> justification : justifications) {
-						
-						final String fileName = String.format("%03d.owl", ++i);
-						final OWLOntology outOnt = manager.createOntology(
-								justification,
-								IRI.create("Justification_" + i + "_for_" + conclName));
-						manager.saveOntology(outOnt,
-								new FunctionalSyntaxDocumentFormat(),
-								new FileOutputStream(new File(outDir, fileName)));
-						
-					}
+					experiment.processResult(inputIndex);
 					
 				}
 				
@@ -210,14 +153,32 @@ public class JustificationsFromProofs {
 				
 			}
 			
-		} catch (final OWLOntologyCreationException e) {
-			LOG.error("Could not load the ontology!", e);
-			System.exit(2);
-		} catch (final OWLOntologyStorageException e) {
-			LOG.error("Could not save the ontology!", e);
-			System.exit(2);
 		} catch (final FileNotFoundException e) {
 			LOG.error("File not found!", e);
+			System.exit(2);
+		} catch (final ExperimentException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final ClassNotFoundException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final NoSuchMethodException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final SecurityException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final InstantiationException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final IllegalAccessException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final IllegalArgumentException e) {
+			LOG.error("Could not setup the experiment!", e);
+			System.exit(2);
+		} catch (final InvocationTargetException e) {
+			LOG.error("Could not setup the experiment!", e);
 			System.exit(2);
 		} finally {
 			if (record != null) {
@@ -225,7 +186,6 @@ public class JustificationsFromProofs {
 			}
 		}
 		
-		LOG.debug("..caw");
 	}
 
 	private static boolean withTimeout(final long timeOut, final Runnable runnable) {
