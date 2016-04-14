@@ -166,24 +166,24 @@ public class BottomUpJustificationComputation<C, A>
 	 * @return {@code true} if the collection is modified as a result of this
 	 *         operation and {@code false} otherwise
 	 */
-	private boolean merge(Set<A> just, Collection<Set<A>> justs) {
+	private static <T> boolean merge(Set<T> just, Collection<Set<T>> justs) {
 		int justSize = just.size();
-		final Iterator<Set<A>> oldJustIter = justs.iterator();
-		boolean justNew = false; // true if the justification is new
+		final Iterator<Set<T>> oldJustIter = justs.iterator();
+		boolean isASubsetOfOld = false;
 		while (oldJustIter.hasNext()) {
-			final Set<A> oldJust = oldJustIter.next();
+			final Set<T> oldJust = oldJustIter.next();
 			if (justSize < oldJust.size()) {
 				if (oldJust.containsAll(just)) {
 					// new justification is smaller
 					oldJustIter.remove();
-					justNew = true;
+					isASubsetOfOld = true;
 				}
-			} else if (!justNew & just.containsAll(oldJust)) {
-				// a subset is already a justification
+			} else if (!isASubsetOfOld & just.containsAll(oldJust)) {
+				// is a superset of some old justification
 				return false;
 			}
 		}
-		// justification survived all tests, it is new
+		// justification survived all tests, it is minimal
 		justs.add(just);
 		return true;
 	}
@@ -192,7 +192,7 @@ public class BottomUpJustificationComputation<C, A>
 	 * @param first
 	 * @param second
 	 * @return the list of all pairwise unions of the sets in the first and the
-	 *         second collections
+	 *         second collections, minimized under set inclusion
 	 */
 	private static <T> List<Set<T>> join(Collection<? extends Set<T>> first,
 			Collection<? extends Set<T>> second) {
@@ -205,7 +205,7 @@ public class BottomUpJustificationComputation<C, A>
 			for (Set<T> secondSet : second) {
 				Set<T> union = createSet(firstSet);
 				union.addAll(secondSet);
-				result.add(union);
+				merge(union, result);
 			}
 		}
 		return result;
