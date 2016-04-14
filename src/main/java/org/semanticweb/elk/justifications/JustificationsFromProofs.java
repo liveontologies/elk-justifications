@@ -134,7 +134,8 @@ public class JustificationsFromProofs {
 					LOG.info("... took {}s", time.get()/1000.0);
 					
 					final int justificationSize = justSize.get();
-					LOG.info("found {} justifications.", justificationSize);
+					LOG.info("found {} justifications for {}",
+							justificationSize, conclusion);
 					
 					record.print(time.get());
 					record.print(",");
