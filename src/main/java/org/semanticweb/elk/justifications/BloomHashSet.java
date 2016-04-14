@@ -90,7 +90,7 @@ class BloomHashSet<E> extends HashSet<E> {
 		return super.containsAll(c);
 	}
 
-	public static void printStatistics() {
+	public static void logStatistics() {
 
 		if (LOGGER_.isDebugEnabled()) {
 			if (STATS_CONTAINS_ALL_COUNT_ != 0) {

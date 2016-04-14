@@ -38,4 +38,9 @@ public class BinarizedBottomUpJustificationComputation<C, A>
 				.computeJustifications(Collections.singletonList(conclusion));
 	}
 
+	@Override
+	public void logStatistics() {
+		computaiton_.logStatistics();
+	}
+
 }

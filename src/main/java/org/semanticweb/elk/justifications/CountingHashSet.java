@@ -94,7 +94,7 @@ class CountingHashSet<E> extends HashSet<E> {
 		return super.containsAll(other);
 	}
 
-	public static void printStatistics() {
+	public static void logStatistics() {
 		if (LOGGER_.isDebugEnabled()) {
 			float containsAllSuccessRatio = STATS_CONTAINS_ALL_COUNT_ == 0 ? 0f
 					: (float) STATS_CONTAINS_ALL_FILTERED_

@@ -51,6 +51,11 @@ public class BottomUpJustificationComputation<C, A>
 	private final ListMultimap<C, Set<A>> justsByConcls_ = ArrayListMultimap
 			.create();
 
+	// Statistics
+
+	private int countInferences_ = 0, countConclusions_ = 0,
+			countJustifications_ = 0;
+
 	public BottomUpJustificationComputation(InferenceSet<C, A> inferences) {
 		super(inferences);
 	}
@@ -61,7 +66,7 @@ public class BottomUpJustificationComputation<C, A>
 
 		process(conclusion);
 
-		BloomHashSet.printStatistics();
+		BloomHashSet.logStatistics();
 		BloomHashSet.resetStatistics();
 
 		return justsByConcls_.get(conclusion);
@@ -82,14 +87,25 @@ public class BottomUpJustificationComputation<C, A>
 
 	}
 
+	@Override
+	public void logStatistics() {
+		if (LOGGER_.isDebugEnabled()) {
+			LOGGER_.debug("{}: processed inferences", countInferences_);
+			LOGGER_.debug("{}: processed conclusions", countConclusions_);
+			LOGGER_.debug("{}: processed justification candidates", countJustifications_);
+		}
+	}
+
 	private void toDo(C exp) {
 		if (done_.add(exp)) {
+			countConclusions_++;
 			toDo_.add(exp);
 		}
 	}
 
 	private void process(Inference<C, A> inf) {
 		LOGGER_.trace("{}: new inference", inf);
+		countInferences_++;
 		// new inference, propagate existing the justification for premises
 		List<Set<A>> conclusionJusts = new ArrayList<Set<A>>();
 		conclusionJusts.add(createSet(inf.getJustification()));
@@ -112,6 +128,7 @@ public class BottomUpJustificationComputation<C, A>
 		toDoJustifications_.add(job);
 		while ((job = toDoJustifications_.poll()) != null) {
 			LOGGER_.trace("{}: new justification: {}", job.expr, job.just);
+			countJustifications_++;
 
 			if (job.just.isEmpty()) {
 				// all justifications are computed,

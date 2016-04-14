@@ -16,4 +16,8 @@ public abstract class JustificationComputation<C, A>
 	public abstract Collection<Set<A>> computeJustifications(C conclusion)
 			throws InterruptedException;
 
+	public void logStatistics() {
+		// does nothing by default
+	}
+
 }
