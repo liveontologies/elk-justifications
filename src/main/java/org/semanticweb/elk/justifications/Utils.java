@@ -7,7 +7,6 @@ import java.util.Set;
 
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
 
 import com.google.common.base.Function;
 
@@ -43,8 +42,7 @@ public final class Utils {
 			final InferenceSet<C, A> inferenceSet,
 			final Function<Inference<C, A>, IO> perInference,
 			final Function<C, CO> perConclusion,
-			final Function<A, AO> perAxiom)
-			throws ProofGenerationException {
+			final Function<A, AO> perAxiom) {
 		
 		final LinkedList<C> toDo = new LinkedList<C>();
 		final Set<C> done = new HashSet<C>();
