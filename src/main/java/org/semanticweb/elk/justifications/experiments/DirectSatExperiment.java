@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
@@ -25,9 +27,10 @@ public class DirectSatExperiment extends Experiment {
 
 	private final List<Integer> conclusions_;
 	private final List<String> labels_;
-	private final JustificationComputation<Integer, Integer> computation_;
+	private final InferenceSet<Integer, Integer> inferenceSet_;
 	
-	private Collection<Set<Integer>> justifications_;
+	private AtomicReference<Collection<Set<Integer>>> justifications_ =
+			new AtomicReference<Collection<Set<Integer>>>();
 	
 	public DirectSatExperiment(final String[] args) throws ExperimentException {
 		super(args);
@@ -69,14 +72,10 @@ public class DirectSatExperiment extends Experiment {
 			
 			LOG.info("Loading CNF ...");
 			start = System.currentTimeMillis();
-			final InferenceSet<Integer, Integer> inferenceSet =
+			inferenceSet_ =
 					DirectSatEncodingInferenceSetAdapter.load(assumptions, cnf);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
-			
-			computation_ =
-					new BottomUpJustificationComputation<Integer, Integer>(
-							inferenceSet);
 			
 		} catch (final FileNotFoundException e) {
 			throw new ExperimentException(e);
@@ -104,27 +103,46 @@ public class DirectSatExperiment extends Experiment {
 		
 	}
 
+	private AtomicInteger inputIndex_ = new AtomicInteger(0);
+	private AtomicInteger conclusion_ = new AtomicInteger(0);
+	private AtomicReference<String> label_ =
+			new AtomicReference<String>("null");
+
 	@Override
-	public int getInputSize() throws ExperimentException {
-		return conclusions_.size();
+	public void init() throws ExperimentException {
+		inputIndex_.set(0);
+		conclusion_.set(0);
+		label_.set("null");
 	}
 
 	@Override
-	public String getInputName(final int inputIndex)
-			throws ExperimentException {
-		return labels_.get(inputIndex).toString();
+	public boolean hasNext() {
+		return inputIndex_.get() < conclusions_.size();
 	}
 
 	@Override
-	public int run(final int inputIndex)
-			throws ExperimentException, InterruptedException {
-		justifications_ = computation_.computeJustifications(
-				conclusions_.get(inputIndex));
-		return justifications_.size();
+	public Record run() throws ExperimentException, InterruptedException {
+		label_.set(labels_.get(inputIndex_.get()));
+		final int conclusion = conclusions_.get(inputIndex_.getAndIncrement());
+		conclusion_.set(conclusion);
+		final JustificationComputation<Integer, Integer> computation =
+				new BottomUpJustificationComputation<Integer, Integer>(
+						inferenceSet_);
+		long time = System.currentTimeMillis();
+		final Collection<Set<Integer>> justifications =
+				computation.computeJustifications(conclusion);
+		time = System.currentTimeMillis() - time;
+		justifications_.set(justifications);
+		return new Record(time, justifications.size());
 	}
 
 	@Override
-	public void processResult(final int inputIndex) throws ExperimentException {
+	public String getInputName() throws ExperimentException {
+		return label_.get();
+	}
+
+	@Override
+	public void processResult() throws ExperimentException {
 		// Currently empty.
 	}
 

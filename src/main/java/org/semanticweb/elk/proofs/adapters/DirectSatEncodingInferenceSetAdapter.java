@@ -27,18 +27,20 @@ public class DirectSatEncodingInferenceSetAdapter
 		
 		final BufferedReader axiomReader =
 				new BufferedReader(new InputStreamReader(assumptions));
-		String line;
-		while ((line = axiomReader.readLine()) != null) {
-			if (!line.isEmpty()) {
-				axioms.add(Integer.valueOf(line));
-			}
-		}
+		readAxioms(axiomReader, axioms);
+//		String line;
+//		while ((line = axiomReader.readLine()) != null) {
+//			if (!line.isEmpty()) {
+//				axioms.add(Integer.valueOf(line));
+//			}
+//		}
 		
 		final ListMultimap<Integer, Inference<Integer, Integer>> inferences =
 				ArrayListMultimap.create();
 		
 		final BufferedReader cnfReader =
 				new BufferedReader(new InputStreamReader(cnf));
+		String line;
 		while ((line = cnfReader.readLine()) != null) {
 			
 			if (line.isEmpty() || line.startsWith("c")
@@ -58,7 +60,7 @@ public class DirectSatEncodingInferenceSetAdapter
 				final int l = Integer.valueOf(literals[i]);
 				if (l < 0) {
 					final int premise = -l;
-					if (axioms.contains(premises)) {
+					if (axioms.contains(premise)) {
 						justifications.add(premise);
 					} else {
 						premises.add(premise);
@@ -92,6 +94,44 @@ public class DirectSatEncodingInferenceSetAdapter
 		}
 		
 		return new DirectSatEncodingInferenceSetAdapter(inferences);
+	}
+	
+	private static void readAxioms(final BufferedReader axiomReader,
+			final Set<Integer> axioms) throws IOException {
+		
+		final StringBuilder number = new StringBuilder();
+		
+		boolean readingNumber = false;
+		
+		int ch;
+		while((ch = axiomReader.read()) >= 0) {
+			
+			final int digit = Character.digit(ch, 10);
+			if (digit < 0) {
+				if (readingNumber) {
+					// The number ended.
+					final Integer n = Integer.valueOf(number.toString());
+					if (n > 0) {
+						axioms.add(n);
+					}
+					readingNumber = false;
+				} else {
+					// Still not reading any number.
+				}
+			} else {
+				if (readingNumber) {
+					// Have the next digit of a number.
+					number.append(digit);
+				} else {
+					// The number started.
+					number.setLength(0);
+					number.append(digit);
+					readingNumber = true;
+				}
+			}
+			
+		}
+		
 	}
 	
 	private final Multimap<Integer, Inference<Integer, Integer>> inferences_;

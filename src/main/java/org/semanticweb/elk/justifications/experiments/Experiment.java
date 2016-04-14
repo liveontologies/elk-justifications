@@ -6,15 +6,13 @@ public abstract class Experiment {
 		// Empty.
 	}
 
-	public abstract int getInputSize() throws ExperimentException;
+	public abstract void init() throws ExperimentException;
+	public abstract boolean hasNext();
 
-	public abstract String getInputName(int inputIndex)
-			throws ExperimentException;
+	public abstract Record run() throws ExperimentException, InterruptedException;
 
-	public abstract int run(int inputIndex)
-			throws ExperimentException, InterruptedException;
+	public abstract String getInputName() throws ExperimentException;
 	
-	public abstract void processResult(final int inputIndex)
-			throws ExperimentException;
+	public abstract void processResult() throws ExperimentException;
 	
 }

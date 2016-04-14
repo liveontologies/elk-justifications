@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.semanticweb.elk.justifications.experiments.Experiment;
 import org.semanticweb.elk.justifications.experiments.ExperimentException;
+import org.semanticweb.elk.justifications.experiments.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +53,9 @@ public class JustificationsFromProofs {
 			record.println("conclusion,didTimeOut,time,nJust");
 			
 			LOG.info("Warm Up ...");
-			final int inputSize = experiment.getInputSize();
-			int inputIndex = 0;
+			experiment.init();
 			int count = 30;
-			while (count > 0) {
-				
-				final int i = inputIndex;
+			while (count > 0 && experiment.hasNext()) {
 				
 				LOG.info("... {} ...", count);
 				withTimeout(20000, new Runnable() {
@@ -65,7 +63,7 @@ public class JustificationsFromProofs {
 					public void run() {
 						
 						try {
-							experiment.run(i);
+							experiment.run();
 						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
 						} catch (final InterruptedException e) {
@@ -76,28 +74,20 @@ public class JustificationsFromProofs {
 				});
 				
 				--count;
-				if (++inputIndex >= inputSize) {
-					inputIndex = 0;
+				if (!experiment.hasNext()) {
+					experiment.init();
 				}
 				
 			}
 			LOG.info("... that's enough");
 			
-			for (inputIndex = 0; inputIndex < inputSize; inputIndex++) {
-				
-				final String conclusion = experiment.getInputName(inputIndex);
-				
-				record.print("\"");
-				record.print(conclusion);
-				record.print("\",");
-				record.flush();
+			experiment.init();
+			while (experiment.hasNext()) {
 				
 				final AtomicInteger justSize = new AtomicInteger();
 				final AtomicLong time = new AtomicLong();
 				
-				final int i = inputIndex;
-				
-				LOG.info("Obtaining justifications for {} ...", conclusion);
+				LOG.info("Obtaining justifications ...");
 				final boolean didTimeOut = withTimeout(timeOut, new Runnable() {
 					@Override
 					public void run() {
@@ -106,10 +96,9 @@ public class JustificationsFromProofs {
 						
 						try {
 							
-							final int js = experiment.run(i);
-							final long t = System.currentTimeMillis() - s;
-							time.set(t);
-							justSize.set(js);
+							final Record record = experiment.run();
+							time.set(record.time);
+							justSize.set(record.nJust);
 							
 						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
@@ -122,6 +111,12 @@ public class JustificationsFromProofs {
 					}
 				});
 				
+				final String conclusion = experiment.getInputName();
+				
+				record.print("\"");
+				record.print(conclusion);
+				record.print("\",");
+				record.flush();
 				record.print(didTimeOut?"TRUE":"FALSE");
 				record.print(",");
 				record.flush();
@@ -145,7 +140,7 @@ public class JustificationsFromProofs {
 					record.print(justificationSize);
 					record.println();
 					
-					experiment.processResult(inputIndex);
+					experiment.processResult();
 					
 				}
 				
