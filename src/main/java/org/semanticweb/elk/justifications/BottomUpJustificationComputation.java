@@ -72,7 +72,7 @@ public class BottomUpJustificationComputation<C, A>
 		return justsByConcls_.get(conclusion);
 	}
 
-	private void process(C conclusion) {
+	private void process(C conclusion) throws InterruptedException {
 
 		toDo(conclusion);
 
@@ -103,7 +103,7 @@ public class BottomUpJustificationComputation<C, A>
 		}
 	}
 
-	private void process(Inference<C, A> inf) {
+	private void process(Inference<C, A> inf) throws InterruptedException {
 		LOGGER_.trace("{}: new inference", inf);
 		countInferences_++;
 		// new inference, propagate existing the justification for premises
@@ -123,10 +123,12 @@ public class BottomUpJustificationComputation<C, A>
 
 	/**
 	 * propagates the newly computed justification until the fixpoint
+	 * @throws InterruptedException When the call was cancelled.
 	 */
-	private void process(Job<C, A> job) {
+	private void process(Job<C, A> job) throws InterruptedException {
 		toDoJustifications_.add(job);
 		while ((job = toDoJustifications_.poll()) != null) {
+			checkCancelled();
 			LOGGER_.trace("{}: new justification: {}", job.expr, job.just);
 			countJustifications_++;
 

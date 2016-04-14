@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
-import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
 import org.slf4j.Logger;
@@ -31,6 +30,10 @@ public class DirectSatExperiment extends Experiment {
 	
 	private AtomicReference<Collection<Set<Integer>>> justifications_ =
 			new AtomicReference<Collection<Set<Integer>>>();
+	private AtomicInteger inputIndex_ = new AtomicInteger(0);
+	private AtomicInteger conclusion_ = new AtomicInteger(0);
+	private AtomicReference<String> label_ =
+			new AtomicReference<String>("null");
 	
 	public DirectSatExperiment(final String[] args) throws ExperimentException {
 		super(args);
@@ -103,11 +106,6 @@ public class DirectSatExperiment extends Experiment {
 		
 	}
 
-	private AtomicInteger inputIndex_ = new AtomicInteger(0);
-	private AtomicInteger conclusion_ = new AtomicInteger(0);
-	private AtomicReference<String> label_ =
-			new AtomicReference<String>("null");
-
 	@Override
 	public void init() throws ExperimentException {
 		inputIndex_.set(0);
@@ -125,7 +123,7 @@ public class DirectSatExperiment extends Experiment {
 		label_.set(labels_.get(inputIndex_.get()));
 		final int conclusion = conclusions_.get(inputIndex_.getAndIncrement());
 		conclusion_.set(conclusion);
-		final JustificationComputation<Integer, Integer> computation =
+		final BottomUpJustificationComputation<Integer, Integer> computation =
 				new BottomUpJustificationComputation<Integer, Integer>(
 						inferenceSet_);
 		long time = System.currentTimeMillis();
@@ -133,6 +131,7 @@ public class DirectSatExperiment extends Experiment {
 				computation.computeJustifications(conclusion);
 		time = System.currentTimeMillis() - time;
 		justifications_.set(justifications);
+		computation.logStatistics();
 		return new Record(time, justifications.size());
 	}
 

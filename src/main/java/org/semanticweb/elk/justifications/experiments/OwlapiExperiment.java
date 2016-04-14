@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
-import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
@@ -46,6 +45,9 @@ public class OwlapiExperiment extends Experiment {
 	
 	private AtomicReference<Collection<Set<OWLAxiom>>> justifications_ =
 			new AtomicReference<Collection<Set<OWLAxiom>>>();
+	private AtomicInteger inputIndex_ = new AtomicInteger(0);
+	private AtomicReference<OWLSubClassOfAxiom> conclusion_ =
+			new AtomicReference<OWLSubClassOfAxiom>();
 	
 	public OwlapiExperiment(final String[] args) throws ExperimentException {
 		super(args);
@@ -104,10 +106,6 @@ public class OwlapiExperiment extends Experiment {
 		}
 		
 	}
-
-	private AtomicInteger inputIndex_ = new AtomicInteger(0);
-	private AtomicReference<OWLSubClassOfAxiom> conclusion_ =
-			new AtomicReference<OWLSubClassOfAxiom>();
 	
 	@Override
 	public void init() throws ExperimentException {
@@ -125,7 +123,7 @@ public class OwlapiExperiment extends Experiment {
 		try {
 			final OWLSubClassOfAxiom conclusion = conclusions_.get(
 					inputIndex_.getAndIncrement());
-			final JustificationComputation<OWLExpression, OWLAxiom> computation =
+			final BottomUpJustificationComputation<OWLExpression, OWLAxiom> computation =
 					new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
 								new OWLExpressionInferenceSetAdapter());
 			long time = System.currentTimeMillis();
@@ -135,6 +133,7 @@ public class OwlapiExperiment extends Experiment {
 			time = System.currentTimeMillis() - time;
 			conclusion_.set(conclusion);
 			justifications_.set(justifications);
+			computation.logStatistics();
 			return new Record(time, justifications.size());
 		} catch (final UnsupportedEntailmentTypeException e) {
 			throw new ExperimentException(e);

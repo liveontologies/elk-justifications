@@ -31,7 +31,8 @@ public class JustificationsFromProofs {
 			Utils.recursiveDelete(recordFile);
 		}
 		final long timeOut = Long.parseLong(args[1]);
-		final String experimentClassName = args[2];
+		final int warmupCount = Integer.parseInt(args[2]);
+		final String experimentClassName = args[3];
 		
 		PrintWriter record = null;
 		
@@ -42,7 +43,7 @@ public class JustificationsFromProofs {
 			final Constructor<?> constructor =
 					experimentClass.getConstructor(String[].class);
 			final Object object = constructor.newInstance(
-					(Object) Arrays.copyOfRange(args, 3, args.length));
+					(Object) Arrays.copyOfRange(args, 4, args.length));
 			if (!(object instanceof Experiment)) {
 				LOG.error("The passed argument is not a subclass of Experiment!");
 				System.exit(2);
@@ -54,7 +55,7 @@ public class JustificationsFromProofs {
 			
 			LOG.info("Warm Up ...");
 			experiment.init();
-			int count = 30;
+			int count = warmupCount;
 			while (count > 0 && experiment.hasNext()) {
 				
 				LOG.info("... {} ...", count);
