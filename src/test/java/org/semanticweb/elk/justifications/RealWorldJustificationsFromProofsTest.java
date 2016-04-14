@@ -16,7 +16,6 @@ import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLLogicalAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -36,6 +35,7 @@ public class RealWorldJustificationsFromProofsTest extends
 				new ArrayList<Class<? extends JustificationComputation>>();
 //		computations.add(SimpleJustificationComputation.class);// Takes too long
 		computations.add(BottomUpJustificationComputation.class);
+		computations.add(BinarizedBottomUpJustificationComputation.class);
 		
 		final String[][] fileNames = new String[][] {
 			{

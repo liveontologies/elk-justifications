@@ -44,6 +44,7 @@ public class SmallJustificationsFromProofsTest extends
 		final List<Class<? extends JustificationComputation>> computations =
 				new ArrayList<Class<? extends JustificationComputation>>();
 		computations.add(BottomUpJustificationComputation.class);
+		computations.add(BinarizedBottomUpJustificationComputation.class);
 		
 		final String[] fileNames = new String[] {
 				"ExistCycle",
