@@ -21,6 +21,7 @@ import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
+import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 @RunWith(Parameterized.class)
 public class SmallJustificationsFromProofsTest extends
@@ -37,14 +38,15 @@ public class SmallJustificationsFromProofsTest extends
 					"<(?<" + SUPER_GROUP + ">[^>]+)>\\s*" +
 			"\\).*");
 
-	@SuppressWarnings("rawtypes")
 	@Parameters
 	public static Collection<Object[]> data() {
 		
-		final List<Class<? extends JustificationComputation>> computations =
-				new ArrayList<Class<? extends JustificationComputation>>();
-		computations.add(BottomUpJustificationComputation.class);
-		computations.add(BinarizedBottomUpJustificationComputation.class);
+		final List<JustificationComputation.Factory<OWLExpression, OWLAxiom>> computations =
+				new ArrayList<JustificationComputation.Factory<OWLExpression, OWLAxiom>>();
+		computations.add(BottomUpJustificationComputation.<OWLExpression, OWLAxiom>getFactory());
+		computations.add(BinarizedJustificationComputation
+				.getFactory(BottomUpJustificationComputation
+						.<List<OWLExpression>, OWLAxiom> getFactory()));
 		
 		final String[] fileNames = new String[] {
 				"ExistCycle",
@@ -56,7 +58,7 @@ public class SmallJustificationsFromProofsTest extends
 			};
 		
 		final List<Object[]> result = new ArrayList<Object[]>();
-		for (final Class<? extends JustificationComputation> c : computations) {
+		for (final JustificationComputation.Factory<OWLExpression, OWLAxiom> c : computations) {
 			for (final String fileName : fileNames) {
 				result.add(new Object[] {c, fileName});
 			}
@@ -67,11 +69,10 @@ public class SmallJustificationsFromProofsTest extends
 	private final String inputFileName;
 	private final String expectedDirName;
 	
-	@SuppressWarnings("rawtypes")
 	public SmallJustificationsFromProofsTest(
-			final Class<? extends JustificationComputation> computationClass,
+			final JustificationComputation.Factory<OWLExpression, OWLAxiom> computationFactory,
 			final String fileName) {
-		super(computationClass);
+		super(computationFactory);
 		this.inputFileName = fileName + ".owl";
 		this.expectedDirName = fileName + ".expected";
 	}
@@ -83,22 +84,22 @@ public class SmallJustificationsFromProofsTest extends
 		final URI inputDirURI = SmallJustificationsFromProofsTest.class
 				.getClassLoader().getResource(INPUT_FILE_DIR).toURI();
 		
-		return manager.loadOntologyFromOntologyDocument(
+		return owlManager_.loadOntologyFromOntologyDocument(
 				new File(new File(inputDirURI), inputFileName));
 	}
 	
 	@Override
 	protected Iterable<OWLSubClassOfAxiom> getConclusions() {
 		
-		for (final OWLAnnotation annotation : inputOntology.getAnnotations()) {
+		for (final OWLAnnotation annotation : owlOntology.getAnnotations()) {
 			if (CONCLUSION_ANNOTATION_FRAGMENT.equals(
 					annotation.getProperty().getIRI().getFragment())) {
 				final Matcher m = SUB_CLASS_AXIOM_REG.matcher(
 						annotation.getValue().toString());
 				if (m.matches()) {
-					return Collections.singletonList(factory.getOWLSubClassOfAxiom(
-							factory.getOWLClass(IRI.create(m.group(SUB_GROUP))),
-							factory.getOWLClass(IRI.create(m.group(SUPER_GROUP)))));
+					return Collections.singletonList(owlFactory.getOWLSubClassOfAxiom(
+							owlFactory.getOWLClass(IRI.create(m.group(SUB_GROUP))),
+							owlFactory.getOWLClass(IRI.create(m.group(SUPER_GROUP)))));
 				}
 			}
 		}
@@ -115,7 +116,7 @@ public class SmallJustificationsFromProofsTest extends
 		final File expectedDir = new File(new File(JustificationsFromProofs.class
 				.getClassLoader().getResource(INPUT_FILE_DIR).toURI()), expectedDirName);
 		for (final File expectedFile : expectedDir.listFiles()) {
-			final OWLOntology expectedOnt = manager
+			final OWLOntology expectedOnt = owlManager_
 					.loadOntologyFromOntologyDocument(expectedFile);
 			expected.add(expectedOnt.getAxioms());
 		}

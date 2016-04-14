@@ -3,7 +3,7 @@ package org.semanticweb.elk.justifications;
 import org.semanticweb.elk.proofs.InferenceSet;
 
 public abstract class CancellableJustificationComputation<C, A>
-		extends JustificationComputation<C, A> {
+		extends AbstractJustificationComputation<C, A> {
 
 	public CancellableJustificationComputation(InferenceSet<C, A> inferences) {
 		super(inferences);

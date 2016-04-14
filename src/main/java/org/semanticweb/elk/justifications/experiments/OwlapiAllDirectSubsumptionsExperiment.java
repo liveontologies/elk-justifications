@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
+import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
@@ -211,9 +212,9 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			}
 		}
 		
-		final BottomUpJustificationComputation<OWLExpression, OWLAxiom> computation =
-				new BottomUpJustificationComputation<OWLExpression, OWLAxiom>(
-							new OWLExpressionInferenceSetAdapter());
+		final JustificationComputation<OWLExpression, OWLAxiom> computation = BottomUpJustificationComputation
+				.<OWLExpression, OWLAxiom> getFactory()
+				.create(new OWLExpressionInferenceSetAdapter());
 		
 		try {
 			

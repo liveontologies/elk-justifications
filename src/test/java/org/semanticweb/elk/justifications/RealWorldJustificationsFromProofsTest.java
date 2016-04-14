@@ -16,6 +16,7 @@ import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLLogicalAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
+import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -31,11 +32,12 @@ public class RealWorldJustificationsFromProofsTest extends
 	@Parameters
 	public static Collection<Object[]> data() {
 		
-		final List<Class<? extends JustificationComputation>> computations =
-				new ArrayList<Class<? extends JustificationComputation>>();
-//		computations.add(SimpleJustificationComputation.class);// Takes too long
-		computations.add(BottomUpJustificationComputation.class);
-		computations.add(BinarizedBottomUpJustificationComputation.class);
+		final List<JustificationComputation.Factory<OWLExpression, OWLAxiom>> computations =
+				new ArrayList<JustificationComputation.Factory<OWLExpression, OWLAxiom>>();
+		computations.add(BottomUpJustificationComputation.<OWLExpression, OWLAxiom>getFactory());
+		computations.add(BinarizedJustificationComputation
+				.getFactory(BottomUpJustificationComputation
+						.<List<OWLExpression>, OWLAxiom> getFactory()));
 		
 		final String[][] fileNames = new String[][] {
 			{
@@ -50,7 +52,7 @@ public class RealWorldJustificationsFromProofsTest extends
 		};
 		
 		final List<Object[]> result = new ArrayList<Object[]>();
-		for (final Class<? extends JustificationComputation> c : computations) {
+		for (final JustificationComputation.Factory<OWLExpression, OWLAxiom> c : computations) {
 			for (final String[] fns : fileNames) {
 				final Object[] r = new Object[fns.length + 1];
 				r[0] = c;
@@ -66,10 +68,10 @@ public class RealWorldJustificationsFromProofsTest extends
 	private final String expectedDirName;
 	
 	public RealWorldJustificationsFromProofsTest(
-			final Class<? extends JustificationComputation> computationClass,
+			final JustificationComputation.Factory<OWLExpression, OWLAxiom> computationFactory,
 			final String inputFileName, final String queriesFileName,
 			final String expectedDirName) {
-		super(computationClass);
+		super(computationFactory);
 		this.inputFileName = inputFileName;
 		this.queriesFileName = queriesFileName;
 		this.expectedDirName = expectedDirName;
@@ -77,13 +79,13 @@ public class RealWorldJustificationsFromProofsTest extends
 
 	@Override
 	protected OWLOntology getInputOntology() throws Exception {
-		return manager.loadOntologyFromOntologyDocument(getFileFromResource(
+		return owlManager_.loadOntologyFromOntologyDocument(getFileFromResource(
 				INPUT_FILE_DIR, inputFileName));
 	}
 
 	@Override
 	protected Iterable<OWLSubClassOfAxiom> getConclusions() throws Exception {
-		OWLOntology ont = manager.loadOntologyFromOntologyDocument(
+		OWLOntology ont = owlManager_.loadOntologyFromOntologyDocument(
 				getFileFromResource(INPUT_FILE_DIR, queriesFileName));
 		
 		final File justDir = getFileFromResource(INPUT_FILE_DIR,
@@ -108,7 +110,7 @@ public class RealWorldJustificationsFromProofsTest extends
 				getFileFromResource(INPUT_FILE_DIR, expectedDirName),
 				Utils.toFileName(conclusion));
 		for (final File expectedFile : expectedDir.listFiles()) {
-			final OWLOntology expectedOnt = manager
+			final OWLOntology expectedOnt = owlManager_
 					.loadOntologyFromOntologyDocument(expectedFile);
 			
 			final Set<OWLAxiom> just = Sets.newHashSet(Iterables.transform(

@@ -1,6 +1,5 @@
 package org.semanticweb.elk.justifications;
 
-import java.lang.reflect.Constructor;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -8,7 +7,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
-import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -27,27 +25,22 @@ import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
  */
 public abstract class BaseJustificationsFromProofsTest {
 
-	protected OWLOntologyManager manager;
-	protected OWLDataFactory factory;
-	protected OWLOntology inputOntology;
+	protected OWLOntologyManager owlManager_;
+	protected OWLDataFactory owlFactory;
+	protected OWLOntology owlOntology;
 	
-	private final Class<? extends JustificationComputation> computationClass;
+	private final JustificationComputation.Factory<OWLExpression, OWLAxiom> computationFactory_;
 	
 	public BaseJustificationsFromProofsTest(
-			final Class<? extends JustificationComputation> computationClass) {
-		this.computationClass = computationClass;
+			JustificationComputation.Factory<OWLExpression, OWLAxiom> computationFactory) {
+		this.computationFactory_ = computationFactory;
 	}
 
 	protected abstract OWLOntology getInputOntology() throws Exception;
 
-	@SuppressWarnings("unchecked")
-	protected JustificationComputation<OWLExpression, OWLAxiom> getJustificationComputation()
-					throws ReflectiveOperationException {
+	protected JustificationComputation<OWLExpression, OWLAxiom> getJustificationComputation() {
 		
-		final Constructor<? extends JustificationComputation> constructor =
-				computationClass.getConstructor(InferenceSet.class);
-		
-		return constructor.newInstance(new OWLExpressionInferenceSetAdapter());
+		return computationFactory_.create(new OWLExpressionInferenceSetAdapter());
 	}
 	
 	protected abstract Iterable<OWLSubClassOfAxiom> getConclusions()
@@ -59,9 +52,9 @@ public abstract class BaseJustificationsFromProofsTest {
 	
 	@Before
 	public void setUp() throws Exception {
-		manager = OWLManager.createOWLOntologyManager();
-		factory = manager.getOWLDataFactory();
-		inputOntology = getInputOntology();
+		owlManager_ = OWLManager.createOWLOntologyManager();
+		owlFactory = owlManager_.getOWLDataFactory();
+		owlOntology = getInputOntology();
 	}
 	
 	@Test
@@ -71,7 +64,7 @@ public abstract class BaseJustificationsFromProofsTest {
 		
 		final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
 		final ExplainingOWLReasoner reasoner =
-				(ExplainingOWLReasoner) reasonerFactory.createReasoner(inputOntology);
+				(ExplainingOWLReasoner) reasonerFactory.createReasoner(owlOntology);
 		reasoner.precomputeInferences(InferenceType.CLASS_HIERARCHY);
 		
 		int conclusionIndex = 0;

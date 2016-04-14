@@ -25,6 +25,8 @@ public class BottomUpJustificationComputation<C, A>
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
 
+	private static final BottomUpJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
+
 	/**
 	 * conclusions for which to compute justifications
 	 */
@@ -56,7 +58,7 @@ public class BottomUpJustificationComputation<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustifications_ = 0;
 
-	public BottomUpJustificationComputation(InferenceSet<C, A> inferences) {
+	BottomUpJustificationComputation(InferenceSet<C, A> inferences) {
 		super(inferences);
 	}
 
@@ -92,8 +94,14 @@ public class BottomUpJustificationComputation<C, A>
 		if (LOGGER_.isDebugEnabled()) {
 			LOGGER_.debug("{}: processed inferences", countInferences_);
 			LOGGER_.debug("{}: processed conclusions", countConclusions_);
-			LOGGER_.debug("{}: processed justification candidates", countJustifications_);
+			LOGGER_.debug("{}: processed justification candidates",
+					countJustifications_);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
+		return (Factory<C, A>) FACTORY_;
 	}
 
 	private void toDo(C exp) {
@@ -246,6 +254,27 @@ public class BottomUpJustificationComputation<C, A>
 		@Override
 		public String toString() {
 			return getClass().getSimpleName() + "(" + expr + ", " + just + ")";
+		}
+
+	}
+
+	/**
+	 * The factory for creating a {@link BinarizedJustificationComputation}
+	 * 
+	 * @author Yevgeny Kazakov
+	 *
+	 * @param <C>
+	 *            the type of conclusion and premises used by the inferences
+	 * @param <A>
+	 *            the type of axioms used by the inferences
+	 */
+	private static class Factory<C, A>
+			implements JustificationComputation.Factory<C, A> {
+
+		@Override
+		public JustificationComputation<C, A> create(
+				InferenceSet<C, A> inferenceSet) {
+			return new BottomUpJustificationComputation<>(inferenceSet);
 		}
 
 	}

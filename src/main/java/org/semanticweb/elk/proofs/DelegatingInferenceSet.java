@@ -24,4 +24,8 @@ public class DelegatingInferenceSet<C, A> implements InferenceSet<C, A> {
 		return inferences_.getInferences(conclusion);
 	}
 
+	public InferenceSet<C, A> getDelegate() {
+		return inferences_;
+	}
+
 }
