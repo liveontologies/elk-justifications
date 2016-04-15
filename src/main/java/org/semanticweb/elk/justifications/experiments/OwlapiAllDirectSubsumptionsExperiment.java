@@ -211,6 +211,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 				throw new ExperimentException("No more queries!");
 			}
 		}
+		conclusion_.set(conclusion);
 		
 		final JustificationComputation<OWLExpression, OWLAxiom> computation = BottomUpJustificationComputation
 				.<OWLExpression, OWLAxiom> getFactory()
@@ -224,7 +225,6 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 								reasoner_.getDerivedExpression(conclusion));
 			time = System.currentTimeMillis() - time;
 			
-			conclusion_.set(conclusion);
 			justifications_.set(justifications);
 			computation.logStatistics();
 			
