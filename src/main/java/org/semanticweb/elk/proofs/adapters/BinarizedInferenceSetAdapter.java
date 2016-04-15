@@ -29,11 +29,11 @@ import com.google.common.collect.Iterables;
  * @param <A>
  *            the type of axioms used by the original and binarized inferences
  */
-public class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
+class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 
 	private final InferenceSet<C, A> original_;
 
-	public BinarizedInferenceSetAdapter(InferenceSet<C, A> original) {
+	BinarizedInferenceSetAdapter(InferenceSet<C, A> original) {
 		this.original_ = original;
 	}
 

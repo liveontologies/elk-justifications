@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.BinarizedInferenceSetAdapter;
+import org.semanticweb.elk.proofs.adapters.InferenceSets;
 
 /**
  * The {@link BottomUpJustificationComputation} applied to the binarization of
@@ -30,8 +30,7 @@ public class BinarizedJustificationComputation<C, A>
 			JustificationComputation.Factory<List<C>, A> mainFactory,
 			InferenceSet<C, A> inferences) {
 		super(inferences);
-		computaiton_ = mainFactory
-				.create(new BinarizedInferenceSetAdapter<C, A>(inferences));
+		computaiton_ = mainFactory.create(InferenceSets.binarize((inferences)));
 	}
 
 	@Override
