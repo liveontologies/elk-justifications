@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
+import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
@@ -120,13 +121,14 @@ public class OwlapiExperiment extends Experiment {
 	}
 
 	@Override
-	public Record run() throws ExperimentException, InterruptedException {
+	public Record run(final Monitor monitor)
+			throws ExperimentException {
 		try {
 			final OWLSubClassOfAxiom conclusion = conclusions_.get(
 					inputIndex_.getAndIncrement());
 			final JustificationComputation<OWLExpression, OWLAxiom> computation = BottomUpJustificationComputation
 					.<OWLExpression, OWLAxiom> getFactory()
-					.create(new OWLExpressionInferenceSetAdapter());
+					.create(new OWLExpressionInferenceSetAdapter(), monitor);
 					
 			long time = System.currentTimeMillis();
 			final Collection<Set<OWLAxiom>> justifications =

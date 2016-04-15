@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
+import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
 import org.slf4j.Logger;
@@ -120,12 +121,13 @@ public class DirectSatExperiment extends Experiment {
 	}
 
 	@Override
-	public Record run() throws ExperimentException, InterruptedException {
+	public Record run(final Monitor monitor)
+			throws ExperimentException {
 		label_.set(labels_.get(inputIndex_.get()));
 		final int conclusion = conclusions_.get(inputIndex_.getAndIncrement());
 		conclusion_.set(conclusion);
 		final JustificationComputation<Integer, Integer> computation = BottomUpJustificationComputation
-				.<Integer, Integer> getFactory().create(inferenceSet_);
+				.<Integer, Integer> getFactory().create(inferenceSet_, monitor);
 		long time = System.currentTimeMillis();
 		final Collection<Set<Integer>> justifications =
 				computation.computeJustifications(conclusion);

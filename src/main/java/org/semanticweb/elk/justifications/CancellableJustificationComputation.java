@@ -5,22 +5,16 @@ import org.semanticweb.elk.proofs.InferenceSet;
 public abstract class CancellableJustificationComputation<C, A>
 		extends AbstractJustificationComputation<C, A> {
 
-	public CancellableJustificationComputation(InferenceSet<C, A> inferences) {
+	protected final Monitor monitor_;
+
+	public CancellableJustificationComputation(
+			final InferenceSet<C, A> inferences, final Monitor monitor) {
 		super(inferences);
+		this.monitor_ = monitor;
 	}
 
-	private final int checkFrequence = 100;
-	private int iterationCounter = 0;
-
-	protected void checkCancelled() throws InterruptedException {
-
-		if (iterationCounter++ > checkFrequence) {
-			iterationCounter = 0;
-			if (Thread.interrupted()) {
-				throw new InterruptedException();
-			}
-		}
-
+	protected boolean checkCancelled() throws InterruptedException {
+		return monitor_.isCancelled();
 	}
 
 }

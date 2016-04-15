@@ -58,13 +58,13 @@ public class BottomUpJustificationComputation<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustifications_ = 0;
 
-	BottomUpJustificationComputation(InferenceSet<C, A> inferences) {
-		super(inferences);
+	BottomUpJustificationComputation(final InferenceSet<C, A> inferences,
+			final Monitor monitor) {
+		super(inferences, monitor);
 	}
 
 	@Override
-	public Collection<Set<A>> computeJustifications(C conclusion)
-			throws InterruptedException {
+	public Collection<Set<A>> computeJustifications(C conclusion) {
 
 		process(conclusion);
 
@@ -74,7 +74,7 @@ public class BottomUpJustificationComputation<C, A>
 		return justsByConcls_.get(conclusion);
 	}
 
-	private void process(C conclusion) throws InterruptedException {
+	private void process(C conclusion) {
 
 		toDo(conclusion);
 
@@ -83,6 +83,9 @@ public class BottomUpJustificationComputation<C, A>
 
 			for (Inference<C, A> inf : getInferences(conclusion)) {
 				process(inf);
+				if (monitor_.isCancelled()) {
+					return;
+				}
 			}
 
 		}
@@ -111,7 +114,7 @@ public class BottomUpJustificationComputation<C, A>
 		}
 	}
 
-	private void process(Inference<C, A> inf) throws InterruptedException {
+	private void process(Inference<C, A> inf) {
 		LOGGER_.trace("{}: new inference", inf);
 		countInferences_++;
 		// new inference, propagate existing the justification for premises
@@ -126,17 +129,21 @@ public class BottomUpJustificationComputation<C, A>
 		C conclusion = inf.getConclusion();
 		for (Set<A> just : conclusionJusts) {
 			process(new Job<C, A>(conclusion, just));
+			if (monitor_.isCancelled()) {
+				return;
+			}
 		}
 	}
 
 	/**
 	 * propagates the newly computed justification until the fixpoint
-	 * @throws InterruptedException When the call was cancelled.
 	 */
-	private void process(Job<C, A> job) throws InterruptedException {
+	private void process(Job<C, A> job) {
 		toDoJustifications_.add(job);
 		while ((job = toDoJustifications_.poll()) != null) {
-			checkCancelled();
+			if (monitor_.isCancelled()) {
+				return;
+			}
 			LOGGER_.trace("{}: new justification: {}", job.expr, job.just);
 			countJustifications_++;
 
@@ -273,8 +280,9 @@ public class BottomUpJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				InferenceSet<C, A> inferenceSet) {
-			return new BottomUpJustificationComputation<>(inferenceSet);
+				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
+			return new BottomUpJustificationComputation<>(inferenceSet,
+					monitor);
 		}
 
 	}

@@ -40,7 +40,7 @@ public abstract class BaseJustificationsFromProofsTest {
 
 	protected JustificationComputation<OWLExpression, OWLAxiom> getJustificationComputation() {
 		
-		return computationFactory_.create(new OWLExpressionInferenceSetAdapter());
+		return computationFactory_.create(new OWLExpressionInferenceSetAdapter(), DummyMonitor.INSTANCE);
 	}
 	
 	protected abstract Iterable<OWLSubClassOfAxiom> getConclusions()

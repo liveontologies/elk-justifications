@@ -28,14 +28,14 @@ public class BinarizedJustificationComputation<C, A>
 
 	BinarizedJustificationComputation(
 			JustificationComputation.Factory<List<C>, A> mainFactory,
-			InferenceSet<C, A> inferences) {
+			InferenceSet<C, A> inferences, final Monitor monitor) {
 		super(inferences);
-		computaiton_ = mainFactory.create(InferenceSets.binarize((inferences)));
+		computaiton_ =
+				mainFactory.create(InferenceSets.binarize(inferences), monitor);
 	}
 
 	@Override
-	public Collection<Set<A>> computeJustifications(C conclusion)
-			throws InterruptedException {
+	public Collection<Set<A>> computeJustifications(C conclusion) {
 		return computaiton_
 				.computeJustifications(Collections.singletonList(conclusion));
 	}
@@ -61,9 +61,9 @@ public class BinarizedJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				InferenceSet<C, A> inferenceSet) {
+				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
 			return new BinarizedJustificationComputation<C, A>(mainFactory_,
-					inferenceSet);
+					inferenceSet, monitor);
 		}
 
 	}

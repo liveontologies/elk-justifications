@@ -1,5 +1,7 @@
 package org.semanticweb.elk.justifications.experiments;
 
+import org.semanticweb.elk.justifications.Monitor;
+
 public abstract class Experiment {
 
 	public Experiment(final String[] args) throws ExperimentException {
@@ -7,9 +9,11 @@ public abstract class Experiment {
 	}
 
 	public abstract void init() throws ExperimentException;
+	
 	public abstract boolean hasNext();
-
-	public abstract Record run() throws ExperimentException, InterruptedException;
+	
+	public abstract Record run(final Monitor monitor)
+					throws ExperimentException;
 
 	public abstract String getInputName() throws ExperimentException;
 	

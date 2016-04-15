@@ -11,6 +11,7 @@ import org.semanticweb.elk.proofs.InferenceSet;
  * from sets of inferences.
  * 
  * @author Yevgeny Kazakov
+ * @author Peter Skocovsky
  *
  * @param <C>
  *            the type of conclusion and premises used by the inferences
@@ -35,11 +36,8 @@ public interface JustificationComputation<C, A> {
 	 * @param conclusion
 	 *            the conclusion for which to compute the justification
 	 * @return the set consisting of all justifications for the given conclusion
-	 * @throws InterruptedException
-	 *             if the computation has been interrupted
 	 */
-	Collection<Set<A>> computeJustifications(C conclusion)
-			throws InterruptedException;
+	Collection<Set<A>> computeJustifications(C conclusion);
 
 	/**
 	 * Prints out some statistical information about the computation using a
@@ -61,10 +59,12 @@ public interface JustificationComputation<C, A> {
 
 		/**
 		 * @param inferenceSet
+		 * @param monitor
 		 * @return a new justification computation which uses the given
 		 *         inference set
 		 */
-		JustificationComputation<C, A> create(InferenceSet<C, A> inferenceSet);
+		JustificationComputation<C, A> create(InferenceSet<C, A> inferenceSet,
+				Monitor monitor);
 
 	}
 

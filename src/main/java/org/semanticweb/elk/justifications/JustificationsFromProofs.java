@@ -6,7 +6,6 @@ import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.semanticweb.elk.justifications.experiments.Experiment;
@@ -17,7 +16,10 @@ import org.slf4j.LoggerFactory;
 
 public class JustificationsFromProofs {
 	
-	private static final Logger LOG = LoggerFactory.getLogger(JustificationsFromProofs.class);
+	private static final Logger LOG =
+			LoggerFactory.getLogger(JustificationsFromProofs.class);
+	
+	public static final long WARMUP_TIMEOUT = 20000l;
 	
 	public static void main(final String[] args) {
 		
@@ -31,8 +33,11 @@ public class JustificationsFromProofs {
 			Utils.recursiveDelete(recordFile);
 		}
 		final long timeOut = Long.parseLong(args[1]);
-		final int warmupCount = Integer.parseInt(args[2]);
-		final String experimentClassName = args[3];
+		final long globalTimeOut = Long.parseLong(args[2]);
+		final int warmupCount = Integer.parseInt(args[3]);
+		final String experimentClassName = args[4];
+		
+		final long timeOutCheckInterval = Math.min(timeOut/4, 1000);
 		
 		PrintWriter record = null;
 		
@@ -43,7 +48,7 @@ public class JustificationsFromProofs {
 			final Constructor<?> constructor =
 					experimentClass.getConstructor(String[].class);
 			final Object object = constructor.newInstance(
-					(Object) Arrays.copyOfRange(args, 4, args.length));
+					(Object) Arrays.copyOfRange(args, 5, args.length));
 			if (!(object instanceof Experiment)) {
 				LOG.error("The passed argument is not a subclass of Experiment!");
 				System.exit(2);
@@ -53,108 +58,133 @@ public class JustificationsFromProofs {
 			record = new PrintWriter(recordFile);
 			record.println("conclusion,didTimeOut,time,nJust");
 			
+			final TimeOutMonitor monitor = new TimeOutMonitor();
+			
 			LOG.info("Warm Up ...");
-			experiment.init();
-			int count = warmupCount;
-			while (count > 0 && experiment.hasNext()) {
-				
-				LOG.info("... {} ...", count);
-				withTimeout(20000, new Runnable() {
-					@Override
-					public void run() {
-						
-						try {
-							experiment.run();
-						} catch (final ExperimentException e) {
-							throw new RuntimeException(e);
-						} catch (final InterruptedException e) {
-							// Do nothing.
+			final Thread warmUpWorker = new Thread() {
+				@Override
+				public void run() {
+					
+					try {
+						experiment.init();
+						int count = warmupCount;
+						while (count > 0 && experiment.hasNext()) {
+							LOG.info("... {} ...", count);
+							
+							monitor.cancelled = false;
+							monitor.startTime.set(System.currentTimeMillis());
+							experiment.run(monitor);
+							
+							--count;
+							if (!experiment.hasNext()) {
+								experiment.init();
+							}
 						}
-						
+					} catch (final ExperimentException e) {
+						throw new RuntimeException(e);
 					}
-				});
-				
-				--count;
-				if (!experiment.hasNext()) {
-					experiment.init();
+					
 				}
-				
+			};
+			
+			warmUpWorker.start();
+			while (warmUpWorker.isAlive()) {
+				try {
+					Thread.sleep(1000);
+				} catch (final InterruptedException e) {
+					LOG.warn("Waiting for the worker thread interruptet!", e);
+				}
+				final long runTime =
+						System.currentTimeMillis() - monitor.startTime.get();
+				if (runTime > WARMUP_TIMEOUT) {
+					monitor.cancelled = true;
+				}
 			}
+			
 			LOG.info("... that's enough");
 			
-			experiment.init();
-			while (experiment.hasNext()) {
-				
-				final AtomicInteger justSize = new AtomicInteger();
-				final AtomicLong time = new AtomicLong();
-				
-				LOG.info("Obtaining justifications ...");
-				final boolean didTimeOut = withTimeout(timeOut, new Runnable() {
-					@Override
-					public void run() {
-						LOG.info("start the worker ...");
-						final long s = System.currentTimeMillis();
-						
-						try {
+			final PrintWriter rec = record;
+			final Thread worker = new Thread() {
+				@Override
+				public void run() {
+					final long globalStartTime = System.currentTimeMillis();
+					
+					try {
+						experiment.init();
+						final long currentRunTime =
+								System.currentTimeMillis() - globalStartTime;
+						while ((currentRunTime < globalTimeOut
+								|| globalTimeOut == 0)
+								&& experiment.hasNext()) {
+							LOG.info("Obtaining justifications ...");
 							
-							final Record record = experiment.run();
-							time.set(record.time);
-							justSize.set(record.nJust);
+							monitor.cancelled = false;
+							monitor.startTime.set(System.currentTimeMillis());
+							Record record = experiment.run(monitor);
 							
-						} catch (final ExperimentException e) {
-							throw new RuntimeException(e);
-						} catch (final InterruptedException e) {
-							LOG.info("... interrupted ...");
+							final boolean didTimeOut =
+									(record.time > timeOut && timeOut != 0);
+							
+							final String conclusion = experiment.getInputName();
+							
+							rec.print("\"");
+							rec.print(conclusion);
+							rec.print("\",");
+							rec.flush();
+							rec.print(didTimeOut?"TRUE":"FALSE");
+							rec.print(",");
+							rec.flush();
+							
+							if (didTimeOut) {
+								LOG.info("... timeout {}s", record.time/1000.0);
+								
+								rec.print(record.time);
+								rec.print(",");
+								rec.print("0");
+								rec.println();
+								
+							} else {
+								LOG.info("... took {}s", record.time/1000.0);
+								
+								final int justificationSize = record.nJust;
+								LOG.info("found {} justifications for {}",
+										justificationSize, conclusion);
+								
+								rec.print(record.time);
+								rec.print(",");
+								rec.print(justificationSize);
+								rec.println();
+								
+								experiment.processResult();
+								
+							}
+							
+							rec.flush();
+							
 						}
-						
-						LOG.info("... end the worker; took {}s",
-								(System.currentTimeMillis() - s)/1000.0);
+					} catch (final ExperimentException e) {
+						throw new RuntimeException(e);
 					}
-				});
-				
-				final String conclusion = experiment.getInputName();
-				
-				record.print("\"");
-				record.print(conclusion);
-				record.print("\",");
-				record.flush();
-				record.print(didTimeOut?"TRUE":"FALSE");
-				record.print(",");
-				record.flush();
-				
-				if (didTimeOut) {
-					LOG.info("... timeout");
-					
-					record.print(timeOut);
-					record.print(",");
-					record.print("0");
-					record.println();
-					
-				} else {
-					LOG.info("... took {}s", time.get()/1000.0);
-					
-					final int justificationSize = justSize.get();
-					LOG.info("found {} justifications for {}",
-							justificationSize, conclusion);
-					
-					record.print(time.get());
-					record.print(",");
-					record.print(justificationSize);
-					record.println();
-					
-					experiment.processResult();
 					
 				}
-				
-				record.flush();
-				
+			};
+			
+			worker.start();
+			while (worker.isAlive()) {
+				try {
+					Thread.sleep(timeOutCheckInterval);
+				} catch (final InterruptedException e) {
+					LOG.warn("Waiting for the worker thread interruptet!", e);
+				}
+				final long runTime =
+						System.currentTimeMillis() - monitor.startTime.get();
+				if (runTime > timeOut && timeOut != 0) {
+					monitor.cancelled = true;
+				}
 			}
 			
 		} catch (final FileNotFoundException e) {
 			LOG.error("File not found!", e);
-			System.exit(2);
-		} catch (final ExperimentException e) {
-			LOG.error("Could not setup the experiment!", e);
 			System.exit(2);
 		} catch (final ClassNotFoundException e) {
 			LOG.error("Could not setup the experiment!", e);
@@ -185,27 +215,16 @@ public class JustificationsFromProofs {
 		
 	}
 
-	private static boolean withTimeout(final long timeOut, final Runnable runnable) {
+	private static class TimeOutMonitor implements Monitor {
 		
-		final Thread worker = new Thread(runnable);
-		
-		boolean didTimeOut = false;
-		
-		worker.start();
-		try {
-			if (timeOut > 0) {
-				worker.join(timeOut);
-				if (worker.isAlive()) {
-					didTimeOut = true;
-					worker.interrupt();
-				}
-			}
-			worker.join();
-		} catch (final InterruptedException e) {
-			LOG.warn("Waiting for the worker thread interruptet!", e);
+		public volatile boolean cancelled = false;
+		public final AtomicLong startTime = new AtomicLong();
+
+		@Override
+		public boolean isCancelled() {
+			return cancelled;
 		}
 		
-		return didTimeOut;
 	}
 	
 }
