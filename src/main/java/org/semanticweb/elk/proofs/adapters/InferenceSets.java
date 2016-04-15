@@ -20,7 +20,11 @@ public class InferenceSets {
 	public static <C, A> InferenceSet<C, A> eliminateCycles(
 			InferenceSet<C, A> inferences) {
 		return new CycleRemovingInferenceSetAdapter<C, A>(inferences);
+	}
 
+	public static <C, A> InferenceSetInfoForConclusion<C, A> getInfo(
+			InferenceSet<C, A> inferences, C conclusion) {
+		return new InferenceSetInfoForConclusion<C, A>(inferences, conclusion);
 	}
 
 }
