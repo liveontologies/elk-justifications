@@ -30,7 +30,7 @@ class BloomHashSet<E> extends HashSet<E> {
 	private static final boolean COLLECT_STATS_ = true;
 
 	private static int STATS_CONTAINS_ALL_COUNT_ = 0,
-			STATS_CONTAINS_ALL_FILTERED_ = 0;
+			STATS_CONTAINS_ALL_POSITIVE_ = 0, STATS_CONTAINS_ALL_FILTERED_ = 0;
 
 	private static final short SHIFT_ = 6; // 2^6 = 64
 
@@ -87,19 +87,34 @@ class BloomHashSet<E> extends HashSet<E> {
 				return false;
 			}
 		}
-		return super.containsAll(c);
+		if (super.containsAll(c)) {
+			if (COLLECT_STATS_) {
+				STATS_CONTAINS_ALL_POSITIVE_++;
+			}
+			return true;
+		}
+		// else
+		return false;
 	}
 
 	public static void logStatistics() {
 
 		if (LOGGER_.isDebugEnabled()) {
 			if (STATS_CONTAINS_ALL_COUNT_ != 0) {
-				float containsAllSuccessRatio = (float) STATS_CONTAINS_ALL_FILTERED_
-						/ STATS_CONTAINS_ALL_COUNT_;
-				LOGGER_.debug(
-						"{} out of {} ({}%) containsAll(Collection) tests filtered",
-						STATS_CONTAINS_ALL_FILTERED_, STATS_CONTAINS_ALL_COUNT_,
-						String.format("%.2f", containsAllSuccessRatio * 100));
+				int negativeTests = STATS_CONTAINS_ALL_COUNT_
+						- STATS_CONTAINS_ALL_POSITIVE_;
+				if (negativeTests > 0) {
+					float containsAllSuccessRatio = (float) STATS_CONTAINS_ALL_FILTERED_
+							/ STATS_CONTAINS_ALL_COUNT_;
+					LOGGER_.debug(
+							"{} containsAll tests, {} negative, {} ({}%) filtered",
+							STATS_CONTAINS_ALL_COUNT_, negativeTests,
+							STATS_CONTAINS_ALL_FILTERED_, String.format("%.2f",
+									containsAllSuccessRatio * 100));
+				} else {
+					LOGGER_.debug("{} containsAll tests, all positive",
+							STATS_CONTAINS_ALL_COUNT_);
+				}
 			}
 		}
 	}
