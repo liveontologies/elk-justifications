@@ -122,6 +122,7 @@ class BloomHashSet<E> extends HashSet<E> {
 	public static void resetStatistics() {
 		STATS_CONTAINS_ALL_COUNT_ = 0;
 		STATS_CONTAINS_ALL_FILTERED_ = 0;
+		STATS_CONTAINS_ALL_POSITIVE_ = 0;
 	}
 
 }
