@@ -1,6 +1,8 @@
 package org.semanticweb.elk.justifications;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -95,6 +97,18 @@ class BloomHashSet<E> extends HashSet<E> {
 		}
 		// else
 		return false;
+	}
+
+	@Override
+	public String toString() {
+		Object[] elements = toArray();
+		Arrays.sort(elements, new Comparator<Object>() {
+			@Override
+			public int compare(Object o1, Object o2) {
+				return String.valueOf(o1).compareTo(String.valueOf(o2));
+			}
+		});
+		return Arrays.toString(elements);
 	}
 
 	public static void logStatistics() {
