@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
@@ -45,7 +46,7 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * newly computed justifications to be propagated
 	 */
-	private final Queue<Job<C, A>> toDoJustifications_ = new LinkedList<Job<C, A>>();
+	private final Queue<Job<C, A>> toDoJustifications_ = new PriorityQueue<Job<C, A>>();	
 
 	/**
 	 * a map from conclusions to their justifications
@@ -89,7 +90,7 @@ public class BottomUpJustificationComputation<C, A>
 			}
 
 		}
-
+		
 	}
 
 	@Override
@@ -210,6 +211,7 @@ public class BottomUpJustificationComputation<C, A>
 			if (justSize < oldJust.size()) {
 				if (oldJust.containsAll(just)) {
 					// new justification is smaller
+					LOGGER_.trace("removed: {}", oldJust);
 					oldJustIter.remove();
 					isASubsetOfOld = true;
 				}
@@ -250,7 +252,7 @@ public class BottomUpJustificationComputation<C, A>
 		return new BloomHashSet<E>(elements);
 	}
 
-	private static class Job<C, A> {
+	private static class Job<C, A> implements Comparable<Job<C, A>> {
 		final C expr;
 		final Set<A> just;
 
@@ -262,6 +264,12 @@ public class BottomUpJustificationComputation<C, A>
 		@Override
 		public String toString() {
 			return getClass().getSimpleName() + "(" + expr + ", " + just + ")";
+		}
+
+		@Override
+		public int compareTo(Job<C, A> o) {
+			// prioritize smaller justifications
+			return just.size() - o.just.size();
 		}
 
 	}
