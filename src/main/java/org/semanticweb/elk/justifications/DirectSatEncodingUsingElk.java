@@ -86,7 +86,7 @@ public class DirectSatEncodingUsingElk {
 			
 			final Encoder encoder = new Encoder(reasoner, outputDirectory);
 			try {
-			conclusionLoader.load(encoder, new DummyAxiomProcessor());
+				conclusionLoader.load(encoder, new DummyAxiomProcessor());
 			} catch (final TunnellingFileException e) {
 				throw e.e;
 			} catch (final TunnellingElkException e) {

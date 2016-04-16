@@ -111,12 +111,20 @@ public class JustificationsFromProofs {
 					
 					try {
 						experiment.init();
-						final long currentRunTime =
-								System.currentTimeMillis() - globalStartTime;
-						while ((currentRunTime < globalTimeOut
-								|| globalTimeOut == 0)
-								&& experiment.hasNext()) {
-							LOG.info("Obtaining justifications ...");
+						while (experiment.hasNext()) {
+							final long currentRunTime =
+									System.currentTimeMillis() - globalStartTime;
+							if (currentRunTime > globalTimeOut
+									&& globalTimeOut != 0) {
+								break;
+							}
+							if (globalTimeOut == 0) {
+								LOG.info("Obtaining justifications ...");
+							} else {
+								LOG.info("Obtaining justifications ...");
+								LOG.info("{}s left until global timeout",
+										(globalTimeOut - currentRunTime)/1000d);
+							}
 							
 							monitor.cancelled = false;
 							monitor.startTime.set(System.currentTimeMillis());
