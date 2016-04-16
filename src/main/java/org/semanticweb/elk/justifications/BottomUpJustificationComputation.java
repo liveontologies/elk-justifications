@@ -128,24 +128,31 @@ public class BottomUpJustificationComputation<C, A>
 		}
 		C conclusion = inf.getConclusion();
 		for (Set<A> just : conclusionJusts) {
-			process(new Job<C, A>(conclusion, just));
+			toDo(conclusion, just);
+			process();
 			if (monitor_.isCancelled()) {
 				return;
 			}
 		}
 	}
 
+	private void toDo(C conclusion, Set<A> just) {
+		if (merge(just, justsByConcls_.get(conclusion))) {
+			LOGGER_.trace("{}: new justification: {}", conclusion, just);
+			countJustifications_++;
+			toDoJustifications_.add(new Job<C, A>(conclusion, just));
+		}
+	}
+
 	/**
-	 * propagates the newly computed justification until the fixpoint
+	 * process new justifications until the fixpoint
 	 */
-	private void process(Job<C, A> job) {
-		toDoJustifications_.add(job);
+	private void process() {
+		Job<C, A> job;
 		while ((job = toDoJustifications_.poll()) != null) {
 			if (monitor_.isCancelled()) {
 				return;
 			}
-			LOGGER_.trace("{}: new justification: {}", job.expr, job.just);
-			countJustifications_++;
 
 			if (job.just.isEmpty()) {
 				// all justifications are computed,
@@ -157,30 +164,24 @@ public class BottomUpJustificationComputation<C, A>
 				}
 			}
 
-			if (merge(job.just, justsByConcls_.get(job.expr))) {
+			/*
+			 * propagating justification over inferences
+			 */
+			for (Inference<C, A> inf : inferencesByPremises_.get(job.expr)) {
 
-				/*
-				 * propagating justification over inferences
-				 */
-				for (Inference<C, A> inf : inferencesByPremises_
-						.get(job.expr)) {
-
-					Collection<Set<A>> conclusionJusts = new ArrayList<Set<A>>();
-					Set<A> just = createSet(job.just);
-					just.addAll(inf.getJustification());
-					conclusionJusts.add(just);
-					for (final C premise : inf.getPremises()) {
-						if (!premise.equals(job.expr)) {
-							conclusionJusts = join(conclusionJusts,
-									justsByConcls_.get(premise));
-						}
+				Collection<Set<A>> conclusionJusts = new ArrayList<Set<A>>();
+				Set<A> just = createSet(job.just);
+				just.addAll(inf.getJustification());
+				conclusionJusts.add(just);
+				for (final C premise : inf.getPremises()) {
+					if (!premise.equals(job.expr)) {
+						conclusionJusts = join(conclusionJusts,
+								justsByConcls_.get(premise));
 					}
+				}
 
-					for (Set<A> conclJust : conclusionJusts) {
-						toDoJustifications_.add(
-								new Job<C, A>(inf.getConclusion(), conclJust));
-					}
-
+				for (Set<A> conclJust : conclusionJusts) {
+					toDo(inf.getConclusion(), conclJust);
 				}
 
 			}
