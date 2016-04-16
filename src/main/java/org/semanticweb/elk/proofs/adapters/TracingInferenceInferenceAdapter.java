@@ -10,6 +10,7 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
 import org.semanticweb.elk.owl.visitors.ElkAxiomVisitor;
 import org.semanticweb.elk.proofs.Inference;
+import org.semanticweb.elk.proofs.InferencePrinter;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.semanticweb.elk.reasoner.tracing.ConclusionBaseFactory;
 import org.semanticweb.elk.reasoner.tracing.DummyConclusionVisitor;
@@ -57,6 +58,11 @@ class TracingInferenceInferenceAdapter
 		Set<ElkAxiom> result = new HashSet<ElkAxiom>();
 		inference_.accept(new JustificationGetter(result));
 		return result;
+	}
+	
+	@Override
+	public String toString() {
+		return InferencePrinter.toString(this);
 	}
 
 	static class ConclusionCollector extends DummyConclusionVisitor<Void> {

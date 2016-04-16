@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Set;
 
 import org.semanticweb.elk.proofs.Inference;
+import org.semanticweb.elk.proofs.InferencePrinter;
 
 public class DirectSatEncodingInference implements Inference<Integer, Integer> {
 
@@ -32,6 +33,11 @@ public class DirectSatEncodingInference implements Inference<Integer, Integer> {
 	@Override
 	public Set<? extends Integer> getJustification() {
 		return justifications_;
+	}
+	
+	@Override
+	public String toString() {
+		return InferencePrinter.toString(this);
 	}
 
 }

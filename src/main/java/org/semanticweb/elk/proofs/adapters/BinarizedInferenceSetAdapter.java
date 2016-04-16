@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.semanticweb.elk.proofs.Inference;
+import org.semanticweb.elk.proofs.InferencePrinter;
 import org.semanticweb.elk.proofs.InferenceSet;
 
 import com.google.common.base.Function;
@@ -91,6 +92,11 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 		public Set<? extends A> getJustification() {
 			return Collections.emptySet();
 		}
+		
+		@Override
+		public String toString() {
+			return InferencePrinter.toString(this);
+		}
 
 	}
 
@@ -157,6 +163,11 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 		@Override
 		public Set<? extends A> getJustification() {
 			return original_.getJustification();
+		}
+		
+		@Override
+		public String toString() {
+			return InferencePrinter.toString(this);
 		}
 
 	}
