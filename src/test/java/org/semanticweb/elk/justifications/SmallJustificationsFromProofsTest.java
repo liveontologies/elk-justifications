@@ -53,8 +53,8 @@ public class SmallJustificationsFromProofsTest extends
 				"Exponential",
 				"Sequence",
 				"Tautologies",
-//				"Transitive",// Does not work due to optimization in ELK
-//				"TransitivityByChain",// Does not work due to optimization in ELK
+				"Transitive",
+				"TransitivityByChain",
 			};
 		
 		final List<Object[]> result = new ArrayList<Object[]>();
