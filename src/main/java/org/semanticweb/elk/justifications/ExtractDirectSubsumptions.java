@@ -74,7 +74,7 @@ public class ExtractDirectSubsumptions {
 			LOG.info("Extracting direct subsumptions ...");
 			start = System.currentTimeMillis();
 			final List<OWLSubClassOfAxiom> subsumptions =
-					extractSubsumptions(reasoner, factory);
+					extractSubsumptions(reasoner, ont, factory);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
 			LOG.info("Number of direct subsumptions: {}", subsumptions.size());
@@ -113,7 +113,8 @@ public class ExtractDirectSubsumptions {
 	}
 
 	private static List<OWLSubClassOfAxiom> extractSubsumptions(
-			final OWLReasoner reasoner, final OWLDataFactory factory) {
+			final OWLReasoner reasoner, final OWLOntology ontology,
+			final OWLDataFactory factory) {
 		
 		final Set<Node<OWLClass>> done = new HashSet<Node<OWLClass>>();
 		final Queue<Node<OWLClass>> toDo = new LinkedList<Node<OWLClass>>();
@@ -142,14 +143,20 @@ public class ExtractDirectSubsumptions {
 						
 						if (!second.equals(factory.getOWLThing())
 								&& !first.equals(factory.getOWLNothing())) {
-							result.add(factory
-									.getOWLSubClassOfAxiom(first, second));
+							final OWLSubClassOfAxiom axiom = factory
+									.getOWLSubClassOfAxiom(first, second);
+							if (!isAsserted(axiom, ontology)) {
+								result.add(axiom);
+							}
 						}
 
 						if (!first.equals(factory.getOWLThing())
 								&& !second.equals(factory.getOWLNothing())) {
-							result.add(factory
-									.getOWLSubClassOfAxiom(second, first));
+							final OWLSubClassOfAxiom axiom = factory
+									.getOWLSubClassOfAxiom(second, first);
+							if (!isAsserted(axiom, ontology)) {
+								result.add(axiom);
+							}
 						}
 						
 					}
@@ -166,8 +173,11 @@ public class ExtractDirectSubsumptions {
 							continue;
 						}
 						for (final OWLClass sub : subNode) {
-							result.add(factory
-									.getOWLSubClassOfAxiom(sub, sup));
+							final OWLSubClassOfAxiom axiom = factory
+									.getOWLSubClassOfAxiom(sub, sup);
+							if (!isAsserted(axiom, ontology)) {
+								result.add(axiom);
+							}
 						}
 					}
 				}
@@ -185,6 +195,17 @@ public class ExtractDirectSubsumptions {
 		}
 		
 		return result;
+	}
+	
+	private static boolean isAsserted(final OWLSubClassOfAxiom axiom,
+			final OWLOntology ontology) {
+		final Set<OWLSubClassOfAxiom> axioms = ontology
+				.getSubClassAxiomsForSubClass(axiom.getSubClass().asOWLClass());
+		if (axioms == null || axioms.isEmpty()) {
+			return false;
+		} else {
+			return axioms.contains(axiom);
+		}
 	}
 	
 }
