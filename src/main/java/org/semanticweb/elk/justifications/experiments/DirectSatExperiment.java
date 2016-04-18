@@ -7,8 +7,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -16,12 +20,20 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Monitor;
+import org.semanticweb.elk.justifications.Utils;
+import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
+
 public class DirectSatExperiment extends Experiment {
+
+	public static final String STAT_NAME_AXIOMS = "DirectSatExperiment.nAxiomsInAllProofs";
+	public static final String STAT_NAME_INFERENCES = "DirectSatExperiment.nInferencesInAllProofs";
+	public static final String STAT_NAME_CONCLUSIONS = "DirectSatExperiment.nConclusionsInAllProofs";
 	
 	private static final Logger LOG = LoggerFactory.getLogger(
 			DirectSatExperiment.class);
@@ -36,6 +48,10 @@ public class DirectSatExperiment extends Experiment {
 	private AtomicInteger conclusion_ = new AtomicInteger(0);
 	private AtomicReference<String> label_ =
 			new AtomicReference<String>("null");
+	private AtomicReference<JustificationComputation<Integer, Integer>> computation_ =
+			new AtomicReference<JustificationComputation<Integer, Integer>>();
+	private AtomicReference<Map<String, Object>> stats_ =
+			new AtomicReference<Map<String, Object>>();
 	
 	public DirectSatExperiment(final String[] args) throws ExperimentException {
 		super(args);
@@ -133,7 +149,7 @@ public class DirectSatExperiment extends Experiment {
 				computation.computeJustifications(conclusion);
 		time = System.currentTimeMillis() - time;
 		justifications_.set(justifications);
-		computation.logStatistics();
+		computation_.set(computation);
 		return new Record(time, justifications.size());
 	}
 
@@ -144,7 +160,106 @@ public class DirectSatExperiment extends Experiment {
 
 	@Override
 	public void processResult() throws ExperimentException {
+		
+		final int conclusion = conclusion_.get();
+		
+		final Set<Integer> axiomExprs =
+				new HashSet<Integer>();
+		final Set<Integer> lemmaExprs =
+				new HashSet<Integer>();
+		final Set<Inference<Integer, Integer>> inferences =
+				new HashSet<Inference<Integer, Integer>>();
+		
+		Utils.traverseProofs(conclusion, inferenceSet_,
+				new Function<Inference<Integer, Integer>, Void>() {
+					@Override
+					public Void apply(
+							final Inference<Integer, Integer> inf) {
+						inferences.add(inf);
+						return null;
+					}
+				},
+				new Function<Integer, Void>(){
+					@Override
+					public Void apply(final Integer expr) {
+						lemmaExprs.add(expr);
+						return null;
+					}
+				},
+				new Function<Integer, Void>(){
+					@Override
+					public Void apply(final Integer axiom) {
+						axiomExprs.add(axiom);
+						return null;
+					}
+				}
+		);
+		
+		final Map<String, Object> stats = new HashMap<String, Object>();
+		stats.put(STAT_NAME_AXIOMS, axiomExprs.size());
+		stats.put(STAT_NAME_CONCLUSIONS, lemmaExprs.size());
+		stats.put(STAT_NAME_INFERENCES, inferences.size());
+		stats_.set(stats);
+		
 		// Currently empty.
+	}
+
+	@Override
+	public String[] getStatNames() {
+		final String[] statNames = new String[] {
+				STAT_NAME_AXIOMS,
+				STAT_NAME_CONCLUSIONS,
+				STAT_NAME_INFERENCES,
+			};
+		final String[] otherStatNames =
+				BottomUpJustificationComputation.getFactory().getStatNames();
+		final String[] ret = Arrays.copyOf(statNames,
+				statNames.length + otherStatNames.length);
+		System.arraycopy(otherStatNames, 0, ret, statNames.length,
+				otherStatNames.length);
+		return ret;
+	}
+
+	@Override
+	public Map<String, Object> getStatistics() {
+		Map<String, Object> stats = stats_.get();
+		if (stats == null) {
+			stats = new HashMap<String, Object>();
+		}
+		final JustificationComputation<Integer, Integer> computation =
+				computation_.get();
+		if (computation != null) {
+			stats.putAll(computation.getStatistics());
+		}
+		return stats;
+	}
+
+	@Override
+	public void logStatistics() {
+		final Map<String, Object> stats = stats_.get();
+		if (stats != null && LOG.isDebugEnabled()) {
+			LOG.debug("{}: number of axioms in all proofs",
+					stats.get(STAT_NAME_AXIOMS));
+			LOG.debug("{}: number of conclusions in all proofs",
+					stats.get(STAT_NAME_CONCLUSIONS));
+			LOG.debug("{}: number of inferences in all proofs",
+					stats.get(STAT_NAME_INFERENCES));
+		}
+		final JustificationComputation<Integer, Integer> computation =
+				computation_.get();
+		if (computation != null) {
+			computation.logStatistics();
+		}
+	}
+
+	@Override
+	public void resetStatistics() {
+		stats_.set(null);
+		final JustificationComputation<Integer, Integer> computation =
+				computation_.get();
+		if (computation != null) {
+			computation.resetStatistics();
+		}
 	}
 
 }

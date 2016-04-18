@@ -3,6 +3,7 @@ package org.semanticweb.elk.justifications;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.semanticweb.elk.proofs.InferenceSet;
@@ -41,8 +42,23 @@ public class BinarizedJustificationComputation<C, A>
 	}
 
 	@Override
+	public String[] getStatNames() {
+		return computaiton_.getStatNames();
+	}
+	
+	@Override
+	public Map<String, Object> getStatistics() {
+		return computaiton_.getStatistics();
+	}
+	
+	@Override
 	public void logStatistics() {
 		computaiton_.logStatistics();
+	}
+
+	@Override
+	public void resetStatistics() {
+		computaiton_.resetStatistics();
 	}
 
 	public static <C, A> JustificationComputation.Factory<C, A> getFactory(
@@ -64,6 +80,11 @@ public class BinarizedJustificationComputation<C, A>
 				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
 			return new BinarizedJustificationComputation<C, A>(mainFactory_,
 					inferenceSet, monitor);
+		}
+
+		@Override
+		public String[] getStatNames() {
+			return mainFactory_.getStatNames();
 		}
 
 	}

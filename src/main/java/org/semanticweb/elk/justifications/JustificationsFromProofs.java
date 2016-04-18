@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.semanticweb.elk.justifications.experiments.Experiment;
@@ -56,7 +57,12 @@ public class JustificationsFromProofs {
 			final Experiment experiment = (Experiment) object;
 			
 			record = new PrintWriter(recordFile);
-			record.println("conclusion,didTimeOut,time,nJust");
+			record.print("conclusion,didTimeOut,time,nJust");
+			for (final String statName : experiment.getStatNames()) {
+				record.print(",");
+				record.print(statName);
+			}
+			record.println();
 			
 			final TimeOutMonitor monitor = new TimeOutMonitor();
 			
@@ -118,6 +124,9 @@ public class JustificationsFromProofs {
 									&& globalTimeOut != 0) {
 								break;
 							}
+							
+							experiment.resetStatistics();
+							
 							if (globalTimeOut == 0) {
 								LOG.info("Obtaining justifications ...");
 							} else {
@@ -149,7 +158,6 @@ public class JustificationsFromProofs {
 								rec.print(record.time);
 								rec.print(",");
 								rec.print("0");
-								rec.println();
 								
 							} else {
 								LOG.info("... took {}s", record.time/1000.0);
@@ -161,12 +169,20 @@ public class JustificationsFromProofs {
 								rec.print(record.time);
 								rec.print(",");
 								rec.print(justificationSize);
-								rec.println();
 								
 								experiment.processResult();
+								experiment.logStatistics();
 								
 							}
 							
+							final Map<String, Object> stats =
+									experiment.getStatistics();
+							if (stats != null) for (final String statName
+									: experiment.getStatNames()) {
+								rec.print(",");
+								rec.print(stats.get(statName));
+							}
+							rec.println();
 							rec.flush();
 							
 						}

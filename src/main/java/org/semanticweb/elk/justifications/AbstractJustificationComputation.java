@@ -30,4 +30,9 @@ abstract class AbstractJustificationComputation<C, A> extends
 		// does nothing by default
 	}
 
+	@Override
+	public void resetStatistics() {
+		// does nothing by default
+	}
+
 }

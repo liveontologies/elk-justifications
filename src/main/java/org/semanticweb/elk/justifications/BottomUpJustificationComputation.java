@@ -1,12 +1,15 @@
 package org.semanticweb.elk.justifications;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -22,6 +25,10 @@ import com.google.common.collect.Multimap;
 
 public class BottomUpJustificationComputation<C, A>
 		extends CancellableJustificationComputation<C, A> {
+
+	public static final String STAT_NAME_INFERENCES = "BottomUpJustificationComputation.nProcessedInferences";
+	public static final String STAT_NAME_CONCLUSIONS = "BottomUpJustificationComputation.nProcessedConclusions";
+	public static final String STAT_NAME_JUSTIFICATIONS = "BottomUpJustificationComputation.nProcessedJustificationCandidates";
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
@@ -46,7 +53,7 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * newly computed justifications to be propagated
 	 */
-	private final Queue<Job<C, A>> toDoJustifications_ = new PriorityQueue<Job<C, A>>();	
+	private final Queue<Job<C, A>> toDoJustifications_ = new PriorityQueue<Job<C, A>>();
 
 	/**
 	 * a map from conclusions to their justifications
@@ -67,10 +74,11 @@ public class BottomUpJustificationComputation<C, A>
 	@Override
 	public Collection<Set<A>> computeJustifications(C conclusion) {
 
+		BloomHashSet.resetStatistics();
+
 		process(conclusion);
 
-		BloomHashSet.logStatistics();
-		BloomHashSet.resetStatistics();
+		BloomHashSet.logStatistics();// TODO: can this be removed ??
 
 		return justsByConcls_.get(conclusion);
 	}
@@ -90,7 +98,22 @@ public class BottomUpJustificationComputation<C, A>
 			}
 
 		}
-		
+
+	}
+
+	@Override
+	public String[] getStatNames() {
+		return getFactory().getStatNames();
+	}
+
+	@Override
+	public Map<String, Object> getStatistics() {
+		final Map<String, Object> stats = new HashMap<String, Object>(
+				BloomHashSet.getStatistics());
+		stats.put(STAT_NAME_INFERENCES, countInferences_);
+		stats.put(STAT_NAME_CONCLUSIONS, countConclusions_);
+		stats.put(STAT_NAME_JUSTIFICATIONS, countJustifications_);
+		return stats;
 	}
 
 	@Override
@@ -101,6 +124,15 @@ public class BottomUpJustificationComputation<C, A>
 			LOGGER_.debug("{}: processed justification candidates",
 					countJustifications_);
 		}
+		BloomHashSet.logStatistics();
+	}
+
+	@Override
+	public void resetStatistics() {
+		countInferences_ = 0;
+		countConclusions_ = 0;
+		countJustifications_ = 0;
+		BloomHashSet.resetStatistics();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -292,6 +324,17 @@ public class BottomUpJustificationComputation<C, A>
 				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
 			return new BottomUpJustificationComputation<>(inferenceSet,
 					monitor);
+		}
+		
+		public String[] getStatNames() {
+			final String[] statNames = new String[] { STAT_NAME_INFERENCES,
+					STAT_NAME_CONCLUSIONS, STAT_NAME_JUSTIFICATIONS, };
+			final String[] bloomStatNames = BloomHashSet.getStatNames();
+			final String[] ret = Arrays.copyOf(statNames,
+					statNames.length + bloomStatNames.length);
+			System.arraycopy(bloomStatNames, 0, ret, statNames.length,
+					bloomStatNames.length);
+			return ret;
 		}
 
 	}

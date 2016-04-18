@@ -18,7 +18,7 @@ import org.semanticweb.elk.proofs.InferenceSet;
  * @param <A>
  *            the type of axioms used by the inferences
  */
-public interface JustificationComputation<C, A> {
+public interface JustificationComputation<C, A> extends HasStatistics {
 
 	/**
 	 * @return the inference set used by this computation
@@ -40,12 +40,6 @@ public interface JustificationComputation<C, A> {
 	Collection<Set<A>> computeJustifications(C conclusion);
 
 	/**
-	 * Prints out some statistical information about the computation using a
-	 * logger
-	 */
-	void logStatistics();
-
-	/**
 	 * Factory for creating computations
 	 * 
 	 * @author Yevgeny Kazakov
@@ -65,6 +59,13 @@ public interface JustificationComputation<C, A> {
 		 */
 		JustificationComputation<C, A> create(InferenceSet<C, A> inferenceSet,
 				Monitor monitor);
+
+		/**
+		 * @return the keys of the statistics map returned by the method
+		 *         {@link HasStatistics#getStatistics()} of the
+		 *         {@link JustificationComputation} created by this factory.
+		 */
+		String[] getStatNames();
 
 	}
 

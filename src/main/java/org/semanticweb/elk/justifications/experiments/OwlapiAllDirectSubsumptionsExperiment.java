@@ -4,8 +4,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +21,7 @@ import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
@@ -35,11 +40,18 @@ import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
 import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
 import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
+import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
 import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Function;
+
 public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
+
+	public static final String STAT_NAME_AXIOMS = "OwlapiAllDirectSubsumptionsExperiment.nAxiomsInAllProofs";
+	public static final String STAT_NAME_INFERENCES = "OwlapiAllDirectSubsumptionsExperiment.nInferencesInAllProofs";
+	public static final String STAT_NAME_CONCLUSIONS = "OwlapiAllDirectSubsumptionsExperiment.nConclusionsInAllProofs";
 	
 	private static final Logger LOG = LoggerFactory.getLogger(
 			OwlapiAllDirectSubsumptionsExperiment.class);
@@ -60,6 +72,10 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			new ConcurrentLinkedQueue<Node<OWLClass>>();
 	private final Queue<OWLSubClassOfAxiom> conclusionsToDo_ =
 			new ConcurrentLinkedQueue<OWLSubClassOfAxiom>();
+	private AtomicReference<JustificationComputation<OWLExpression, OWLAxiom>> computation_ =
+			new AtomicReference<JustificationComputation<OWLExpression, OWLAxiom>>();
+	private AtomicReference<Map<String, Object>> stats_ =
+			new AtomicReference<Map<String, Object>>();
 	
 	public OwlapiAllDirectSubsumptionsExperiment(final String[] args)
 			throws ExperimentException {
@@ -228,7 +244,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			time = System.currentTimeMillis() - time;
 			
 			justifications_.set(justifications);
-			computation.logStatistics();
+			computation_.set(computation);
 			
 			return new Record(time, justifications.size());
 			
@@ -248,11 +264,56 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 	@Override
 	public void processResult() throws ExperimentException {
 		
-		if (outputDirectory_ == null) {
-			return;
-		}
-		
 		try {
+			
+			final OWLSubClassOfAxiom conclusion = conclusion_.get();
+			
+			final OWLAxiomExpression expression = reasoner_
+					.getDerivedExpression(conclusion);
+			final OWLExpressionInferenceSetAdapter inferenceSet =
+					new OWLExpressionInferenceSetAdapter();
+			
+			final Set<OWLAxiom> axiomExprs =
+					new HashSet<OWLAxiom>();
+			final Set<OWLExpression> lemmaExprs =
+					new HashSet<OWLExpression>();
+			final Set<Inference<OWLExpression, OWLAxiom>> inferences =
+					new HashSet<Inference<OWLExpression, OWLAxiom>>();
+			
+			Utils.traverseProofs(expression, inferenceSet,
+					new Function<Inference<OWLExpression, OWLAxiom>, Void>() {
+						@Override
+						public Void apply(
+								final Inference<OWLExpression, OWLAxiom> inf) {
+							inferences.add(inf);
+							return null;
+						}
+					},
+					new Function<OWLExpression, Void>(){
+						@Override
+						public Void apply(final OWLExpression expr) {
+							lemmaExprs.add(expr);
+							return null;
+						}
+					},
+					new Function<OWLAxiom, Void>(){
+						@Override
+						public Void apply(final OWLAxiom axiom) {
+							axiomExprs.add(axiom);
+							return null;
+						}
+					}
+			);
+			
+			final Map<String, Object> stats = new HashMap<String, Object>();
+			stats.put(STAT_NAME_AXIOMS, axiomExprs.size());
+			stats.put(STAT_NAME_CONCLUSIONS, lemmaExprs.size());
+			stats.put(STAT_NAME_INFERENCES, inferences.size());
+			stats_.set(stats);
+			
+			if (outputDirectory_ == null) {
+				return;
+			}
 			
 			final String conclName = Utils.toFileName(conclusion_.get());
 			final File outDir = new File(outputDirectory_, conclName);
@@ -276,8 +337,70 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			throw new ExperimentException(e);
 		} catch (final FileNotFoundException e) {
 			throw new ExperimentException(e);
+		} catch (final UnsupportedEntailmentTypeException e) {
+			throw new ExperimentException(e);
+		} catch (final ProofGenerationException e) {
+			throw new ExperimentException(e);
 		}
 		
+	}
+
+	@Override
+	public String[] getStatNames() {
+		final String[] statNames = new String[] {
+				STAT_NAME_AXIOMS,
+				STAT_NAME_CONCLUSIONS,
+				STAT_NAME_INFERENCES,
+			};
+		final String[] otherStatNames =
+				BottomUpJustificationComputation.getFactory().getStatNames();
+		final String[] ret = Arrays.copyOf(statNames,
+				statNames.length + otherStatNames.length);
+		System.arraycopy(otherStatNames, 0, ret, statNames.length,
+				otherStatNames.length);
+		return ret;
+	}
+
+	@Override
+	public Map<String, Object> getStatistics() {
+		Map<String, Object> stats = stats_.get();
+		if (stats == null) {
+			stats = new HashMap<String, Object>();
+		}
+		final JustificationComputation<OWLExpression, OWLAxiom> computation =
+				computation_.get();
+		if (computation != null) {
+			stats.putAll(computation.getStatistics());
+		}
+		return stats;
+	}
+
+	@Override
+	public void logStatistics() {
+		final Map<String, Object> stats = stats_.get();
+		if (stats != null && LOG.isDebugEnabled()) {
+			LOG.debug("{}: number of axioms in all proofs",
+					stats.get(STAT_NAME_AXIOMS));
+			LOG.debug("{}: number of conclusions in all proofs",
+					stats.get(STAT_NAME_CONCLUSIONS));
+			LOG.debug("{}: number of inferences in all proofs",
+					stats.get(STAT_NAME_INFERENCES));
+		}
+		final JustificationComputation<OWLExpression, OWLAxiom> computation =
+				computation_.get();
+		if (computation != null) {
+			computation.logStatistics();
+		}
+	}
+
+	@Override
+	public void resetStatistics() {
+		stats_.set(null);
+		final JustificationComputation<OWLExpression, OWLAxiom> computation =
+				computation_.get();
+		if (computation != null) {
+			computation.resetStatistics();
+		}
 	}
 
 }
