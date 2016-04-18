@@ -22,6 +22,12 @@ public class InferenceSets {
 		return new CycleRemovingInferenceSetAdapter<C, A>(inferences);
 	}
 
+	public static <C, A> boolean hasCycle(InferenceSet<C, A> inferences,
+			C conclusion) {
+		return (new InferenceSetCycleDetector<C, A>(inferences))
+				.hasCyclicProofFor(conclusion);
+	}
+
 	public static <C, A> InferenceSetInfoForConclusion<C, A> getInfo(
 			InferenceSet<C, A> inferences, C conclusion) {
 		return new InferenceSetInfoForConclusion<C, A>(inferences, conclusion);
