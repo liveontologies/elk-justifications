@@ -61,6 +61,8 @@ public class BottomUpJustificationComputation<C, A>
 	private final ListMultimap<C, Set<A>> justsByConcls_ = ArrayListMultimap
 			.create();
 
+	private StronglyConnectedComponentDecomposition<C> decomposition_;
+
 	// Statistics
 
 	private int countInferences_ = 0, countConclusions_ = 0,
@@ -74,11 +76,13 @@ public class BottomUpJustificationComputation<C, A>
 	@Override
 	public Collection<Set<A>> computeJustifications(C conclusion) {
 
-		BloomHashSet.resetStatistics();
-
-		process(conclusion);
-
-		BloomHashSet.logStatistics();// TODO: can this be removed ??
+		if (!done_.contains(conclusion)) {
+			// compute it first
+			BloomHashSet.resetStatistics();
+			decomposition_ = StronglyConnectedComponentsComputation
+					.computeComponents(this, conclusion);
+			process(conclusion);
+		}
 
 		return justsByConcls_.get(conclusion);
 	}
@@ -96,9 +100,8 @@ public class BottomUpJustificationComputation<C, A>
 					return;
 				}
 			}
-
-		}
-
+		}		
+		process();
 	}
 
 	@Override
@@ -150,7 +153,7 @@ public class BottomUpJustificationComputation<C, A>
 	private void process(Inference<C, A> inf) {
 		LOGGER_.trace("{}: new inference", inf);
 		countInferences_++;
-		// new inference, propagate existing the justification for premises
+		// new inference, propagate existing justifications for premises
 		List<Set<A>> conclusionJusts = new ArrayList<Set<A>>();
 		conclusionJusts.add(createSet(inf.getJustification()));
 		for (C premise : inf.getPremises()) {
@@ -161,8 +164,7 @@ public class BottomUpJustificationComputation<C, A>
 		}
 		C conclusion = inf.getConclusion();
 		for (Set<A> just : conclusionJusts) {
-			toDo(conclusion, just);
-			process();
+			toDo(conclusion, just);			
 			if (monitor_.isCancelled()) {
 				return;
 			}
@@ -173,7 +175,8 @@ public class BottomUpJustificationComputation<C, A>
 		if (merge(just, justsByConcls_.get(conclusion))) {
 			LOGGER_.trace("{}: new justification: {}", conclusion, just);
 			countJustifications_++;
-			toDoJustifications_.add(new Job<C, A>(conclusion, just));
+			toDoJustifications_.add(new Job<C, A>(conclusion,
+					decomposition_.getComponentId(conclusion), just));
 		}
 	}
 
@@ -186,6 +189,8 @@ public class BottomUpJustificationComputation<C, A>
 			if (monitor_.isCancelled()) {
 				return;
 			}
+
+			LOGGER_.trace("{}", job);
 
 			if (job.just.isEmpty()) {
 				// all justifications are computed,
@@ -286,28 +291,37 @@ public class BottomUpJustificationComputation<C, A>
 
 	private static class Job<C, A> implements Comparable<Job<C, A>> {
 		final C expr;
+		final int order;
 		final Set<A> just;
 
-		public Job(final C expr, final Set<A> just) {
+		public Job(final C expr, int order, final Set<A> just) {
 			this.expr = expr;
+			this.order = order;
 			this.just = just;
 		}
 
 		@Override
 		public String toString() {
-			return getClass().getSimpleName() + "(" + expr + ", " + just + ")";
+			return getClass().getSimpleName() + "([" + order + "] " + expr
+					+ ": " + just + ")";
 		}
 
 		@Override
 		public int compareTo(Job<C, A> o) {
-			// prioritize smaller justifications
+			// first priority for jobs with deeper conclusions
+			// (this computes justifications component-wise)
+			int orderDiff = order - o.order;
+			if (orderDiff != 0) {
+				return orderDiff;
+			}
+			// within each component, prioritize smaller justifications
 			return just.size() - o.just.size();
 		}
 
 	}
 
 	/**
-	 * The factory for creating a {@link BinarizedJustificationComputation}
+	 * The factory for creating a {@link BottomUpJustificationComputation}
 	 * 
 	 * @author Yevgeny Kazakov
 	 *
