@@ -81,7 +81,7 @@ public class ExtractSubsumptions {
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
 
-			LOG.info("Extracting direct subsumptions ...");
+			LOG.info("Extracting subsumptions ...");
 			start = System.currentTimeMillis();
 			final List<OWLSubClassOfAxiom> subsumptions =
 					extractSubsumptions(reasoner, onlyDirect, ont, factory);

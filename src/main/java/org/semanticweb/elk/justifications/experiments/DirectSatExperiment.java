@@ -144,13 +144,16 @@ public class DirectSatExperiment extends Experiment {
 		conclusion_.set(conclusion);
 		final JustificationComputation<Integer, Integer> computation = BottomUpJustificationComputation
 				.<Integer, Integer> getFactory().create(inferenceSet_, monitor);
-		long time = System.currentTimeMillis();
+//		long time = System.currentTimeMillis();
+		long time = System.nanoTime();
 		final Collection<Set<Integer>> justifications =
 				computation.computeJustifications(conclusion);
-		time = System.currentTimeMillis() - time;
+//		time = System.currentTimeMillis() - time;
+		time = System.nanoTime() - time;
 		justifications_.set(justifications);
 		computation_.set(computation);
-		return new Record(time, justifications.size());
+//		return new Record(time, justifications.size());
+		return new Record(time/1000000.0, justifications.size());
 	}
 
 	@Override

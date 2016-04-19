@@ -205,14 +205,17 @@ public class CsvQueryOwlapiExperiment extends Experiment {
 					.<OWLExpression, OWLAxiom> getFactory()
 					.create(new OWLExpressionInferenceSetAdapter(), monitor);
 					
-			long time = System.currentTimeMillis();
+//			long time = System.currentTimeMillis();
+			long time = System.nanoTime();
 			final Collection<Set<OWLAxiom>> justifications =
 					computation.computeJustifications(
 								reasoner_.getDerivedExpression(conclusion));
-			time = System.currentTimeMillis() - time;
+//			time = System.currentTimeMillis() - time;
+			time = System.nanoTime() - time;
 			justifications_.set(justifications);
 			computation_.set(computation);
-			return new Record(time, justifications.size());
+//			return new Record(time, justifications.size());
+			return new Record(time/1000000.0, justifications.size());
 		} catch (final UnsupportedEntailmentTypeException e) {
 			throw new ExperimentException(e);
 		} catch (final ProofGenerationException e) {

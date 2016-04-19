@@ -205,7 +205,8 @@ public class CsvQueryElkExperiment extends Experiment {
 			}
 			conclusion_.set(conclusion);
 			
-			long time = System.currentTimeMillis();
+//			long time = System.currentTimeMillis();
+			long time = System.nanoTime();
 			final ClassConclusion expression =
 					reasoner_.getConclusion(conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
@@ -217,12 +218,14 @@ public class CsvQueryElkExperiment extends Experiment {
 					.create(inferenceSet, monitor);
 			final Collection<Set<ElkAxiom>> justifications =
 					computation.computeJustifications(expression);
-			time = System.currentTimeMillis() - time;
+//			time = System.currentTimeMillis() - time;
+			time = System.nanoTime() - time;
 			
 			justifications_.set(justifications);
 			computation_.set(computation);
 			
-			return new Record(time, justifications.size());
+//			return new Record(time, justifications.size());
+			return new Record(time/1000000.0, justifications.size());
 			
 		} catch (final ElkException e) {
 			throw new ExperimentException(e);
