@@ -37,7 +37,7 @@ class BloomHashSet<E> extends HashSet<E> {
 	public static final String STAT_NAME_CONTAINS_ALL_POSITIVE = "BloomHashSet.CONTAINS_ALL_POSITIVE";
 	public static final String STAT_NAME_CONTAINS_ALL_FILTERED = "BloomHashSet.CONTAINS_ALL_FILTERED";
 
-	private static int STATS_CONTAINS_ALL_COUNT_ = 0,
+	private static long STATS_CONTAINS_ALL_COUNT_ = 0,
 			STATS_CONTAINS_ALL_POSITIVE_ = 0, STATS_CONTAINS_ALL_FILTERED_ = 0;
 
 	private static final short SHIFT_ = 6; // 2^6 = 64
@@ -137,16 +137,16 @@ class BloomHashSet<E> extends HashSet<E> {
 
 		if (LOGGER_.isDebugEnabled()) {
 			if (STATS_CONTAINS_ALL_COUNT_ != 0) {
-				int negativeTests = STATS_CONTAINS_ALL_COUNT_
+				long negativeTests = STATS_CONTAINS_ALL_COUNT_
 						- STATS_CONTAINS_ALL_POSITIVE_;
 				if (negativeTests > 0) {
-					float containsAllSuccessRatio = (float) STATS_CONTAINS_ALL_FILTERED_
-							/ STATS_CONTAINS_ALL_COUNT_;
+					float negativeSuccessRatio = (float) STATS_CONTAINS_ALL_FILTERED_
+							/ negativeTests;
 					LOGGER_.debug(
 							"{} containsAll tests, {} negative, {} ({}%) filtered",
 							STATS_CONTAINS_ALL_COUNT_, negativeTests,
 							STATS_CONTAINS_ALL_FILTERED_, String.format("%.2f",
-									containsAllSuccessRatio * 100));
+									negativeSuccessRatio * 100));
 				} else {
 					LOGGER_.debug("{} containsAll tests, all positive",
 							STATS_CONTAINS_ALL_COUNT_);

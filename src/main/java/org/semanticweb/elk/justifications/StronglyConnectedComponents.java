@@ -14,13 +14,13 @@ import java.util.Map;
  * @param <C>
  *            the type of elements in the components
  */
-public class StronglyConnectedComponentDecomposition<C> {
+public class StronglyConnectedComponents<C> {
 
 	private final List<List<C>> components_;
 
 	private final Map<C, Integer> componentIds_;
 
-	StronglyConnectedComponentDecomposition(List<List<C>> components,
+	StronglyConnectedComponents(List<List<C>> components,
 			Map<C, Integer> componentIds) {
 		this.components_ = components;
 		this.componentIds_ = componentIds;

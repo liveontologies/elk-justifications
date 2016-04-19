@@ -61,7 +61,7 @@ public class BottomUpJustificationComputation<C, A>
 	private final ListMultimap<C, Set<A>> justsByConcls_ = ArrayListMultimap
 			.create();
 
-	private StronglyConnectedComponentDecomposition<C> decomposition_;
+	private StronglyConnectedComponents<C> decomposition_;
 
 	// Statistics
 

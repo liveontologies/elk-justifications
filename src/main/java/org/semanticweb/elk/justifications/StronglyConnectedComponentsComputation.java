@@ -98,16 +98,16 @@ public class StronglyConnectedComponentsComputation<C> {
 	 * 
 	 * @param inferences
 	 * @param root
-	 * @return the {@link StronglyConnectedComponentDecomposition} in which the
+	 * @return the {@link StronglyConnectedComponents} in which the
 	 *         components are listed in the inference order: conclusions of
 	 *         inferences appear in the same or letter components than the
 	 *         premises of the inferences; root appears in the last component
 	 */
-	public static <C> StronglyConnectedComponentDecomposition<C> computeComponents(
+	public static <C> StronglyConnectedComponents<C> computeComponents(
 			InferenceSet<C, ?> inferences, C root) {
 		StronglyConnectedComponentsComputation<C> computation = new StronglyConnectedComponentsComputation<>(
 				inferences, root);
-		return new StronglyConnectedComponentDecomposition<>(
+		return new StronglyConnectedComponents<>(
 				computation.components_, computation.index_);
 	}
 
