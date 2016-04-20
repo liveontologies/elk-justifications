@@ -40,15 +40,16 @@ class BloomHashSet<E> extends HashSet<E> implements JSet<E> {
 	private static long STATS_CONTAINS_ALL_COUNT_ = 0,
 			STATS_CONTAINS_ALL_POSITIVE_ = 0, STATS_CONTAINS_ALL_FILTERED_ = 0;
 
-	private static final short SHIFT_ = 6; // 2^6 = 64
+	private static final short SHIFT_ = 7; // 2^7 = 128
 
 	// = 11..1 SHIFT_ times
 	private static final int MASK_ = (1 << SHIFT_) - 1;
 
 	/**
-	 * filter for membership and subset tests
+	 * filters for subset tests
 	 */
-	private long filter_ = 0L;
+	private long filter1_ = 0L;
+	private long filter2_ = 0L;
 	
 	/**
 	 * marks if this set as obsolete (i.e., not a minimal justifications)
@@ -82,7 +83,13 @@ class BloomHashSet<E> extends HashSet<E> implements JSet<E> {
 	public boolean add(E e) {
 		boolean success = super.add(e);
 		if (success) {
-			filter_ |= 1 << (e.hashCode() & MASK_);
+			int shift = e.hashCode() & MASK_;
+			if (shift < 64) {
+				filter1_ |= 1 << shift;
+			} else {
+				shift -= 64;
+				filter2_ |= 1 << shift;
+			}
 		}
 		return success;
 	}
@@ -96,7 +103,8 @@ class BloomHashSet<E> extends HashSet<E> implements JSet<E> {
 	@Override
 	public void clear() {
 		super.clear();
-		filter_ = 0;
+		filter1_ = 0;
+		filter2_ = 0;
 	}
 
 	@Override
@@ -105,8 +113,9 @@ class BloomHashSet<E> extends HashSet<E> implements JSet<E> {
 			STATS_CONTAINS_ALL_COUNT_++;
 		}
 		if (c instanceof BloomHashSet<?>) {
-			long otherFilter = ((BloomHashSet<?>) c).filter_;
-			if ((filter_ & otherFilter) != otherFilter) {
+			BloomHashSet<?> other = (BloomHashSet<?>) c; 
+			if ((filter1_ & other.filter1_) != other.filter1_
+					|| (filter2_ & other.filter2_) != other.filter2_) {
 				if (COLLECT_STATS_) {
 					STATS_CONTAINS_ALL_FILTERED_++;
 				}
