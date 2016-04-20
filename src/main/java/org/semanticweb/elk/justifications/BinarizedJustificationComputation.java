@@ -13,8 +13,6 @@ import org.semanticweb.elk.proofs.adapters.InferenceSets;
  * The {@link BottomUpJustificationComputation} applied to the binarization of
  * the input inference set.
  * 
- * @see BinarizedInferenceSetAdapter
- * 
  * @author Yevgeny Kazakov
  *
  * @param <C>
@@ -36,7 +34,7 @@ public class BinarizedJustificationComputation<C, A>
 	}
 
 	@Override
-	public Collection<Set<A>> computeJustifications(C conclusion) {
+	public Collection<? extends Set<A>> computeJustifications(C conclusion) {
 		return computaiton_
 				.computeJustifications(Collections.singletonList(conclusion));
 	}

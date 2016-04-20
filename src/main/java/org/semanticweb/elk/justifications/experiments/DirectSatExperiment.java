@@ -42,8 +42,8 @@ public class DirectSatExperiment extends Experiment {
 	private final List<String> labels_;
 	private final InferenceSet<Integer, Integer> inferenceSet_;
 	
-	private AtomicReference<Collection<Set<Integer>>> justifications_ =
-			new AtomicReference<Collection<Set<Integer>>>();
+	private AtomicReference<Collection<? extends Set<Integer>>> justifications_ =
+			new AtomicReference<Collection<? extends Set<Integer>>>();
 	private AtomicInteger inputIndex_ = new AtomicInteger(0);
 	private AtomicInteger conclusion_ = new AtomicInteger(0);
 	private AtomicReference<String> label_ =
@@ -146,7 +146,7 @@ public class DirectSatExperiment extends Experiment {
 				.<Integer, Integer> getFactory().create(inferenceSet_, monitor);
 //		long time = System.currentTimeMillis();
 		long time = System.nanoTime();
-		final Collection<Set<Integer>> justifications =
+		final Collection<? extends Set<Integer>> justifications =
 				computation.computeJustifications(conclusion);
 //		time = System.currentTimeMillis() - time;
 		time = System.nanoTime() - time;

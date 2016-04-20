@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  * @param <E>
  *            the type of elements maintained by this set
  */
-class BloomHashSet<E> extends HashSet<E> {
+class BloomHashSet<E> extends HashSet<E> implements JSet<E> {
 
 	private static final long serialVersionUID = -4655731436488514715L;
 
@@ -45,7 +45,15 @@ class BloomHashSet<E> extends HashSet<E> {
 	// = 11..1 SHIFT_ times
 	private static final int MASK_ = (1 << SHIFT_) - 1;
 
+	/**
+	 * filter for membership and subset tests
+	 */
 	private long filter_ = 0L;
+	
+	/**
+	 * marks if this set as obsolete (i.e., not a minimal justifications)
+	 */
+	private boolean obsolete_ = false;
 
 	public BloomHashSet() {
 		super();
@@ -58,6 +66,16 @@ class BloomHashSet<E> extends HashSet<E> {
 	public BloomHashSet(Collection<? extends E> c) {
 		this(c.size());
 		addAll(c);
+	}
+	
+	@Override
+	public boolean isObsolete() {
+		return obsolete_;
+	}
+
+	@Override
+	public void setObsolete() {
+		obsolete_ = true;		
 	}
 
 	@Override
@@ -160,5 +178,5 @@ class BloomHashSet<E> extends HashSet<E> {
 		STATS_CONTAINS_ALL_FILTERED_ = 0;
 		STATS_CONTAINS_ALL_POSITIVE_ = 0;
 	}
-
+	
 }

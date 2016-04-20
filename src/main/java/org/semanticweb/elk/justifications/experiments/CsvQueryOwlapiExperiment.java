@@ -63,8 +63,8 @@ public class CsvQueryOwlapiExperiment extends Experiment {
 	private BufferedReader conclusionReader_ = null;
 	private final Queue<OWLSubClassOfAxiom> conclusionsToDo_ =
 			new ConcurrentLinkedQueue<OWLSubClassOfAxiom>();
-	private AtomicReference<Collection<Set<OWLAxiom>>> justifications_ =
-			new AtomicReference<Collection<Set<OWLAxiom>>>();
+	private AtomicReference<Collection<? extends Set<OWLAxiom>>> justifications_ =
+			new AtomicReference<Collection<? extends Set<OWLAxiom>>>();
 	private AtomicReference<OWLSubClassOfAxiom> conclusion_ =
 			new AtomicReference<OWLSubClassOfAxiom>();
 	private AtomicReference<JustificationComputation<OWLExpression, OWLAxiom>> computation_ =
@@ -207,7 +207,7 @@ public class CsvQueryOwlapiExperiment extends Experiment {
 					
 //			long time = System.currentTimeMillis();
 			long time = System.nanoTime();
-			final Collection<Set<OWLAxiom>> justifications =
+			final Collection<? extends Set<OWLAxiom>> justifications =
 					computation.computeJustifications(
 								reasoner_.getDerivedExpression(conclusion));
 //			time = System.currentTimeMillis() - time;

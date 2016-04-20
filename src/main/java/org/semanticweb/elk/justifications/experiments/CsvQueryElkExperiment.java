@@ -61,8 +61,8 @@ public class CsvQueryElkExperiment extends Experiment {
 	private BufferedReader conclusionReader_ = null;
 	private final Queue<ElkSubClassOfAxiom> conclusionsToDo_ =
 			new ConcurrentLinkedQueue<ElkSubClassOfAxiom>();
-	private AtomicReference<Collection<Set<ElkAxiom>>> justifications_ =
-			new AtomicReference<Collection<Set<ElkAxiom>>>();
+	private AtomicReference<Collection<? extends Set<ElkAxiom>>> justifications_ =
+			new AtomicReference<Collection<? extends Set<ElkAxiom>>>();
 	private AtomicReference<ElkSubClassOfAxiom> conclusion_ =
 			new AtomicReference<ElkSubClassOfAxiom>();
 	private AtomicReference<JustificationComputation<Conclusion, ElkAxiom>> computation_ =
@@ -216,7 +216,7 @@ public class CsvQueryElkExperiment extends Experiment {
 					BottomUpJustificationComputation
 					.<Conclusion, ElkAxiom> getFactory()
 					.create(inferenceSet, monitor);
-			final Collection<Set<ElkAxiom>> justifications =
+			final Collection<? extends Set<ElkAxiom>> justifications =
 					computation.computeJustifications(expression);
 //			time = System.currentTimeMillis() - time;
 			time = System.nanoTime() - time;

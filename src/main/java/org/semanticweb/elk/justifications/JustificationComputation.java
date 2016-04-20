@@ -37,7 +37,7 @@ public interface JustificationComputation<C, A> extends HasStatistics {
 	 *            the conclusion for which to compute the justification
 	 * @return the set consisting of all justifications for the given conclusion
 	 */
-	Collection<Set<A>> computeJustifications(C conclusion);
+	Collection<? extends Set<A>> computeJustifications(C conclusion);
 
 	/**
 	 * Factory for creating computations
