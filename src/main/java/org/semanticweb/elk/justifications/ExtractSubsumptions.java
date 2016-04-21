@@ -34,7 +34,7 @@ public class ExtractSubsumptions {
 
 	public static void main(final String[] args) {
 		
-		if (args.length < 3) {
+		if (args.length < 4) {
 			LOG.error("Insufficient arguments!");
 			System.exit(1);
 		}
@@ -49,8 +49,18 @@ public class ExtractSubsumptions {
 			System.exit(1);
 			return;
 		}
-		final String ontologyFileName = args[1];
-		final File outputFile = new File(args[2]);
+		final boolean onlyUnold;
+		if ("untold".equals(args[1])) {
+			onlyUnold = true;
+		} else if ("all".equals(args[1])) {
+			onlyUnold = false;
+		} else {
+			LOG.error("The second argument must be one of [untold|all] !");
+			System.exit(1);
+			return;
+		}
+		final String ontologyFileName = args[2];
+		final File outputFile = new File(args[3]);
 		if (outputFile.exists()) {
 			Utils.recursiveDelete(outputFile);
 		}
@@ -84,7 +94,8 @@ public class ExtractSubsumptions {
 			LOG.info("Extracting subsumptions ...");
 			start = System.currentTimeMillis();
 			final List<OWLSubClassOfAxiom> subsumptions =
-					extractSubsumptions(reasoner, onlyDirect, ont, factory);
+					extractSubsumptions(reasoner, onlyDirect, onlyUnold, ont,
+							factory);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
 			LOG.info("Number of direct subsumptions: {}", subsumptions.size());
@@ -124,7 +135,8 @@ public class ExtractSubsumptions {
 
 	private static List<OWLSubClassOfAxiom> extractSubsumptions(
 			final OWLReasoner reasoner, final boolean onlyDirect,
-			final OWLOntology ontology, final OWLDataFactory factory) {
+			final boolean onlyUntold, final OWLOntology ontology,
+			final OWLDataFactory factory) {
 		
 		final Set<Node<OWLClass>> done = new HashSet<Node<OWLClass>>();
 		final Queue<Node<OWLClass>> toDo = new LinkedList<Node<OWLClass>>();
@@ -155,7 +167,7 @@ public class ExtractSubsumptions {
 								&& !first.equals(factory.getOWLNothing())) {
 							final OWLSubClassOfAxiom axiom = factory
 									.getOWLSubClassOfAxiom(first, second);
-							if (!isAsserted(axiom, ontology)) {
+							if (!onlyUntold || !isAsserted(axiom, ontology)) {
 								result.add(axiom);
 							}
 						}
@@ -164,7 +176,7 @@ public class ExtractSubsumptions {
 								&& !second.equals(factory.getOWLNothing())) {
 							final OWLSubClassOfAxiom axiom = factory
 									.getOWLSubClassOfAxiom(second, first);
-							if (!isAsserted(axiom, ontology)) {
+							if (!onlyUntold || !isAsserted(axiom, ontology)) {
 								result.add(axiom);
 							}
 						}
@@ -185,7 +197,7 @@ public class ExtractSubsumptions {
 						for (final OWLClass sub : subNode) {
 							final OWLSubClassOfAxiom axiom = factory
 									.getOWLSubClassOfAxiom(sub, sup);
-							if (!isAsserted(axiom, ontology)) {
+							if (!onlyUntold || !isAsserted(axiom, ontology)) {
 								result.add(axiom);
 							}
 						}
