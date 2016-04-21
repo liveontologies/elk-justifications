@@ -94,11 +94,16 @@ public class BottomUpJustificationComputation<C, A>
 		while ((conclusion = toDo_.poll()) != null) {
 			LOGGER_.trace("{}: new lemma", conclusion);
 
+			boolean derived = false;
 			for (Inference<C, A> inf : getInferences(conclusion)) {
+				derived = true;
 				process(inf);
 				if (monitor_.isCancelled()) {
 					return;
 				}
+			}
+			if (!derived) {
+				LOGGER_.warn("{}: lemma not derived!", conclusion);
 			}
 		}		
 		process();
