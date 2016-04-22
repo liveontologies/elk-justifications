@@ -53,15 +53,13 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * newly computed justifications to be propagated
 	 */
-	private final Queue<Job<C, A>> toDoJustifications_ = new PriorityQueue<Job<C, A>>();
+	private final Queue<Justification<C, A>> toDoJustifications_ = new PriorityQueue<Justification<C, A>>();
 
 	/**
 	 * a map from conclusions to their justifications
 	 */
-	private final ListMultimap<C, JSet<A>> justsByConcls_ = ArrayListMultimap
+	private final ListMultimap<C, Justification<C, A>> justsByConcls_ = ArrayListMultimap
 			.create();
-
-	private StronglyConnectedComponents<C> decomposition_;
 
 	// Statistics
 
@@ -79,8 +77,6 @@ public class BottomUpJustificationComputation<C, A>
 		if (!done_.contains(conclusion)) {
 			// compute it first
 			BloomHashSet.resetStatistics();
-			decomposition_ = StronglyConnectedComponentsComputation
-					.computeComponents(this, conclusion);
 			process(conclusion);
 		}
 
@@ -105,7 +101,7 @@ public class BottomUpJustificationComputation<C, A>
 			if (!derived) {
 				LOGGER_.warn("{}: lemma not derived!", conclusion);
 			}
-		}		
+		}
 		process();
 	}
 
@@ -159,28 +155,28 @@ public class BottomUpJustificationComputation<C, A>
 		LOGGER_.trace("{}: new inference", inf);
 		countInferences_++;
 		// new inference, propagate existing justifications for premises
-		List<JSet<A>> conclusionJusts = new ArrayList<JSet<A>>();
-		conclusionJusts.add(createSet(inf.getJustification()));
+		List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
+		conclusionJusts.add(createJustification(inf.getConclusion(), 0,
+				inf.getJustification()));
 		for (C premise : inf.getPremises()) {
 			inferencesByPremises_.put(premise, inf);
 			toDo(premise);
 			conclusionJusts = join(conclusionJusts,
 					justsByConcls_.get(premise));
 		}
-		C conclusion = inf.getConclusion();
-		for (JSet<A> just : conclusionJusts) {
-			toDo(conclusion, just);			
+		for (Justification<C, A> just : conclusionJusts) {
+			toDo(just);
 			if (monitor_.isCancelled()) {
 				return;
 			}
 		}
 	}
 
-	private void toDo(C conclusion, JSet<A> just) {
-		if (merge(just, justsByConcls_.get(conclusion))) {
-			LOGGER_.trace("{}: new justification: {}", conclusion, just);			
-			toDoJustifications_.add(new Job<C, A>(conclusion,
-					decomposition_.getComponentId(conclusion), just));
+	private void toDo(Justification<C, A> just) {
+		C conclusion = just.getConclusion();
+		List<Justification<C, A>> justs = justsByConcls_.get(conclusion);
+		if (merge(just, justs)) {
+			toDoJustifications_.add(just);
 		}
 	}
 
@@ -188,23 +184,31 @@ public class BottomUpJustificationComputation<C, A>
 	 * process new justifications until the fixpoint
 	 */
 	private void process() {
-		Job<C, A> job;
-		while ((job = toDoJustifications_.poll()) != null) {
+		Justification<C, A> just;
+		while ((just = toDoJustifications_.poll()) != null) {
 			if (monitor_.isCancelled()) {
 				return;
 			}
-			
-			if (job.just.isObsolete()) {
+
+			if (just.isObsolete()) {
 				continue;
 			}
 
-			LOGGER_.trace("{}", job);
+			if (just.getAge() >= countConclusions_) {
+				// too old justifications are irrelevant
+				// TODO: count the depth of the proof and use that instead
+				continue;
+			}
+
+			LOGGER_.trace("{}", just);
 			countJustifications_++;
 
-			if (job.just.isEmpty()) {
+			C conclusion = just.getConclusion();
+
+			if (just.isEmpty()) {
 				// all justifications are computed,
 				// the inferences are not needed anymore
-				for (Inference<C, A> inf : getInferences(job.concl)) {
+				for (Inference<C, A> inf : getInferences(conclusion)) {
 					for (C premise : inf.getPremises()) {
 						inferencesByPremises_.remove(premise, inf);
 					}
@@ -214,21 +218,22 @@ public class BottomUpJustificationComputation<C, A>
 			/*
 			 * propagating justification over inferences
 			 */
-			for (Inference<C, A> inf : inferencesByPremises_.get(job.concl)) {
+			for (Inference<C, A> inf : inferencesByPremises_.get(conclusion)) {
 
-				Collection<JSet<A>> conclusionJusts = new ArrayList<JSet<A>>();
-				JSet<A> just = createSet(job.just);
-				just.addAll(inf.getJustification());
-				conclusionJusts.add(just);
+				Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
+				Justification<C, A> conclusionJust = createJustification(
+						inf.getConclusion(), just.getAge() + 1, just,
+						inf.getJustification());
+				conclusionJusts.add(conclusionJust);
 				for (final C premise : inf.getPremises()) {
-					if (!premise.equals(job.concl)) {
+					if (!premise.equals(conclusion)) {
 						conclusionJusts = join(conclusionJusts,
 								justsByConcls_.get(premise));
 					}
 				}
 
-				for (JSet<A> conclJust : conclusionJusts) {
-					toDo(inf.getConclusion(), conclJust);
+				for (Justification<C, A> conclJust : conclusionJusts) {
+					toDo(conclJust);
 				}
 
 			}
@@ -248,16 +253,17 @@ public class BottomUpJustificationComputation<C, A>
 	 * @return {@code true} if the collection is modified as a result of this
 	 *         operation and {@code false} otherwise
 	 */
-	private static <T> boolean merge(JSet<T> just, Collection<JSet<T>> justs) {
+	private static <C, A> boolean merge(Justification<C, A> just,
+			Collection<Justification<C, A>> justs) {
 		int justSize = just.size();
-		final Iterator<JSet<T>> oldJustIter = justs.iterator();
+		final Iterator<Justification<C, A>> oldJustIter = justs.iterator();
 		boolean isASubsetOfOld = false;
 		while (oldJustIter.hasNext()) {
-			final JSet<T> oldJust = oldJustIter.next();
+			final Justification<C, A> oldJust = oldJustIter.next();
 			if (justSize < oldJust.size()) {
 				if (oldJust.containsAll(just)) {
 					// new justification is smaller
-					LOGGER_.trace("removed: {}", oldJust);
+					LOGGER_.trace("removed {}", oldJust);
 					oldJustIter.remove();
 					oldJust.setObsolete(); // will not process the job with it
 					isASubsetOfOld = true;
@@ -269,65 +275,40 @@ public class BottomUpJustificationComputation<C, A>
 		}
 		// justification survived all tests, it is minimal
 		justs.add(just);
+		LOGGER_.trace("new {}", just);
 		return true;
 	}
 
 	/**
 	 * @param first
 	 * @param second
-	 * @return the list of all pairwise unions of the sets in the first and the
-	 *         second collections, minimized under set inclusion
+	 * @return the list of all pairwise unions of the justifications in the
+	 *         first and the second collections, minimized under set inclusion
 	 */
-	private static <T> List<JSet<T>> join(Collection<? extends JSet<T>> first,
-			Collection<? extends JSet<T>> second) {
+	private static <C, T> List<Justification<C, T>> join(
+			Collection<? extends Justification<C, T>> first,
+			Collection<? extends Justification<C, T>> second) {
 		if (first.isEmpty() || second.isEmpty()) {
 			return Collections.emptyList();
 		}
-		List<JSet<T>> result = new ArrayList<JSet<T>>(
+		List<Justification<C, T>> result = new ArrayList<Justification<C, T>>(
 				first.size() * second.size());
-		for (JSet<T> firstSet : first) {
-			for (JSet<T> secondSet : second) {
-				JSet<T> union = createSet(firstSet);
-				union.addAll(secondSet);
+		for (Justification<C, T> firstSet : first) {
+			for (Justification<C, T> secondSet : second) {
+				Justification<C, T> union = createJustification(
+						firstSet.getConclusion(),
+						Math.max(firstSet.getAge(), secondSet.getAge() + 1),
+						firstSet, secondSet);
 				merge(union, result);
 			}
 		}
 		return result;
 	}
 
-	private static <E> JSet<E> createSet(Collection<? extends E> elements) {
-		return new BloomHashSet<E>(elements);
-	}
-
-	private static class Job<C, A> implements Comparable<Job<C, A>> {
-		final C concl;
-		final int order; // the topological order of the conclusion component 
-		final JSet<A> just;
-
-		public Job(final C concl, int order, final JSet<A> just) {
-			this.concl = concl;
-			this.order = order;
-			this.just = just;
-		}
-
-		@Override
-		public String toString() {
-			return getClass().getSimpleName() + "([" + order + "] " + concl
-					+ ": " + just + ")";
-		}
-
-		@Override
-		public int compareTo(Job<C, A> o) {
-			// first prioritize jobs with deeper conclusions
-			// (this computes justifications component-wise)
-			int orderDiff = order - o.order;
-			if (orderDiff != 0) {
-				return orderDiff;
-			}
-			// within each component, prioritize smaller justifications
-			return just.size() - o.just.size();
-		}
-
+	@SafeVarargs
+	private static <C, A> Justification<C, A> createJustification(C conclusion,
+			int age, Collection<? extends A>... collections) {
+		return new BloomHashSet<C, A>(conclusion, age, collections);
 	}
 
 	/**
@@ -349,7 +330,7 @@ public class BottomUpJustificationComputation<C, A>
 			return new BottomUpJustificationComputation<>(inferenceSet,
 					monitor);
 		}
-		
+
 		public String[] getStatNames() {
 			final String[] statNames = new String[] { STAT_NAME_INFERENCES,
 					STAT_NAME_CONCLUSIONS, STAT_NAME_JUSTIFICATIONS, };
