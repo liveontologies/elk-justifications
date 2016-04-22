@@ -27,6 +27,7 @@ public class BottomUpJustificationComputation<C, A>
 		extends CancellableJustificationComputation<C, A> {
 
 	public static final String STAT_NAME_JUSTIFICATIONS = "BottomUpJustificationComputation.nJustificationsOfAllConclusions";
+	public static final String STAT_NAME_MAX_JUST_OF_CONCL = "BottomUpJustificationComputation.maxNJustificationsOfAConclusion";
 	public static final String STAT_NAME_INFERENCES = "BottomUpJustificationComputation.nProcessedInferences";
 	public static final String STAT_NAME_CONCLUSIONS = "BottomUpJustificationComputation.nProcessedConclusions";
 	public static final String STAT_NAME_CANDIDATES = "BottomUpJustificationComputation.nProcessedJustificationCandidates";
@@ -116,6 +117,15 @@ public class BottomUpJustificationComputation<C, A>
 		final Map<String, Object> stats = new HashMap<String, Object>(
 				BloomHashSet.getStatistics());
 		stats.put(STAT_NAME_JUSTIFICATIONS, justsByConcls_.size());
+		int max = 0;
+		for (final C conclusion : justsByConcls_.keySet()) {
+			final List<Justification<C, A>> justs =
+					justsByConcls_.get(conclusion);
+			if (justs.size() > max) {
+				max = justs.size();
+			}
+		}
+		stats.put(STAT_NAME_MAX_JUST_OF_CONCL, max);
 		stats.put(STAT_NAME_INFERENCES, countInferences_);
 		stats.put(STAT_NAME_CONCLUSIONS, countConclusions_);
 		stats.put(STAT_NAME_CANDIDATES, countJustifications_);
@@ -127,6 +137,16 @@ public class BottomUpJustificationComputation<C, A>
 		if (LOGGER_.isDebugEnabled()) {
 			LOGGER_.debug("{}: number of justifications of all conclusions",
 					justsByConcls_.size());
+			int max = 0;
+			for (final C conclusion : justsByConcls_.keySet()) {
+				final List<Justification<C, A>> justs =
+						justsByConcls_.get(conclusion);
+				if (justs.size() > max) {
+					max = justs.size();
+				}
+			}
+			LOGGER_.debug("{}: number of justifications of the conclusion "
+					+ "with most justifications", max);
 			LOGGER_.debug("{}: processed inferences", countInferences_);
 			LOGGER_.debug("{}: processed conclusions", countConclusions_);
 			LOGGER_.debug("{}: processed justification candidates",
@@ -345,8 +365,8 @@ public class BottomUpJustificationComputation<C, A>
 
 		public String[] getStatNames() {
 			final String[] statNames = new String[] { STAT_NAME_JUSTIFICATIONS,
-					STAT_NAME_INFERENCES, STAT_NAME_CONCLUSIONS,
-					STAT_NAME_CANDIDATES, };
+					STAT_NAME_MAX_JUST_OF_CONCL, STAT_NAME_INFERENCES,
+					STAT_NAME_CONCLUSIONS, STAT_NAME_CANDIDATES, };
 			final String[] bloomStatNames = BloomHashSet.getStatNames();
 			final String[] ret = Arrays.copyOf(statNames,
 					statNames.length + bloomStatNames.length);
