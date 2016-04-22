@@ -26,9 +26,10 @@ import com.google.common.collect.Multimap;
 public class BottomUpJustificationComputation<C, A>
 		extends CancellableJustificationComputation<C, A> {
 
+	public static final String STAT_NAME_JUSTIFICATIONS = "BottomUpJustificationComputation.nJustificationsOfAllConclusions";
 	public static final String STAT_NAME_INFERENCES = "BottomUpJustificationComputation.nProcessedInferences";
 	public static final String STAT_NAME_CONCLUSIONS = "BottomUpJustificationComputation.nProcessedConclusions";
-	public static final String STAT_NAME_JUSTIFICATIONS = "BottomUpJustificationComputation.nProcessedJustificationCandidates";
+	public static final String STAT_NAME_CANDIDATES = "BottomUpJustificationComputation.nProcessedJustificationCandidates";
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
@@ -114,19 +115,30 @@ public class BottomUpJustificationComputation<C, A>
 	public Map<String, Object> getStatistics() {
 		final Map<String, Object> stats = new HashMap<String, Object>(
 				BloomHashSet.getStatistics());
+		stats.put(STAT_NAME_JUSTIFICATIONS, justsByConcls_.size());
 		stats.put(STAT_NAME_INFERENCES, countInferences_);
 		stats.put(STAT_NAME_CONCLUSIONS, countConclusions_);
-		stats.put(STAT_NAME_JUSTIFICATIONS, countJustifications_);
+		stats.put(STAT_NAME_CANDIDATES, countJustifications_);
 		return stats;
 	}
 
 	@Override
 	public void logStatistics() {
 		if (LOGGER_.isDebugEnabled()) {
+			LOGGER_.debug("{}: number of justifications of all conclusions",
+					justsByConcls_.size());
 			LOGGER_.debug("{}: processed inferences", countInferences_);
 			LOGGER_.debug("{}: processed conclusions", countConclusions_);
 			LOGGER_.debug("{}: processed justification candidates",
 					countJustifications_);
+			for (final C conclusion : justsByConcls_.keySet()) {
+				final List<Justification<C, A>> justs =
+						justsByConcls_.get(conclusion);
+				if (justs.size() > 1000) {
+					LOGGER_.debug("conclusion with {} justifications: {}",
+							justs.size(), conclusion);
+				}
+			}
 		}
 		BloomHashSet.logStatistics();
 	}
@@ -332,8 +344,9 @@ public class BottomUpJustificationComputation<C, A>
 		}
 
 		public String[] getStatNames() {
-			final String[] statNames = new String[] { STAT_NAME_INFERENCES,
-					STAT_NAME_CONCLUSIONS, STAT_NAME_JUSTIFICATIONS, };
+			final String[] statNames = new String[] { STAT_NAME_JUSTIFICATIONS,
+					STAT_NAME_INFERENCES, STAT_NAME_CONCLUSIONS,
+					STAT_NAME_CANDIDATES, };
 			final String[] bloomStatNames = BloomHashSet.getStatNames();
 			final String[] ret = Arrays.copyOf(statNames,
 					statNames.length + bloomStatNames.length);
