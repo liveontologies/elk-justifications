@@ -60,11 +60,6 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 	private long filter1_ = 0L;
 	private long filter2_ = 0L;
 
-	/**
-	 * marks if this set as obsolete (i.e., not a minimal justifications)
-	 */
-	private boolean obsolete_ = false;
-
 	@SafeVarargs
 	public BloomHashSet(C conclusion, int age,
 			Collection<? extends A>... collections) {
@@ -92,18 +87,8 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 	}
 
 	@Override
-	public boolean isObsolete() {
-		return obsolete_;
-	}
-
-	@Override
 	public int getAge() {
 		return age_;
-	}
-
-	@Override
-	public void setObsolete() {
-		obsolete_ = true;
 	}
 
 	@Override

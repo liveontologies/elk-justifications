@@ -119,8 +119,8 @@ public class BottomUpJustificationComputation<C, A>
 		stats.put(STAT_NAME_JUSTIFICATIONS, justsByConcls_.size());
 		int max = 0;
 		for (final C conclusion : justsByConcls_.keySet()) {
-			final List<Justification<C, A>> justs =
-					justsByConcls_.get(conclusion);
+			final List<Justification<C, A>> justs = justsByConcls_
+					.get(conclusion);
 			if (justs.size() > max) {
 				max = justs.size();
 			}
@@ -139,8 +139,8 @@ public class BottomUpJustificationComputation<C, A>
 					justsByConcls_.size());
 			int max = 0;
 			for (final C conclusion : justsByConcls_.keySet()) {
-				final List<Justification<C, A>> justs =
-						justsByConcls_.get(conclusion);
+				final List<Justification<C, A>> justs = justsByConcls_
+						.get(conclusion);
 				if (justs.size() > max) {
 					max = justs.size();
 				}
@@ -152,8 +152,8 @@ public class BottomUpJustificationComputation<C, A>
 			LOGGER_.debug("{}: processed justification candidates",
 					countJustifications_);
 			for (final C conclusion : justsByConcls_.keySet()) {
-				final List<Justification<C, A>> justs =
-						justsByConcls_.get(conclusion);
+				final List<Justification<C, A>> justs = justsByConcls_
+						.get(conclusion);
 				if (justs.size() > 1000) {
 					LOGGER_.debug("conclusion with {} justifications: {}",
 							justs.size(), conclusion);
@@ -197,18 +197,10 @@ public class BottomUpJustificationComputation<C, A>
 					justsByConcls_.get(premise));
 		}
 		for (Justification<C, A> just : conclusionJusts) {
-			toDo(just);
+			toDoJustifications_.add(just);
 			if (monitor_.isCancelled()) {
 				return;
 			}
-		}
-	}
-
-	private void toDo(Justification<C, A> just) {
-		C conclusion = just.getConclusion();
-		List<Justification<C, A>> justs = justsByConcls_.get(conclusion);
-		if (merge(just, justs)) {
-			toDoJustifications_.add(just);
 		}
 	}
 
@@ -217,25 +209,27 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private void process() {
 		Justification<C, A> just;
+		int currentSize_ = 0; // 
 		while ((just = toDoJustifications_.poll()) != null) {
 			if (monitor_.isCancelled()) {
 				return;
 			}
 
-			if (just.isObsolete()) {
-				continue;
+			int size = just.size();
+			if (size != currentSize_) {
+				currentSize_ = size;
+				LOGGER_.debug("enumerating justifications of size {}...",
+						currentSize_);
 			}
-
-			if (just.getAge() >= countConclusions_) {
-				// too old justifications are irrelevant
-				// TODO: count the depth of the proof and use that instead
+			
+			C conclusion = just.getConclusion();
+			List<Justification<C, A>> justs = justsByConcls_.get(conclusion);
+			if (!merge(just, justs)) {
 				continue;
 			}
 
 			LOGGER_.trace("{}", just);
 			countJustifications_++;
-
-			C conclusion = just.getConclusion();
 
 			if (just.isEmpty()) {
 				// all justifications are computed,
@@ -265,7 +259,7 @@ public class BottomUpJustificationComputation<C, A>
 				}
 
 				for (Justification<C, A> conclJust : conclusionJusts) {
-					toDo(conclJust);
+					toDoJustifications_.add(conclJust);
 				}
 
 			}
@@ -297,7 +291,6 @@ public class BottomUpJustificationComputation<C, A>
 					// new justification is smaller
 					LOGGER_.trace("removed {}", oldJust);
 					oldJustIter.remove();
-					oldJust.setObsolete(); // will not process the job with it
 					isASubsetOfOld = true;
 				}
 			} else if (!isASubsetOfOld & just.containsAll(oldJust)) {
