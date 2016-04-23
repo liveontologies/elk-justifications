@@ -79,32 +79,11 @@ public class BottomUpJustificationComputation<C, A>
 		if (!done_.contains(conclusion)) {
 			// compute it first
 			BloomHashSet.resetStatistics();
-			process(conclusion);
+			initialize(conclusion);
+			process();
 		}
 
 		return justsByConcls_.get(conclusion);
-	}
-
-	private void process(C conclusion) {
-
-		toDo(conclusion);
-
-		while ((conclusion = toDo_.poll()) != null) {
-			LOGGER_.trace("{}: new lemma", conclusion);
-
-			boolean derived = false;
-			for (Inference<C, A> inf : getInferences(conclusion)) {
-				derived = true;
-				process(inf);
-				if (monitor_.isCancelled()) {
-					return;
-				}
-			}
-			if (!derived) {
-				LOGGER_.warn("{}: lemma not derived!", conclusion);
-			}
-		}
-		process();
 	}
 
 	@Override
@@ -176,31 +155,46 @@ public class BottomUpJustificationComputation<C, A>
 		return (Factory<C, A>) FACTORY_;
 	}
 
+	/**
+	 * index inferences and initialize the computation of justifications
+	 * 
+	 * @param conclusion
+	 */
+	private void initialize(C conclusion) {
+
+		toDo(conclusion);
+
+		while ((conclusion = toDo_.poll()) != null) {
+			LOGGER_.trace("{}: new lemma", conclusion);
+
+			boolean derived = false;
+			for (Inference<C, A> inf : getInferences(conclusion)) {
+				LOGGER_.trace("{}: new inference", inf);
+				derived = true;
+				countInferences_++;
+				for (C premise : inf.getPremises()) {
+					inferencesByPremises_.put(premise, inf);
+					toDo(premise);
+				}
+				if (inf.getPremises().isEmpty()) {
+					toDoJustifications_.add(createJustification(
+							inf.getConclusion(), 0, inf.getJustification()));
+				}
+				if (monitor_.isCancelled()) {
+					return;
+				}
+			}
+			if (!derived) {
+				LOGGER_.warn("{}: lemma not derived!", conclusion);
+			}
+		}
+
+	}
+
 	private void toDo(C exp) {
 		if (done_.add(exp)) {
 			countConclusions_++;
 			toDo_.add(exp);
-		}
-	}
-
-	private void process(Inference<C, A> inf) {
-		LOGGER_.trace("{}: new inference", inf);
-		countInferences_++;
-		// new inference, propagate existing justifications for premises
-		List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
-		conclusionJusts.add(createJustification(inf.getConclusion(), 0,
-				inf.getJustification()));
-		for (C premise : inf.getPremises()) {
-			inferencesByPremises_.put(premise, inf);
-			toDo(premise);
-			conclusionJusts = join(conclusionJusts,
-					justsByConcls_.get(premise));
-		}
-		for (Justification<C, A> just : conclusionJusts) {
-			toDoJustifications_.add(just);
-			if (monitor_.isCancelled()) {
-				return;
-			}
 		}
 	}
 
@@ -209,7 +203,7 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private void process() {
 		Justification<C, A> just;
-		int currentSize_ = 0; // 
+		int currentSize_ = 0; //
 		while ((just = toDoJustifications_.poll()) != null) {
 			if (monitor_.isCancelled()) {
 				return;
@@ -221,7 +215,7 @@ public class BottomUpJustificationComputation<C, A>
 				LOGGER_.debug("enumerating justifications of size {}...",
 						currentSize_);
 			}
-			
+
 			C conclusion = just.getConclusion();
 			List<Justification<C, A>> justs = justsByConcls_.get(conclusion);
 			if (!merge(just, justs)) {
