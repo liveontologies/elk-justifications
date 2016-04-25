@@ -26,4 +26,24 @@ public interface Justification<C, A>
 	 */
 	int getAge();
 
+	/**
+	 * The visitor pattern for instances
+	 * 
+	 * @author Yevgeny Kazakov
+	 *
+	 * @param <C>
+	 *            the type of the conclusion for which the justification is
+	 *            computed
+	 * @param <A>
+	 *            the type of axioms in the justification
+	 *
+	 * @param <O>
+	 *            the type of the output
+	 */
+	public interface Visitor<C, A, O> {
+
+		O visit(Justification<C, A> just);
+
+	}
+
 }

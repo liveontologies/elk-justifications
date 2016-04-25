@@ -8,7 +8,9 @@ import org.semanticweb.elk.proofs.InferenceSet;
 
 /**
  * A common interface for procedures that compute justifications of conclusions
- * from sets of inferences.
+ * from sets of inferences. Justification is a smallest set of axioms such that
+ * there is a proof of the conclusion using only inferences with justifications
+ * in this set.
  * 
  * @author Yevgeny Kazakov
  * @author Peter Skocovsky
@@ -26,9 +28,7 @@ public interface JustificationComputation<C, A> extends HasStatistics {
 	InferenceSet<C, A> getInferenceSet();
 
 	/**
-	 * Computes all justifications for the given conclusion. Justification is a
-	 * smallest set of axioms such that there is a proof of the conclusion using
-	 * only inferences with justifications in this set. This method can be
+	 * Computes all justifications for the given conclusion. This method can be
 	 * called several times for different conclusions.
 	 * 
 	 * @see Inference#getJustification()
@@ -38,6 +38,20 @@ public interface JustificationComputation<C, A> extends HasStatistics {
 	 * @return the set consisting of all justifications for the given conclusion
 	 */
 	Collection<? extends Set<A>> computeJustifications(C conclusion);
+
+	/**
+	 * Starts computation of justifications and visits every justification using
+	 * the provided visitor as soon as it is computed. The visitor is called
+	 * exactly once for every justification. When the method returns, all
+	 * justifications must be visited.
+	 * 
+	 * @param conclusion
+	 *            the conclusion for which to compute the justification
+	 * @param visitor
+	 *            the visitor using which to process justifications
+	 */
+//	void enumerateJustifications(C conclusion,
+//			Justification.Visitor<C, A, ?> visitor);
 
 	/**
 	 * Factory for creating computations
