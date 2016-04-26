@@ -4,14 +4,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
-import org.semanticweb.elk.owl.interfaces.ElkEquivalentObjectPropertiesAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.interfaces.ElkObjectPropertyDomainAxiom;
-import org.semanticweb.elk.owl.interfaces.ElkObjectPropertyExpression;
 import org.semanticweb.elk.owl.printers.KrssSyntaxPrinterVisitor;
 import org.semanticweb.elk.owlapi.wrapper.OwlConverter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -104,39 +100,6 @@ public class ConvertToElSatKrssInput {
 			write(" top) ");
 			write(elkObjectPropertyDomainAxiom.getDomain());
 			write(")\n");
-			return null;
-		}
-
-		@Override
-		public Void visit(
-				final ElkEquivalentObjectPropertiesAxiom elkEquivalentObjectPropertiesAxiom) {
-			final List<? extends ElkObjectPropertyExpression> props =
-					elkEquivalentObjectPropertiesAxiom.getObjectPropertyExpressions();
-			
-			if (props == null || props.isEmpty()) {
-				return null;
-			}
-			
-			if (props.size() == 1) {
-				write("(define-primitive-role ");
-				write(props.get(0));
-				write(")\n");
-				return null;
-			}
-			
-			final Iterator<? extends ElkObjectPropertyExpression> it =
-					props.iterator();
-			ElkObjectPropertyExpression previous = it.next();
-			while (it.hasNext()) {
-				final ElkObjectPropertyExpression next = it.next();
-				write("(define-primitive-role ");
-				write(previous);;
-				write(' ');
-				write(next);
-				write(")\n");
-				previous = next;
-			}
-			
 			return null;
 		}
 		

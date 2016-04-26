@@ -155,9 +155,13 @@ public class JustificationsFromProofs {
 							if (didTimeOut) {
 								LOG.info("... timeout {}s", record.time/1000.0);
 								
+								final int justificationSize = record.nJust;
+								LOG.info("found {} justifications for {}",
+										justificationSize, conclusion);
+								
 								rec.print(record.time);
 								rec.print(",");
-								rec.print("0");
+								rec.print(justificationSize);
 								
 							} else {
 								LOG.info("... took {}s", record.time/1000.0);
