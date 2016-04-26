@@ -12,8 +12,7 @@ import java.util.Set;
  * @param <A>
  *            the type of axioms in the justification
  */
-public interface Justification<C, A>
-		extends Set<A>, Comparable<Justification<C, A>> {
+public interface Justification<C, A> extends Set<A> {
 
 	/**
 	 * @return the conclusion for which this justification is computed

@@ -4,12 +4,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ForwardingSet;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 
 /**
  * A set enhanced with a Bloom filter to quickly check set inclusion. The Bloom
@@ -26,9 +29,8 @@ import org.slf4j.LoggerFactory;
  * @param <A>
  *            the type of axioms in the justification
  */
-class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
-
-	private static final long serialVersionUID = -4655731436488514715L;
+class BloomHashSet<C, A> extends ForwardingSet<A>
+		implements Justification<C, A>, Comparable<BloomHashSet<C, A>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BloomHashSet.class);
@@ -42,12 +44,14 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 	private static long STATS_CONTAINS_ALL_COUNT_ = 0,
 			STATS_CONTAINS_ALL_POSITIVE_ = 0, STATS_CONTAINS_ALL_FILTERED_ = 0;
 
-	private static final short SHIFT_ = 7; // 2^7 = 128
+	private static final short SHIFT_ = 6; // 2^6 = 64 bits is good enough
 
 	// = 11..1 SHIFT_ times
 	private static final int MASK_ = (1 << SHIFT_) - 1;
 
 	private final C conclusion_;
+
+	private final Set<A> elements_;
 
 	/**
 	 * the age of this justification
@@ -55,30 +59,36 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 	private final int age_;
 
 	/**
-	 * filters for subset tests
+	 * cache the size to avoid the unnecessary pointer access
 	 */
-	private long filter1_ = 0L;
-	private long filter2_ = 0L;
+	private final int size_;
+
+	/**
+	 * use this value for the second priority in the comparator (the first
+	 * priority is size)
+	 */
+	private final int priority2_;
+
+	/**
+	 * filter for subset tests of SHIFT_ bits, each elements in the set sets one
+	 * bit to 1
+	 */
+	private long filter_ = 0;
 
 	@SafeVarargs
 	public BloomHashSet(C conclusion, int age,
 			Collection<? extends A>... collections) {
-		super(getCombinedSize(collections));
+		Builder<A> elementsBuilder = new ImmutableSet.Builder<A>();
 		this.conclusion_ = conclusion;
 		this.age_ = age;
 		for (int i = 0; i < collections.length; i++) {
-			addAll(collections[i]);
+			elementsBuilder.addAll(collections[i]);
 		}
-	}
-
-	@SafeVarargs
-	private static <E> int getCombinedSize(
-			Collection<? extends E>... collections) {
-		int result = 0;
-		for (int i = 0; i < collections.length; i++) {
-			result += collections[i].size();
-		}
-		return result;
+		this.elements_ = elementsBuilder.build();
+		this.size_ = elements_.size();
+		// try to group justifications for the same conclusions together
+		this.priority2_ = conclusion.hashCode();
+		buildFilter();
 	}
 
 	@Override
@@ -92,31 +102,14 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 	}
 
 	@Override
-	public boolean add(A e) {
-		boolean success = super.add(e);
-		if (success) {
-			int shift = e.hashCode() & MASK_;
-			if (shift < 64) {
-				filter1_ |= 1 << shift;
-			} else {
-				shift -= 64;
-				filter2_ |= 1 << shift;
-			}
+	public int size() {
+		return size_;
+	}
+
+	private void buildFilter() {
+		for (A e : elements_) {
+			filter_ |= 1 << (e.hashCode() & MASK_);
 		}
-		return success;
-	}
-
-	@Override
-	public boolean remove(Object o) {
-		throw new UnsupportedOperationException(
-				"Removal of elements not supported");
-	}
-
-	@Override
-	public void clear() {
-		super.clear();
-		filter1_ = 0;
-		filter2_ = 0;
 	}
 
 	@Override
@@ -126,8 +119,7 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 		}
 		if (c instanceof BloomHashSet<?, ?>) {
 			BloomHashSet<?, ?> other = (BloomHashSet<?, ?>) c;
-			if ((filter1_ & other.filter1_) != other.filter1_
-					|| (filter2_ & other.filter2_) != other.filter2_) {
+			if ((filter_ & other.filter_) != other.filter_) {
 				if (COLLECT_STATS_) {
 					STATS_CONTAINS_ALL_FILTERED_++;
 				}
@@ -156,18 +148,19 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 		return getAge() + "-gen-" + getConclusion() + ": "
 				+ Arrays.toString(elements);
 	}
-	
+
 	@Override
-	public int compareTo(Justification<C, A> o) {
+	public int compareTo(BloomHashSet<C, A> o) {
 		// first prioritize smaller justifications
-		int sizeDiff = size() - o.size();
+		int sizeDiff = size_ - o.size_;
 		if (sizeDiff != 0) {
 			return sizeDiff;
-		}		
-		// next prioritize younger justifications
-		return getAge() - o.getAge();
+		}
+		// this makes sure that justifications for
+		// the same conclusions of the same size
+		// are processed consequently, if possible
+		return priority2_ - o.priority2_;
 	}
-
 
 	public static String[] getStatNames() {
 		return new String[] { STAT_NAME_CONTAINS_ALL_COUNT,
@@ -211,6 +204,11 @@ class BloomHashSet<C, A> extends HashSet<A> implements Justification<C, A> {
 		STATS_CONTAINS_ALL_COUNT_ = 0;
 		STATS_CONTAINS_ALL_FILTERED_ = 0;
 		STATS_CONTAINS_ALL_POSITIVE_ = 0;
+	}
+
+	@Override
+	protected Set<A> delegate() {
+		return elements_;
 	}
 
 }
