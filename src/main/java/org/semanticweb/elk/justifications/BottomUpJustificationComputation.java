@@ -32,6 +32,7 @@ public class BottomUpJustificationComputation<C, A>
 	public static final String STAT_NAME_INFERENCES = "BottomUpJustificationComputation.nProcessedInferences";
 	public static final String STAT_NAME_CONCLUSIONS = "BottomUpJustificationComputation.nProcessedConclusions";
 	public static final String STAT_NAME_CANDIDATES = "BottomUpJustificationComputation.nProcessedJustificationCandidates";
+	public static final String STAT_NAME_BLOCKED = "BottomUpJustificationComputation.nBlockedJustifications";
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
@@ -58,8 +59,7 @@ public class BottomUpJustificationComputation<C, A>
 
 	// Statistics
 
-	private int countInferences_ = 0, countConclusions_ = 0,
-			countJustifications_ = 0;
+	private int countInferences_ = 0, countConclusions_ = 0, countJustificationCandidates_ = 0;
 
 	BottomUpJustificationComputation(final InferenceSet<C, A> inferences,
 			final Monitor monitor) {
@@ -82,6 +82,7 @@ public class BottomUpJustificationComputation<C, A>
 		final Map<String, Object> stats = new HashMap<String, Object>(
 				BloomHashSet.getStatistics());
 		stats.put(STAT_NAME_JUSTIFICATIONS, justifications_.size());
+		stats.put(STAT_NAME_BLOCKED, blockedJustifications_.size());
 		int max = 0;
 		for (final C conclusion : justifications_.keySet()) {
 			final List<Justification<C, A>> justs = justifications_
@@ -93,7 +94,7 @@ public class BottomUpJustificationComputation<C, A>
 		stats.put(STAT_NAME_MAX_JUST_OF_CONCL, max);
 		stats.put(STAT_NAME_INFERENCES, countInferences_);
 		stats.put(STAT_NAME_CONCLUSIONS, countConclusions_);
-		stats.put(STAT_NAME_CANDIDATES, countJustifications_);
+		stats.put(STAT_NAME_CANDIDATES, countJustificationCandidates_);
 		return stats;
 	}
 
@@ -114,8 +115,10 @@ public class BottomUpJustificationComputation<C, A>
 					+ "with most justifications", max);
 			LOGGER_.debug("{}: processed inferences", countInferences_);
 			LOGGER_.debug("{}: processed conclusions", countConclusions_);
-			LOGGER_.debug("{}: processed justification candidates",
-					countJustifications_);
+			LOGGER_.debug("{}: computed justifications", justifications_.size());
+			LOGGER_.debug("{}: blocked justifications", blockedJustifications_.size());
+			LOGGER_.debug("{}: produced justification candidates",
+					countJustificationCandidates_);
 			for (final C conclusion : justifications_.keySet()) {
 				final List<Justification<C, A>> justs = justifications_
 						.get(conclusion);
@@ -132,7 +135,7 @@ public class BottomUpJustificationComputation<C, A>
 	public void resetStatistics() {
 		countInferences_ = 0;
 		countConclusions_ = 0;
-		countJustifications_ = 0;
+		countJustificationCandidates_ = 0;
 		BloomHashSet.resetStatistics();
 	}
 
@@ -321,6 +324,7 @@ public class BottomUpJustificationComputation<C, A>
 						}
 						for (Justification<C, A> just : conclusionJusts) {
 							toDoJustifications_.add(just);
+							countJustificationCandidates_++;
 						}
 					}
 				}
@@ -369,7 +373,6 @@ public class BottomUpJustificationComputation<C, A>
 				// else
 				justs.add(just);
 				LOGGER_.trace("new {}", just);
-				countJustifications_++;
 
 				if (just.isEmpty()) {
 					// all justifications are computed,
@@ -401,6 +404,7 @@ public class BottomUpJustificationComputation<C, A>
 
 					for (Justification<C, A> conclJust : conclusionJusts) {
 						toDoJustifications_.add(conclJust);
+						countJustificationCandidates_++;
 					}
 
 				}
