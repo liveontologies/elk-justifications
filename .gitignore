@@ -4,6 +4,7 @@ plugin.xml
 .settings/
 .classpath
 .project
+.pydevproject
 .idea
 *.iml
 /experiments/
