@@ -438,8 +438,9 @@ public class BottomUpJustificationComputation<C, A>
 		@Override
 		public String[] getStatNames() {
 			final String[] statNames = new String[] { STAT_NAME_JUSTIFICATIONS,
-					STAT_NAME_MAX_JUST_OF_CONCL, STAT_NAME_INFERENCES,
-					STAT_NAME_CONCLUSIONS, STAT_NAME_CANDIDATES, };
+					STAT_NAME_MAX_JUST_OF_CONCL, STAT_NAME_BLOCKED,
+					STAT_NAME_INFERENCES, STAT_NAME_CONCLUSIONS,
+					STAT_NAME_CANDIDATES, };
 			final String[] bloomStatNames = BloomHashSet.getStatNames();
 			final String[] ret = Arrays.copyOf(statNames,
 					statNames.length + bloomStatNames.length);

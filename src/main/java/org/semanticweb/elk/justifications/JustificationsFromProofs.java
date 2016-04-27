@@ -127,6 +127,8 @@ public class JustificationsFromProofs {
 							
 							experiment.resetStatistics();
 							
+							System.gc();
+							
 							if (globalTimeOut == 0) {
 								LOG.info("Obtaining justifications ...");
 							} else {

@@ -15,6 +15,7 @@ import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
+import org.semanticweb.owlapi.model.parameters.Imports;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,8 @@ public class ConvertToElSatKrssInput {
 			
 			final ElSatPrinterVisitor printer = new ElSatPrinterVisitor(output);
 			
-			for (final OWLAxiom axiom : ont.getAxioms()) {
+			for (final OWLAxiom axiom
+					: ont.getLogicalAxioms(Imports.INCLUDED)) {
 				converter.convert(axiom).accept(printer);
 			}
 			
