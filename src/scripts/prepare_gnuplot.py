@@ -5,14 +5,23 @@ import argparse
 import csv
 from string import Template
 
+MIN_X_RANGE = 0
+MAX_X_RANGE = 100
+MIN_Y_RANGE = 0.000001
+DEFAULT_COLUMN = 'time'
+
+def parse_x_range(s):
+	x_range = float(s)
+	if x_range < MIN_X_RANGE or MAX_X_RANGE < x_range:
+		raise argparse.ArgumentTypeError('x_range must be within %s and %s' % (MIN_X_RANGE, MAX_X_RANGE))
+	return x_range
+
 parser = argparse.ArgumentParser(description='Prepare gnuplot script from the supplied data files.')
 parser.add_argument('-t', '--title', default='', help='The plot title.')
 parser.add_argument('data', nargs='+', help='Sequence of the data files, ' +
 				'each of which may be followed by names of columns that should be plotted.')
-parser.add_argument('-c', '--cut_top', type=float, default=100.0, help='How many top % of the data should be plotted.')
-
-MIN_Y_RANGE = 0.000001
-DEFAULT_COLUMN = 'time'
+parser.add_argument('--lower_x_range', type=parse_x_range, default=100.0,
+				help='The lower bound of the x axis.')
 
 GNUPLOT_SCRIPT_TEMPLATE = Template("""
 
@@ -27,7 +36,7 @@ set key left top
 set logscale y
 #set tics axis
 #shrink = 0.1
-set xrange[0:100]
+set xrange[${lower_x_range}:${upper_x_range}]
 set yrange[${lower_y_range}:${upper_y_range}]
 #set xtics shrink/2
 #set ytics shrink/2
@@ -97,16 +106,13 @@ if __name__ == "__main__":
 				for line in reader:
 					data.append(float(line[time_index])/1000)
 				data.sort()
-				
-				# cut top
-				data = data[int(len(data) * (1.0 - (args.cut_top/100))):]
-				
-				if data[0] < min_data:
-					min_data = data[0]
+ 				
+				md = data[int(len(data) * (1.0 - (args.lower_x_range/100)))]
+				if md < min_data:
+					min_data = md
 				if data[len(data) - 1] > max_data:
 					max_data = data[len(data) - 1]
 				
-				# TODO .: set x_tics according to the cut !!!
 				step = 100.0/len(data)
 				x = step
 				for d in data:
@@ -121,7 +127,13 @@ if __name__ == "__main__":
 	set_title = ''
 	if args.title:
 		set_title = 'set title "%s"' % args.title
-	print GNUPLOT_SCRIPT_TEMPLATE.substitute(set_title=set_title, plot_cmd=plot_cmd, data=data_string, lower_y_range=min_data, upper_y_range=max_data)
+	print GNUPLOT_SCRIPT_TEMPLATE.substitute(set_title=set_title,
+											plot_cmd=plot_cmd,
+											data=data_string,
+											lower_x_range=args.lower_x_range,
+											upper_x_range=MAX_X_RANGE,
+											lower_y_range=min_data,
+											upper_y_range=max_data)
 	
 	pass
 
