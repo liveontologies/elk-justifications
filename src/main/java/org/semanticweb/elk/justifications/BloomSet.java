@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ForwardingSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
+import com.google.common.collect.Sets;
 
 /**
  * A set enhanced with a Bloom filter to quickly check set inclusion. The Bloom
@@ -29,11 +30,11 @@ import com.google.common.collect.ImmutableSet.Builder;
  * @param <A>
  *            the type of axioms in the justification
  */
-class BloomHashSet<C, A> extends ForwardingSet<A>
-		implements Justification<C, A>, Comparable<BloomHashSet<C, A>> {
+class BloomSet<C, A> extends ForwardingSet<A>
+		implements Justification<C, A>, Comparable<BloomSet<C, A>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(BloomHashSet.class);
+			.getLogger(BloomSet.class);
 
 	private static final boolean COLLECT_STATS_ = true;
 
@@ -54,11 +55,6 @@ class BloomHashSet<C, A> extends ForwardingSet<A>
 	private final Set<A> elements_;
 
 	/**
-	 * the age of this justification
-	 */
-	private final int age_;
-
-	/**
 	 * cache the size to avoid the unnecessary pointer access
 	 */
 	private final int size_;
@@ -73,14 +69,21 @@ class BloomHashSet<C, A> extends ForwardingSet<A>
 	 * filter for subset tests of SHIFT_ bits, each elements in the set sets one
 	 * bit to 1
 	 */
-	private long filter_ = 0;
+	private final long filter_;
+
+	private BloomSet(C conclusion, Set<A> elements, int size, int priority2,
+			long filter) {
+		this.conclusion_ = conclusion;
+		this.elements_ = elements;
+		this.size_ = size;
+		this.priority2_ = priority2;
+		this.filter_ = filter;
+	}
 
 	@SafeVarargs
-	public BloomHashSet(C conclusion, int age,
-			Collection<? extends A>... collections) {
+	public BloomSet(C conclusion, Collection<? extends A>... collections) {
 		Builder<A> elementsBuilder = new ImmutableSet.Builder<A>();
 		this.conclusion_ = conclusion;
-		this.age_ = age;
 		for (int i = 0; i < collections.length; i++) {
 			elementsBuilder.addAll(collections[i]);
 		}
@@ -88,7 +91,7 @@ class BloomHashSet<C, A> extends ForwardingSet<A>
 		this.size_ = elements_.size();
 		// try to group justifications for the same conclusions together
 		this.priority2_ = conclusion.hashCode();
-		buildFilter();
+		this.filter_ = buildFilter();
 	}
 
 	@Override
@@ -97,19 +100,51 @@ class BloomHashSet<C, A> extends ForwardingSet<A>
 	}
 
 	@Override
-	public int getAge() {
-		return age_;
-	}
-
-	@Override
 	public int size() {
 		return size_;
 	}
 
-	private void buildFilter() {
-		for (A e : elements_) {
-			filter_ |= 1 << (e.hashCode() & MASK_);
+	@Override
+	public Justification<C, A> copyTo(C conclusion) {
+		return new BloomSet<C, A>(conclusion, elements_, size_,
+				conclusion.hashCode(), filter_);
+	}
+
+	@Override
+	public Justification<C, A> addElements(Set<? extends A> added) {
+		if (containsAll(added)) {
+			return this;
 		}
+		// else
+		return new BloomSet<C, A>(conclusion_, Sets.union(this, added));
+	}
+
+	@Override
+	public Justification<C, A> removeElements(Set<? extends A> removed) {
+		if (Sets.intersection(this, removed).isEmpty()) {
+			return this;
+		}
+		// else
+		return new BloomSet<C, A>(conclusion_,
+				Sets.difference(this, removed));
+	}
+
+	private long buildFilter() {
+		long result = 0;
+		for (A e : elements_) {
+			result |= 1 << (e.hashCode() & MASK_);
+		}
+		return result;
+	}
+	
+	@Override
+	public boolean contains(Object object) {
+		int mask = 1 << object.hashCode() & MASK_;
+		if ((filter_ & mask) != mask) {
+			return false;
+		}
+		// else
+		return super.contains(object);
 	}
 
 	@Override
@@ -117,8 +152,8 @@ class BloomHashSet<C, A> extends ForwardingSet<A>
 		if (COLLECT_STATS_) {
 			STATS_CONTAINS_ALL_COUNT_++;
 		}
-		if (c instanceof BloomHashSet<?, ?>) {
-			BloomHashSet<?, ?> other = (BloomHashSet<?, ?>) c;
+		if (c instanceof BloomSet<?, ?>) {
+			BloomSet<?, ?> other = (BloomSet<?, ?>) c;
 			if ((filter_ & other.filter_) != other.filter_) {
 				if (COLLECT_STATS_) {
 					STATS_CONTAINS_ALL_FILTERED_++;
@@ -145,12 +180,11 @@ class BloomHashSet<C, A> extends ForwardingSet<A>
 				return String.valueOf(o1).compareTo(String.valueOf(o2));
 			}
 		});
-		return getAge() + "-gen-" + getConclusion() + ": "
-				+ Arrays.toString(elements);
+		return getConclusion() + ": " + Arrays.toString(elements);
 	}
 
 	@Override
-	public int compareTo(BloomHashSet<C, A> o) {
+	public int compareTo(BloomSet<C, A> o) {
 		// first prioritize smaller justifications
 		int sizeDiff = size_ - o.size_;
 		if (sizeDiff != 0) {

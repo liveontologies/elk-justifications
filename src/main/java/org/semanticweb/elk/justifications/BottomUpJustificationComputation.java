@@ -59,7 +59,8 @@ public class BottomUpJustificationComputation<C, A>
 
 	// Statistics
 
-	private int countInferences_ = 0, countConclusions_ = 0, countJustificationCandidates_ = 0;
+	private int countInferences_ = 0, countConclusions_ = 0,
+			countJustificationCandidates_ = 0;
 
 	BottomUpJustificationComputation(final InferenceSet<C, A> inferences,
 			final Monitor monitor) {
@@ -68,7 +69,7 @@ public class BottomUpJustificationComputation<C, A>
 
 	@Override
 	public Collection<? extends Set<A>> computeJustifications(C conclusion) {
-		BloomHashSet.resetStatistics();
+		BloomSet.resetStatistics();
 		return new JustificationEnumerator(conclusion).getResult();
 	}
 
@@ -80,7 +81,7 @@ public class BottomUpJustificationComputation<C, A>
 	@Override
 	public Map<String, Object> getStatistics() {
 		final Map<String, Object> stats = new HashMap<String, Object>(
-				BloomHashSet.getStatistics());
+				BloomSet.getStatistics());
 		stats.put(STAT_NAME_JUSTIFICATIONS, justifications_.size());
 		stats.put(STAT_NAME_BLOCKED, blockedJustifications_.size());
 		int max = 0;
@@ -115,8 +116,10 @@ public class BottomUpJustificationComputation<C, A>
 					+ "with most justifications", max);
 			LOGGER_.debug("{}: processed inferences", countInferences_);
 			LOGGER_.debug("{}: processed conclusions", countConclusions_);
-			LOGGER_.debug("{}: computed justifications", justifications_.size());
-			LOGGER_.debug("{}: blocked justifications", blockedJustifications_.size());
+			LOGGER_.debug("{}: computed justifications",
+					justifications_.size());
+			LOGGER_.debug("{}: blocked justifications",
+					blockedJustifications_.size());
 			LOGGER_.debug("{}: produced justification candidates",
 					countJustificationCandidates_);
 			for (final C conclusion : justifications_.keySet()) {
@@ -128,7 +131,7 @@ public class BottomUpJustificationComputation<C, A>
 				}
 			}
 		}
-		BloomHashSet.logStatistics();
+		BloomSet.logStatistics();
 	}
 
 	@Override
@@ -136,7 +139,7 @@ public class BottomUpJustificationComputation<C, A>
 		countInferences_ = 0;
 		countConclusions_ = 0;
 		countJustificationCandidates_ = 0;
-		BloomHashSet.resetStatistics();
+		BloomSet.resetStatistics();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -214,10 +217,7 @@ public class BottomUpJustificationComputation<C, A>
 				first.size() * second.size());
 		for (Justification<C, T> firstSet : first) {
 			for (Justification<C, T> secondSet : second) {
-				Justification<C, T> union = createJustification(
-						firstSet.getConclusion(),
-						Math.max(firstSet.getAge(), secondSet.getAge() + 1),
-						firstSet, secondSet);
+				Justification<C, T> union = firstSet.addElements(secondSet);
 				merge(union, result);
 			}
 		}
@@ -226,8 +226,8 @@ public class BottomUpJustificationComputation<C, A>
 
 	@SafeVarargs
 	private static <C, A> Justification<C, A> createJustification(C conclusion,
-			int age, Collection<? extends A>... collections) {
-		return new BloomHashSet<C, A>(conclusion, age, collections);
+			Collection<? extends A>... collections) {
+		return new BloomSet<C, A>(conclusion, collections);
 	}
 
 	/**
@@ -315,9 +315,8 @@ public class BottomUpJustificationComputation<C, A>
 					if (initialized) {
 						// propagate existing justifications for premises
 						List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
-						conclusionJusts
-								.add(createJustification(inf.getConclusion(), 0,
-										inf.getJustification()));
+						conclusionJusts.add(createJustification(
+								inf.getConclusion(), inf.getJustification()));
 						for (C premise : inf.getPremises()) {
 							conclusionJusts = join(conclusionJusts,
 									justifications_.get(premise));
@@ -391,9 +390,9 @@ public class BottomUpJustificationComputation<C, A>
 						.get(conclusion)) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
-					Justification<C, A> conclusionJust = createJustification(
-							inf.getConclusion(), just.getAge() + 1, just,
-							inf.getJustification());
+					Justification<C, A> conclusionJust = just
+							.copyTo(inf.getConclusion())
+							.addElements(inf.getJustification()); 
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {
@@ -441,7 +440,7 @@ public class BottomUpJustificationComputation<C, A>
 					STAT_NAME_MAX_JUST_OF_CONCL, STAT_NAME_BLOCKED,
 					STAT_NAME_INFERENCES, STAT_NAME_CONCLUSIONS,
 					STAT_NAME_CANDIDATES, };
-			final String[] bloomStatNames = BloomHashSet.getStatNames();
+			final String[] bloomStatNames = BloomSet.getStatNames();
 			final String[] ret = Arrays.copyOf(statNames,
 					statNames.length + bloomStatNames.length);
 			System.arraycopy(bloomStatNames, 0, ret, statNames.length,

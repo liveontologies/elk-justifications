@@ -20,10 +20,27 @@ public interface Justification<C, A> extends Set<A> {
 	C getConclusion();
 
 	/**
-	 * @return the age of this justifications, i.e., the depth of the proof that
-	 *         derives the conclusion from the axioms in the justification
+	 * Copies the justification to another conclusion
+	 * 
+	 * @param conclusion
+	 * @return the justification containing the same axioms as this
+	 *         justification but for the given conclusion
 	 */
-	int getAge();
+	public Justification<C, A> copyTo(C conclusion);
+
+	/**
+	 * @param added
+	 * @return a justification obtained from this one by adding all elements in
+	 *         the given set; this justification is not modified
+	 */
+	public Justification<C, A> addElements(Set<? extends A> added);
+
+	/**
+	 * @param removed
+	 * @return a justification obtained from this one by removing all elements
+	 *         in the given set; this justification is not modified
+	 */
+	public Justification<C, A> removeElements(Set<? extends A> removed);
 
 	/**
 	 * The visitor pattern for instances
