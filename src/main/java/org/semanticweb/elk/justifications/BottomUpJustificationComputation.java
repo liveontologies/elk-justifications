@@ -57,6 +57,11 @@ public class BottomUpJustificationComputation<C, A>
 	private final ListMultimap<C, Justification<C, A>> blockedJustifications_ = ArrayListMultimap
 			.create();
 
+	/**
+	 * newly computed justifications to be propagated
+	 */
+	private final Queue<Justification<C, A>> toDoJustifications_ = new PriorityQueue<Justification<C, A>>();
+
 	// Statistics
 
 	private int countInferences_ = 0, countConclusions_ = 0,
@@ -68,9 +73,15 @@ public class BottomUpJustificationComputation<C, A>
 	}
 
 	@Override
-	public Collection<? extends Set<A>> computeJustifications(C conclusion) {
+	public Collection<? extends Set<A>> computeJustifications(C conclusion,
+			int sizeLimit) {
 		BloomSet.resetStatistics();
-		return new JustificationEnumerator(conclusion).getResult();
+		return new JustificationEnumerator(conclusion, sizeLimit).getResult();
+	}
+
+	@Override
+	public Collection<? extends Set<A>> computeJustifications(C conclusion) {
+		return computeJustifications(conclusion, Integer.MAX_VALUE);
 	}
 
 	@Override
@@ -238,6 +249,8 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private class JustificationEnumerator {
 
+		private final int sizeLimit_;
+
 		/**
 		 * the conclusions that are relevant for the computation of the
 		 * justifications, i.e., those from which the conclusion for which the
@@ -257,16 +270,13 @@ public class BottomUpJustificationComputation<C, A>
 				.create();
 
 		/**
-		 * newly computed justifications to be propagated
+		 * the justifications will be returned here, they come in increasing
+		 * size order
 		 */
-		private final Queue<Justification<C, A>> toDoJustifications_ = new PriorityQueue<Justification<C, A>>();
+		private final List<? extends Set<A>> result_;
 
-		/**
-		 * the justifications will be returned here
-		 */
-		private final Collection<? extends Set<A>> result_;
-
-		JustificationEnumerator(C conclusion) {
+		JustificationEnumerator(C conclusion, int sizeLimit) {
+			this.sizeLimit_ = sizeLimit;
 			this.result_ = justifications_.get(conclusion);
 			toDo(conclusion);
 			initialize();
@@ -274,7 +284,15 @@ public class BottomUpJustificationComputation<C, A>
 
 		private Collection<? extends Set<A>> getResult() {
 			process();
-			return result_;
+			if (result_.isEmpty()) {
+				return result_;
+			}
+			// else filter out oversized justifications
+			int index = result_.size() - 1;
+			while (result_.get(index).size() > sizeLimit_) {
+				index--;
+			}
+			return result_.subList(0, index + 1);
 		}
 
 		/**
@@ -354,6 +372,14 @@ public class BottomUpJustificationComputation<C, A>
 				int size = just.size();
 				if (size != currentSize_) {
 					currentSize_ = size;
+					if (currentSize_ > sizeLimit_) {
+						// stop
+						LOGGER_.trace(
+								"there are justifications of size larger than {}",
+								sizeLimit_);
+						toDoJustifications_.add(just);
+						return;
+					}
 					LOGGER_.debug("enumerating justifications of size {}...",
 							currentSize_);
 				}
@@ -392,7 +418,7 @@ public class BottomUpJustificationComputation<C, A>
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 					Justification<C, A> conclusionJust = just
 							.copyTo(inf.getConclusion())
-							.addElements(inf.getJustification()); 
+							.addElements(inf.getJustification());
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {

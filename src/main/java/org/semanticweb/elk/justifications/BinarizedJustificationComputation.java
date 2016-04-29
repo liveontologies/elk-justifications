@@ -38,6 +38,13 @@ public class BinarizedJustificationComputation<C, A>
 		return computaiton_
 				.computeJustifications(Collections.singletonList(conclusion));
 	}
+	
+	@Override
+	public Collection<? extends Set<A>> computeJustifications(C conclusion,
+			int sizeLimit) {
+		return computaiton_.computeJustifications(
+				Collections.singletonList(conclusion), sizeLimit);
+	}
 
 	@Override
 	public String[] getStatNames() {
