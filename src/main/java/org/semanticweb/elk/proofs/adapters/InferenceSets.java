@@ -22,6 +22,11 @@ public class InferenceSets {
 		return new CycleRemovingInferenceSetAdapter<C, A>(inferences);
 	}
 
+	public static <C, A> InferenceSet<C, A> eliminateTautologyInferences(
+			InferenceSet<C, A> inferences) {
+		return new TautologyRemovingInferenceSetAdapter<C, A>(inferences);
+	}
+
 	public static <C, A> boolean hasCycle(InferenceSet<C, A> inferences,
 			C conclusion) {
 		return (new InferenceSetCycleDetector<C, A>(inferences))
