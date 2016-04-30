@@ -40,7 +40,7 @@ public class BottomUpJustificationComputation<C, A>
 	private static final BottomUpJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
 	/**
-	 * conclusions for which computation of justifications has been intialized
+	 * conclusions for which computation of justifications has been initialized
 	 */
 	private final Set<C> initialized_ = new HashSet<C>();
 
@@ -55,6 +55,17 @@ public class BottomUpJustificationComputation<C, A>
 	 * computing justifications for the goal conclusion
 	 */
 	private final ListMultimap<C, Justification<C, A>> blockedJustifications_ = ArrayListMultimap
+			.create();
+
+	/**
+	 * the maximal sizes of justifications for conclusions computed so far
+	 */
+	private final Map<C, Integer> sizeLimits_ = new HashMap<C, Integer>();
+
+	/**
+	 * a map from premises to inferences for relevant conclusions
+	 */
+	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -158,6 +169,15 @@ public class BottomUpJustificationComputation<C, A>
 		return (Factory<C, A>) FACTORY_;
 	}
 
+	int getSizeLimit(C conclusion) {
+		Integer result = sizeLimits_.get(conclusion);
+		if (result == null) {
+			return 0;
+		}
+		// else
+		return result;
+	}
+
 	/**
 	 * Checks if the given justification has a subset in the given collection of
 	 * justification
@@ -249,6 +269,8 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private class JustificationEnumerator {
 
+		private final C conclusion_;
+
 		private final int sizeLimit_;
 
 		/**
@@ -264,18 +286,13 @@ public class BottomUpJustificationComputation<C, A>
 		private final Queue<C> toDo_ = new LinkedList<C>();
 
 		/**
-		 * a map from premises to inferences for relevant conclusions
-		 */
-		private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
-				.create();
-
-		/**
 		 * the justifications will be returned here, they come in increasing
 		 * size order
 		 */
 		private final List<? extends Set<A>> result_;
 
 		JustificationEnumerator(C conclusion, int sizeLimit) {
+			this.conclusion_ = conclusion;
 			this.sizeLimit_ = sizeLimit;
 			this.result_ = justifications_.get(conclusion);
 			toDo(conclusion);
@@ -284,6 +301,9 @@ public class BottomUpJustificationComputation<C, A>
 
 		private Collection<? extends Set<A>> getResult() {
 			process();
+			if (sizeLimit_ > getSizeLimit(conclusion_)) {
+				sizeLimits_.put(conclusion_, sizeLimit_);
+			}
 			if (result_.isEmpty()) {
 				return result_;
 			}
@@ -306,6 +326,10 @@ public class BottomUpJustificationComputation<C, A>
 
 			C conclusion;
 			while ((conclusion = toDo_.poll()) != null) {
+				if (getSizeLimit(conclusion) >= sizeLimit_) {
+					// relevant justifications already computed
+					continue;
+				}
 				boolean initialized = initialized_.add(conclusion);
 				if (initialized) {
 					countConclusions_++;
@@ -352,9 +376,11 @@ public class BottomUpJustificationComputation<C, A>
 
 		}
 
-		private void toDo(C exp) {
-			if (relevant_.add(exp)) {
-				toDo_.add(exp);
+		private void toDo(C conclusion) {
+			if (!relevant_.contains(conclusion)) {
+				countConclusions_++;
+				relevant_.add(conclusion);
+				toDo_.add(conclusion);
 			}
 		}
 
@@ -385,6 +411,11 @@ public class BottomUpJustificationComputation<C, A>
 				}
 
 				C conclusion = just.getConclusion();
+				if (!relevant_.contains(conclusion)) {
+					blockedJustifications_.put(conclusion, just);
+					LOGGER_.trace("blocked {}", just);
+					continue;
+				}
 				List<Justification<C, A>> justs = justifications_
 						.get(conclusion);
 				if (!isMinimal(just, justs)) {
