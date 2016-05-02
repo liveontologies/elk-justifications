@@ -8,6 +8,8 @@ import java.io.InputStream;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UIManager.LookAndFeelInfo;
 
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -96,6 +98,45 @@ public class ProofBrowser {
 	
 	public static <C, A> void showProofBrowser(
 			final InferenceSet<C, A> inferenceSet, final C conclusion) {
+		showProofBrowser(inferenceSet, conclusion, null);
+	}
+	
+	public static <C, A> void showProofBrowser(
+			final InferenceSet<C, A> inferenceSet, final C conclusion,
+			final String title) {
+		
+		final StringBuilder message = new StringBuilder("Change Look and Feel by adding one of the following properties:");
+		for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+			message.append("\nswing.defaultlaf=").append(info.getClassName());
+		}
+		LOG.info(message.toString());
+		
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				final JFrame frame;
+				if (title == null) {
+					frame = new JFrame("Proof Browser - " + conclusion);
+				} else {
+					frame = new JFrame("Proof Browser - " + title);
+				}
+				
+				final JScrollPane scrollPane =
+						new JScrollPane(new InferenceSetTreeComponent<C, A>(
+								inferenceSet, conclusion));
+				frame.getContentPane().add(scrollPane);
+				
+				frame.pack();
+//				frame.setSize(500, 500);
+				frame.setVisible(true);
+			}
+		});
+		
+	}
+	
+	public static <C, A> void showProofGraphBrowser(
+			final InferenceSet<C, A> inferenceSet, final C conclusion,
+			final String title) {
 
 		final InferenceSetWrapper<C, A> root =
 				new InferenceSetWrapper<C, A>(inferenceSet, conclusion);
@@ -103,9 +144,12 @@ public class ProofBrowser {
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
-				final JFrame frame = new JFrame(
-						"Proof Browser for " + conclusion);
-				frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				final JFrame frame;
+				if (title == null) {
+					frame = new JFrame("Proof Browser - " + conclusion);
+				} else {
+					frame = new JFrame("Proof Browser - " + title);
+				}
 				
 				final JScrollPane scrollPane =
 						new JScrollPane(new TreeComponent(root));
