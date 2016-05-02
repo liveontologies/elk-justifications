@@ -27,6 +27,13 @@ public class InferenceSets {
 		return new TautologyRemovingInferenceSetAdapter<C, A>(inferences);
 	}
 
+	public static <C, A> InferenceSet<C, DepthLimitInferenceSetAdapter.Wrap<C, A>> limitDepth(
+			final InferenceSet<C, A> inferences, final int maxDepth,
+			final C root) {
+		return new DepthLimitInferenceSetAdapter<C, A>(inferences, maxDepth,
+				root);
+	}
+
 	public static <C, A> boolean hasCycle(InferenceSet<C, A> inferences,
 			C conclusion) {
 		return (new InferenceSetCycleDetector<C, A>(inferences))
