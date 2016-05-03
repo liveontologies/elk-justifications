@@ -20,23 +20,21 @@ import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
  * 
  * @author Yevgeny Kazakov
  */
-class OWLInferenceInferenceAdapter
+class OWLInferenceInferenceAdapter extends AbstractAdapter<OWLInference>
 		implements Inference<OWLExpression, OWLAxiom> {
 
-	private final OWLInference inference_;
-
 	OWLInferenceInferenceAdapter(OWLInference inference) {
-		this.inference_ = inference;
+		super(inference);
 	}
 
 	@Override
 	public OWLExpression getConclusion() {
-		return inference_.getConclusion();
+		return adapted_.getConclusion();
 	}
 
 	@Override
 	public Collection<? extends OWLExpression> getPremises() {
-		return inference_.getPremises();
+		return adapted_.getPremises();
 	}
 
 	@Override

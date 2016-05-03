@@ -24,7 +24,7 @@ import org.semanticweb.elk.reasoner.tracing.TracingInferencePremiseVisitor;
  * 
  * @author Yevgeny Kazakov
  */
-class TracingInferenceInferenceAdapter
+class TracingInferenceInferenceAdapter extends AbstractAdapter<TracingInference>
 		implements Inference<Conclusion, ElkAxiom> {
 
 	private final static Conclusion.Factory CONCLUSION_FACTORY_ = new ConclusionBaseFactory();
@@ -35,28 +35,26 @@ class TracingInferenceInferenceAdapter
 
 	private final static TracingInference.Visitor<Conclusion> CONCLUSION_GETTER_ = new ConclusionGetter();
 
-	private final TracingInference inference_;
-
 	TracingInferenceInferenceAdapter(TracingInference inference) {
-		this.inference_ = inference;
+		super(inference);
 	}
 
 	@Override
 	public Conclusion getConclusion() {
-		return inference_.accept(CONCLUSION_GETTER_);
+		return adapted_.accept(CONCLUSION_GETTER_);
 	}
 
 	@Override
 	public Collection<? extends Conclusion> getPremises() {
 		List<Conclusion> result = new ArrayList<Conclusion>();
-		inference_.accept(new PremisesGetter(result));
+		adapted_.accept(new PremisesGetter(result));
 		return result;
 	}
 
 	@Override
 	public Set<? extends ElkAxiom> getJustification() {
 		Set<ElkAxiom> result = new HashSet<ElkAxiom>();
-		inference_.accept(new JustificationGetter(result));
+		adapted_.accept(new JustificationGetter(result));
 		return result;
 	}
 	

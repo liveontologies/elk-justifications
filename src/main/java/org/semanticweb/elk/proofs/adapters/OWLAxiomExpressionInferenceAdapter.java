@@ -20,17 +20,16 @@ import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
  * @author Yevgeny Kazakov
  */
 class OWLAxiomExpressionInferenceAdapter
+		extends AbstractAdapter<OWLAxiomExpression>
 		implements Inference<OWLExpression, OWLAxiom> {
 
-	private final OWLAxiomExpression expression_;
-
 	OWLAxiomExpressionInferenceAdapter(OWLAxiomExpression expression) {
-		this.expression_ = expression;
+		super(expression);
 	}
 
 	@Override
 	public OWLExpression getConclusion() {
-		return expression_;
+		return adapted_;
 	}
 
 	@Override
@@ -40,7 +39,7 @@ class OWLAxiomExpressionInferenceAdapter
 
 	@Override
 	public Set<? extends OWLAxiom> getJustification() {
-		return Collections.singleton(expression_.getAxiom());
+		return Collections.singleton(adapted_.getAxiom());
 	}
 
 	@Override
