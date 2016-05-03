@@ -6,7 +6,9 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.Set;
 
+import javax.swing.JComponent;
 import javax.swing.JTree;
+import javax.swing.ToolTipManager;
 import javax.swing.event.TreeExpansionEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.event.TreeWillExpandListener;
@@ -25,12 +27,25 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 	private final InferenceSet<C, A> inferenceSet_;
 	private final C conclusion_;
+
+	private final TreeNodeLabelProvider nodeDecorator_;
+	private final TreeNodeLabelProvider toolTipProvider_;
+
 	private final HashMultimap<Object, TreePath> visibleNodes_;
 
 	public InferenceSetTreeComponent(final InferenceSet<C, A> inferenceSet,
 			final C conclusion) {
+		this(inferenceSet, conclusion, null, null);
+	}
+
+	public InferenceSetTreeComponent(final InferenceSet<C, A> inferenceSet,
+			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
+			final TreeNodeLabelProvider toolTipProvider) {
 		this.inferenceSet_ = inferenceSet;
 		this.conclusion_ = conclusion;
+		this.nodeDecorator_ = nodeDecorator;
+		this.toolTipProvider_ = toolTipProvider;
+
 		this.visibleNodes_ = HashMultimap.create();
 
 		setModel(new TreeModelInferenceSetAdapter());
@@ -42,6 +57,9 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 		renderer.setOpenIcon(null);
 		renderer.setClosedIcon(null);
 		setCellRenderer(renderer);
+
+		// JTree does not delegate ToolTip to tree cells otherwise.
+		ToolTipManager.sharedInstance().registerComponent(this);
 
 		resetVisibleNodes();
 
@@ -113,20 +131,26 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 			final boolean expanded, final boolean leaf, final int row,
 			final boolean hasFocus) {
 
+		final String label;
 		if (value == null) {
-			return "";
-		}
-
-		final String label = value.toString();
-		if (label == null) {
-			return "";
-		}
-
-		if (value instanceof Inference) {
-			return "⊣";
+			label = "";
 		} else {
-			return label;
+			if (value instanceof Inference) {
+				label = "⊣";// TODO: display the justification here instead of
+							// as one of the premises
+			} else {
+				label = value.toString();
+			}
 		}
+
+		if (nodeDecorator_ == null) {
+			return label;
+		} else {
+			final TreePath path = getPathForRow(row);
+			final String decoration = nodeDecorator_.getLabel(value, path);
+			return decoration == null ? label : decoration + label;
+		}
+
 	}
 
 	private class TreeModelInferenceSetAdapter implements TreeModel {
@@ -261,9 +285,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 							.getInferences((C) parent);
 					int i = 0;
 					for (final Inference<C, A> inf : inferences) {
-						// if (child.equals(inf)) {
-						// FIXME: equals does not work for inferences
-						if (child.toString().equals(inf.toString())) {
+						if (child.equals(inf)) {
 							return i;
 						}
 						i++;
@@ -302,6 +324,18 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 			final Component component = super.getTreeCellRendererComponent(tree,
 					value, sel, expanded, leaf, row, hasFocus);
+
+			if (component instanceof JComponent) {
+				final JComponent jComponent = (JComponent) component;
+				if (toolTipProvider_ != null) {
+					final TreePath path = getPathForRow(row);
+					final String toolTip = toolTipProvider_.getLabel(value,
+							path);
+					if (toolTip != null) {
+						jComponent.setToolTipText(toolTip);
+					}
+				}
+			}
 
 			// If the value is displayed multiple times, highlight it
 			final Set<TreePath> paths = visibleNodes_.get(value);

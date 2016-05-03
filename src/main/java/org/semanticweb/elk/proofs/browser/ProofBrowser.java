@@ -4,14 +4,20 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
+import java.util.Set;
 
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
+import javax.swing.tree.TreePath;
 
 import org.semanticweb.elk.exceptions.ElkException;
+import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
+import org.semanticweb.elk.justifications.DummyMonitor;
+import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
 import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
@@ -19,6 +25,7 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
+import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapter;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
@@ -75,7 +82,79 @@ public class ProofBrowser {
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner.explainConclusion(expression));
 
-			showProofBrowser(inferenceSet, expression);
+			final JustificationComputation<Conclusion, ElkAxiom> computation =
+					BottomUpJustificationComputation
+					.<Conclusion, ElkAxiom> getFactory()
+					.create(inferenceSet, DummyMonitor.INSTANCE);
+			
+			final int sizeLimit = 8;
+			
+			computation.computeJustifications(expression, sizeLimit);
+			
+			final TreeNodeLabelProvider decorator = new TreeNodeLabelProvider() {
+				@Override
+				public String getLabel(final Object obj,
+						final TreePath path) {
+					
+					if (obj instanceof Conclusion) {
+						final Conclusion c = (Conclusion) obj;
+						final Collection<? extends Set<ElkAxiom>> js =
+								computation.computeJustifications(c, sizeLimit);
+						return "[" + js.size() + "] ";
+					} else if (obj instanceof Inference) {
+						final Inference<?, ?> inf = (Inference<?, ?>) obj;
+						int product = 1;
+						for (final Object premise : inf.getPremises()) {
+							final Collection<? extends Set<ElkAxiom>> js =
+									computation.computeJustifications((Conclusion) premise, sizeLimit);
+							product *= js.size();
+						}
+						return "<" + product + "> ";
+					}
+					
+					return "";
+				}
+			};
+			
+			final TreeNodeLabelProvider toolTipProvider = new TreeNodeLabelProvider() {
+				@Override
+				public String getLabel(final Object obj,
+						final TreePath path) {
+					
+					if (path == null || path.getPathCount() < 2
+							|| !(obj instanceof Conclusion)) {
+						return null;
+					}
+					final Conclusion premise = (Conclusion) obj;
+					final Object o = path.getPathComponent(path.getPathCount() - 2);
+					if (!(o instanceof Inference)) {
+						return null;
+					}
+					final Inference<?, ?> inf = (Inference<?, ?>) o;
+					final Object c = inf.getConclusion();
+					if (!(c instanceof Conclusion)) {
+						return null;
+					}
+					final Conclusion concl = (Conclusion) c;
+					
+					final Collection<? extends Set<ElkAxiom>> premiseJs =
+							computation.computeJustifications(premise, sizeLimit);
+					final Collection<? extends Set<ElkAxiom>> conclJs =
+							computation.computeJustifications(concl, sizeLimit);
+					
+					int count = 0;
+					for (final Set<ElkAxiom> just : premiseJs) {
+						if (BottomUpJustificationComputation.isMinimal(just, conclJs)) {
+							count++;
+						}
+					}
+					
+					return "minimal in conclusion: " + count;
+				}
+			};
+			
+			showProofBrowser(inferenceSet, expression, decorator,
+					toolTipProvider);
 			
 		} catch (final FileNotFoundException e) {
 			LOG.error("File Not Found!", e);
@@ -98,12 +177,21 @@ public class ProofBrowser {
 	
 	public static <C, A> void showProofBrowser(
 			final InferenceSet<C, A> inferenceSet, final C conclusion) {
-		showProofBrowser(inferenceSet, conclusion, null);
+		showProofBrowser(inferenceSet, conclusion, null, null, null);
 	}
 	
 	public static <C, A> void showProofBrowser(
 			final InferenceSet<C, A> inferenceSet, final C conclusion,
-			final String title) {
+			final TreeNodeLabelProvider nodeDecorator,
+			final TreeNodeLabelProvider toolTipProvider) {
+		showProofBrowser(inferenceSet, conclusion, null, nodeDecorator,
+				toolTipProvider);
+	}
+	
+	public static <C, A> void showProofBrowser(
+			final InferenceSet<C, A> inferenceSet, final C conclusion,
+			final String title, final TreeNodeLabelProvider nodeDecorator,
+			final TreeNodeLabelProvider toolTipProvider) {
 		
 		final StringBuilder message = new StringBuilder("Change Look and Feel by adding one of the following properties:");
 		for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
@@ -123,7 +211,8 @@ public class ProofBrowser {
 				
 				final JScrollPane scrollPane =
 						new JScrollPane(new InferenceSetTreeComponent<C, A>(
-								inferenceSet, conclusion));
+								inferenceSet, conclusion, nodeDecorator,
+								toolTipProvider));
 				frame.getContentPane().add(scrollPane);
 				
 				frame.pack();
