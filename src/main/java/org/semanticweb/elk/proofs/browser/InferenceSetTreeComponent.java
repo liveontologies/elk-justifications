@@ -2,8 +2,14 @@ package org.semanticweb.elk.proofs.browser;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 import javax.swing.JComponent;
@@ -100,6 +106,26 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 			}
 		});
 
+		addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(final MouseEvent e) {
+
+				final TreePath path = getPathForLocation(e.getX(), e.getY());
+				if (path == null) {
+					return;
+				}
+
+				if (e.getClickCount() == 2) {
+					if (isExpanded(path)) {
+						// TODO: collapse all children
+					} else {
+						expandAll(path);
+					}
+				}
+
+			}
+		});
+
 	}
 
 	private void resetVisibleNodes() {
@@ -124,6 +150,62 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 				}
 			}
 		}
+	}
+
+	private void expandAll(final TreePath rootPath) {
+		if (rootPath == null) {
+			return;
+		}
+
+		final Queue<Object> toDo = new LinkedList<Object>();
+		final Map<Object, TreePath> done = new HashMap<Object, TreePath>();
+
+		Object node = rootPath.getLastPathComponent();
+		if (node instanceof Inference) {
+
+			expandPath(rootPath);
+
+			final int premCount = getModel().getChildCount(node);
+			for (int premIndex = 0; premIndex < premCount; premIndex++) {
+				final Object prem = getModel().getChild(node, premIndex);
+				final TreePath premPath = rootPath.pathByAddingChild(prem);
+				if (done.put(prem, premPath) == null) {
+					toDo.add(prem);
+				}
+			}
+
+		} else {
+			toDo.add(node);
+			done.put(node, rootPath);
+			// If the node is an axiom, it is not a problem.
+		}
+
+		while ((node = toDo.poll()) != null) {
+
+			final TreePath path = done.get(node);
+
+			expandPath(path);
+
+			final int infCount = getModel().getChildCount(node);
+			for (int infIndex = 0; infIndex < infCount; infIndex++) {
+				final Object inf = getModel().getChild(node, infIndex);
+
+				final TreePath infPath = path.pathByAddingChild(inf);
+
+				expandPath(infPath);
+
+				final int premCount = getModel().getChildCount(inf);
+				for (int premIndex = 0; premIndex < premCount; premIndex++) {
+					final Object prem = getModel().getChild(inf, premIndex);
+					final TreePath premPath = infPath.pathByAddingChild(prem);
+					if (done.put(prem, premPath) == null) {
+						toDo.add(prem);
+					}
+				}
+			}
+
+		}
+
 	}
 
 	@Override
@@ -351,7 +433,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 	}
 
 	private static Color colorFromHash(final Object obj) {
-		return new Color(Color.HSBtoRGB(obj.hashCode() / 7919.0f, 0.5f, 0.9f));
+		return new Color(Color.HSBtoRGB(obj.hashCode() / 7919.0f, 0.4f, 0.95f));
 	}
 
 }
