@@ -184,10 +184,10 @@ public class BottomUpJustificationComputation<C, A>
 	 * 
 	 * @param just
 	 * @param justs
-	 * @return {@code true} if the given justification is not a subset of any
+	 * @return {@code true} if the given justification is not a superset of any
 	 *         justifications in the given collection
 	 */
-	private static <J extends Set<?>> boolean isMinimal(J just,
+	public static <J extends Set<?>> boolean isMinimal(J just,
 			Collection<? extends J> justs) {
 		for (J other : justs) {
 			if (just.containsAll(other)) {

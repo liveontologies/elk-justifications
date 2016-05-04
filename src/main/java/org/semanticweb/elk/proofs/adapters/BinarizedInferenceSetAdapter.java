@@ -64,27 +64,25 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 	 * @param <A>
 	 */
 	private static class BinaryListInference<C, A>
-			implements Inference<List<C>, A> {
-
-		private final List<C> conclusion_;
+			extends AbstractAdapter<List<C>> implements Inference<List<C>, A> {
 
 		public BinaryListInference(List<C> conclusion) {
+			super(conclusion);
 			if (conclusion.size() <= 1) {
 				throw new IllegalArgumentException();
 			}
-			this.conclusion_ = conclusion;
 		}
 
 		@Override
 		public List<C> getConclusion() {
-			return conclusion_;
+			return adapted_;
 		}
 
 		@Override
 		public Collection<? extends List<C>> getPremises() {
 			List<List<C>> result = new ArrayList<List<C>>(2);
-			result.add(Collections.singletonList(conclusion_.get(0)));
-			result.add(conclusion_.subList(1, conclusion_.size()));
+			result.add(Collections.singletonList(adapted_.get(0)));
+			result.add(adapted_.subList(1, adapted_.size()));
 			return result;
 		}
 
@@ -92,7 +90,7 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 		public Set<? extends A> getJustification() {
 			return Collections.emptySet();
 		}
-		
+
 		@Override
 		public String toString() {
 			return InferencePrinter.toString(this);
@@ -117,23 +115,21 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 
 	}
 
-	private static class BinaryInferenceAdapter<C, A>
-			implements Inference<List<C>, A> {
-
-		private final Inference<C, A> original_;
+	private static class BinaryInferenceAdapter<C, A> extends
+			AbstractAdapter<Inference<C, A>> implements Inference<List<C>, A> {
 
 		BinaryInferenceAdapter(Inference<C, A> original) {
-			this.original_ = original;
+			super(original);
 		}
 
 		@Override
 		public List<C> getConclusion() {
-			return Collections.singletonList(original_.getConclusion());
+			return Collections.singletonList(adapted_.getConclusion());
 		}
 
 		@Override
 		public Collection<? extends List<C>> getPremises() {
-			Collection<? extends C> originalPremises = original_.getPremises();
+			Collection<? extends C> originalPremises = adapted_.getPremises();
 			int originalPremiseCount = originalPremises.size();
 			switch (originalPremiseCount) {
 			case 0:
@@ -162,9 +158,9 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 
 		@Override
 		public Set<? extends A> getJustification() {
-			return original_.getJustification();
+			return adapted_.getJustification();
 		}
-		
+
 		@Override
 		public String toString() {
 			return InferencePrinter.toString(this);
