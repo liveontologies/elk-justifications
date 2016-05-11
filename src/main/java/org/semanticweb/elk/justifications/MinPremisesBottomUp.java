@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -21,28 +22,29 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimap;
 
-// TODO: enumerate justifications (e.g., using a visitor), make priority used in the queue explicit
-public class BottomUpJustificationComputation<C, A>
+/**
+ * Resets the whole context, does not cache anything!
+ * 
+ * @author Peter Skocovsky
+ *
+ * @param <C>
+ * @param <A>
+ */
+public class MinPremisesBottomUp<C, A>
 		extends CancellableJustificationComputation<C, A> {
 
-	public static final String STAT_NAME_JUSTIFICATIONS = "BottomUpJustificationComputation.nJustificationsOfAllConclusions";
-	public static final String STAT_NAME_MAX_JUST_OF_CONCL = "BottomUpJustificationComputation.maxNJustificationsOfAConclusion";
-	public static final String STAT_NAME_INFERENCES = "BottomUpJustificationComputation.nProcessedInferences";
-	public static final String STAT_NAME_CONCLUSIONS = "BottomUpJustificationComputation.nProcessedConclusions";
-	public static final String STAT_NAME_CANDIDATES = "BottomUpJustificationComputation.nProcessedJustificationCandidates";
-	public static final String STAT_NAME_BLOCKED = "BottomUpJustificationComputation.nBlockedJustifications";
+	public static final String STAT_NAME_JUSTIFICATIONS = "SimpleBottomUp.nJustificationsOfAllConclusions";
+	public static final String STAT_NAME_MAX_JUST_OF_CONCL = "SimpleBottomUp.maxNJustificationsOfAConclusion";
+	public static final String STAT_NAME_INFERENCES = "SimpleBottomUp.nProcessedInferences";
+	public static final String STAT_NAME_CONCLUSIONS = "SimpleBottomUp.nProcessedConclusions";
+	public static final String STAT_NAME_CANDIDATES = "SimpleBottomUp.nProcessedJustificationCandidates";
+	public static final String STAT_NAME_BLOCKED = "SimpleBottomUp.nBlockedJustifications";
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(BottomUpJustificationComputation.class);
+			.getLogger(MinPremisesBottomUp.class);
 
-	private static final BottomUpJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
-
-	/**
-	 * conclusions for which computation of justifications has been initialized
-	 */
-	private final Set<C> initialized_ = new HashSet<C>();
+	private static final MinPremisesBottomUp.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
 	/**
 	 * a map from conclusions to their justifications
@@ -51,22 +53,12 @@ public class BottomUpJustificationComputation<C, A>
 			.create();
 
 	/**
-	 * justifications blocked from propagation because they are not needed for
-	 * computing justifications for the goal conclusion
+	 * a map from premises and inferences for which they are used to their
+	 * justifications
+	 * <p>
+	 * FIXME: an inference may have one conclusion as two different premises!
 	 */
-	private final ListMultimap<C, Justification<C, A>> blockedJustifications_ = ArrayListMultimap
-			.create();
-
-	/**
-	 * the maximal sizes of justifications for conclusions computed so far
-	 */
-	private final Map<C, Integer> sizeLimits_ = new HashMap<C, Integer>();
-
-	/**
-	 * a map from premises to inferences for relevant conclusions
-	 */
-	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
-			.create();
+	private final Map<C, Map<Inference<C, A>, List<Justification<C, A>>>> premiseJustifications_ = new HashMap<>();
 
 	/**
 	 * newly computed justifications to be propagated
@@ -76,9 +68,9 @@ public class BottomUpJustificationComputation<C, A>
 	// Statistics
 
 	private int countInferences_ = 0, countConclusions_ = 0,
-			countJustificationCandidates_ = 0;
+			countJustificationCandidates_ = 0, countBlocked_ = 0;
 
-	BottomUpJustificationComputation(final InferenceSet<C, A> inferences,
+	MinPremisesBottomUp(final InferenceSet<C, A> inferences,
 			final Monitor monitor) {
 		super(inferences, monitor);
 	}
@@ -87,6 +79,9 @@ public class BottomUpJustificationComputation<C, A>
 	public Collection<? extends Set<A>> computeJustifications(C conclusion,
 			int sizeLimit) {
 		BloomSet.resetStatistics();
+		justifications_.clear();
+		premiseJustifications_.clear();
+		toDoJustifications_.clear();
 		return new JustificationEnumerator(conclusion, sizeLimit).getResult();
 	}
 
@@ -105,7 +100,7 @@ public class BottomUpJustificationComputation<C, A>
 		final Map<String, Object> stats = new HashMap<String, Object>(
 				BloomSet.getStatistics());
 		stats.put(STAT_NAME_JUSTIFICATIONS, justifications_.size());
-		stats.put(STAT_NAME_BLOCKED, blockedJustifications_.size());
+		stats.put(STAT_NAME_BLOCKED, countBlocked_);
 		int max = 0;
 		for (final C conclusion : justifications_.keySet()) {
 			final List<Justification<C, A>> justs = justifications_
@@ -140,8 +135,7 @@ public class BottomUpJustificationComputation<C, A>
 			LOGGER_.debug("{}: processed conclusions", countConclusions_);
 			LOGGER_.debug("{}: computed justifications",
 					justifications_.size());
-			LOGGER_.debug("{}: blocked justifications",
-					blockedJustifications_.size());
+			LOGGER_.debug("{}: blocked justifications", countBlocked_);
 			LOGGER_.debug("{}: produced justification candidates",
 					countJustificationCandidates_);
 			for (final C conclusion : justifications_.keySet()) {
@@ -161,21 +155,13 @@ public class BottomUpJustificationComputation<C, A>
 		countInferences_ = 0;
 		countConclusions_ = 0;
 		countJustificationCandidates_ = 0;
+		countBlocked_ = 0;
 		BloomSet.resetStatistics();
 	}
 
 	@SuppressWarnings("unchecked")
 	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
 		return (Factory<C, A>) FACTORY_;
-	}
-
-	int getSizeLimit(C conclusion) {
-		Integer result = sizeLimits_.get(conclusion);
-		if (result == null) {
-			return 0;
-		}
-		// else
-		return result;
 	}
 
 	/**
@@ -269,8 +255,6 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private class JustificationEnumerator {
 
-		private final C conclusion_;
-
 		private final int sizeLimit_;
 
 		/**
@@ -283,7 +267,7 @@ public class BottomUpJustificationComputation<C, A>
 		/**
 		 * temporary queue to compute {@link #relevant_}
 		 */
-		private final Queue<C> toDo_ = new LinkedList<C>();
+		private final Queue<C> toInitialize_ = new LinkedList<C>();
 
 		/**
 		 * the justifications will be returned here, they come in increasing
@@ -292,18 +276,14 @@ public class BottomUpJustificationComputation<C, A>
 		private final List<? extends Set<A>> result_;
 
 		JustificationEnumerator(C conclusion, int sizeLimit) {
-			this.conclusion_ = conclusion;
 			this.sizeLimit_ = sizeLimit;
 			this.result_ = justifications_.get(conclusion);
-			toDo(conclusion);
+			toInitialize(conclusion);
 			initialize();
 		}
 
 		private Collection<? extends Set<A>> getResult() {
 			process();
-			if (sizeLimit_ > getSizeLimit(conclusion_)) {
-				sizeLimits_.put(conclusion_, sizeLimit_);
-			}
 			if (result_.isEmpty()) {
 				return result_;
 			}
@@ -323,48 +303,30 @@ public class BottomUpJustificationComputation<C, A>
 		private void initialize() {
 
 			C conclusion;
-			while ((conclusion = toDo_.poll()) != null) {
-				if (getSizeLimit(conclusion) >= sizeLimit_) {
-					// relevant justifications already computed
-					continue;
-				}
-				boolean initialized = initialized_.add(conclusion);
-				if (initialized) {
-					countConclusions_++;
-					LOGGER_.trace(
-							"{}: computation of justifiations initialized",
-							conclusion);
-				} else {
-					List<Justification<C, A>> blocked = blockedJustifications_
-							.get(conclusion);
-					for (Justification<C, A> just : blocked) {
-						LOGGER_.trace("unblocked {}", just);
-						toDoJustifications_.add(just);
-					}
-					blocked.clear();
-				}
+			while ((conclusion = toInitialize_.poll()) != null) {
+				countConclusions_++;
+				LOGGER_.trace("{}: computation of justifiations initialized",
+						conclusion);
 				boolean derived = false;
 				for (Inference<C, A> inf : getInferences(conclusion)) {
 					LOGGER_.trace("{}: new inference", inf);
 					derived = true;
 					countInferences_++;
 					for (C premise : inf.getPremises()) {
-						inferencesByPremises_.put(premise, inf);
-						toDo(premise);
+						Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
+								.get(premise);
+						if (inferenceJusts == null) {
+							inferenceJusts = new HashMap<>();
+							premiseJustifications_.put(premise, inferenceJusts);
+						}
+						inferenceJusts.put(inf,
+								new ArrayList<Justification<C, A>>());
+						toInitialize(premise);
 					}
-					if (initialized) {
-						// propagate existing justifications for premises
-						List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
-						conclusionJusts.add(createJustification(
+					if (inf.getPremises().isEmpty()) {
+						toDoJustifications_.add(createJustification(
 								inf.getConclusion(), inf.getJustification()));
-						for (C premise : inf.getPremises()) {
-							conclusionJusts = join(conclusionJusts,
-									justifications_.get(premise));
-						}
-						for (Justification<C, A> just : conclusionJusts) {
-							toDoJustifications_.add(just);
-							countJustificationCandidates_++;
-						}
+						countJustificationCandidates_++;
 					}
 				}
 				if (!derived) {
@@ -374,11 +336,11 @@ public class BottomUpJustificationComputation<C, A>
 
 		}
 
-		private void toDo(C conclusion) {
+		private void toInitialize(C conclusion) {
 			if (!relevant_.contains(conclusion)) {
 				countConclusions_++;
 				relevant_.add(conclusion);
-				toDo_.add(conclusion);
+				toInitialize_.add(conclusion);
 			}
 		}
 
@@ -410,7 +372,7 @@ public class BottomUpJustificationComputation<C, A>
 
 				C conclusion = just.getConclusion();
 				if (!relevant_.contains(conclusion)) {
-					blockedJustifications_.put(conclusion, just);
+					countBlocked_++;
 					LOGGER_.trace("blocked {}", just);
 					continue;
 				}
@@ -420,7 +382,7 @@ public class BottomUpJustificationComputation<C, A>
 					continue;
 				}
 				if (!isMinimal(just, result_)) {
-					blockedJustifications_.put(conclusion, just);
+					countBlocked_++;
 					LOGGER_.trace("blocked {}", just);
 					continue;
 				}
@@ -433,16 +395,76 @@ public class BottomUpJustificationComputation<C, A>
 					// the inferences are not needed anymore
 					for (Inference<C, A> inf : getInferences(conclusion)) {
 						for (C premise : inf.getPremises()) {
-							inferencesByPremises_.remove(premise, inf);
+							final Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
+									.get(premise);
+							if (inferenceJusts != null) {
+								inferenceJusts.remove(inf);
+							}
 						}
 					}
 				}
 
 				/*
+				 * minimize premise justifications of inferences deriving this
+				 * conclusion
+				 */
+				for (final Inference<C, A> inf : getInferences(conclusion)) {
+					final Justification<C, A> justLessInf = just
+							.removeElements(inf.getJustification());
+					for (final C premise : inf.getPremises()) {
+						final Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
+								.get(premise);
+						if (inferenceJusts == null) {
+							continue;
+						}
+						final List<Justification<C, A>> premiseJusts = inferenceJusts
+								.get(inf);
+						if (premiseJusts == null) {
+							continue;
+						}
+						final Iterator<Justification<C, A>> premiseJustIt = premiseJusts
+								.iterator();
+						while (premiseJustIt.hasNext()) {
+							final Justification<C, A> premiseJust = premiseJustIt
+									.next();
+							if (premiseJust.containsAll(justLessInf)) {
+								premiseJustIt.remove();
+							}
+						}
+					}
+				}
+
+				/*
+				 * add the justification to premise justifications if inferences
+				 * where this conclusion is the premise iff it is minimal w.r.t.
+				 * justifications of the inference conclusion
+				 */
+				final Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
+						.get(conclusion);
+				if (inferenceJusts == null) {
+					continue;
+				}
+				final List<Inference<C, A>> infsToPropagate = new ArrayList<>(
+						inferenceJusts.size());
+				for (final Entry<Inference<C, A>, List<Justification<C, A>>> e : inferenceJusts
+						.entrySet()) {
+					final Inference<C, A> inf = e.getKey();
+					final List<Justification<C, A>> premiseJusts = e.getValue();
+
+					final Justification<C, A> justWithInf = just
+							.addElements(inf.getJustification());
+					if (isMinimal(justWithInf,
+							justifications_.get(inf.getConclusion()))) {
+						premiseJusts.add(just);
+						infsToPropagate.add(inf);
+					}
+
+				}
+
+				/*
 				 * propagating justification over inferences
 				 */
-				for (Inference<C, A> inf : inferencesByPremises_
-						.get(conclusion)) {
+				for (Inference<C, A> inf : infsToPropagate) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 					Justification<C, A> conclusionJust = just
@@ -451,8 +473,20 @@ public class BottomUpJustificationComputation<C, A>
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {
+							final Map<Inference<C, A>, List<Justification<C, A>>> infJusts = premiseJustifications_
+									.get(premise);
+							if (infJusts == null) {
+								// premise is not a premise of any inference
+								continue;
+							}
+							final List<Justification<C, A>> premiseJusts = infJusts
+									.get(inf);
+							if (premiseJusts == null) {
+								// premise is not a premise of this inference
+								continue;
+							}
 							conclusionJusts = join(conclusionJusts,
-									justifications_.get(premise));
+									premiseJusts);
 						}
 					}
 
@@ -470,7 +504,7 @@ public class BottomUpJustificationComputation<C, A>
 	}
 
 	/**
-	 * The factory for creating a {@link BottomUpJustificationComputation}
+	 * The factory for creating a {@link MinPremisesBottomUp}
 	 * 
 	 * @author Yevgeny Kazakov
 	 *
@@ -485,8 +519,7 @@ public class BottomUpJustificationComputation<C, A>
 		@Override
 		public JustificationComputation<C, A> create(
 				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
-			return new BottomUpJustificationComputation<>(inferenceSet,
-					monitor);
+			return new MinPremisesBottomUp<>(inferenceSet, monitor);
 		}
 
 		@Override
