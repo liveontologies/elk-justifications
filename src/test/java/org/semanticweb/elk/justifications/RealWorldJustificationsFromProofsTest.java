@@ -38,6 +38,7 @@ public class RealWorldJustificationsFromProofsTest extends
 		computations.add(BinarizedJustificationComputation
 				.getFactory(BottomUpJustificationComputation
 						.<List<OWLExpression>, OWLAxiom> getFactory()));
+		computations.add(MinPremisesBottomUp.<OWLExpression, OWLAxiom>getFactory());
 		
 		final String[][] fileNames = new String[][] {
 			{

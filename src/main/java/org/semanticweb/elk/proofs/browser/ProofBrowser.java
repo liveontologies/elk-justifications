@@ -49,9 +49,10 @@ public class ProofBrowser {
 			System.exit(1);
 		}
 		
-		final String ontologyFileName = args[0];
-		final String subFullIri = args[1];
-		final String supFullIri = args[2];
+		final int startingSizeLimit = Math.max(1, Integer.parseInt(args[0]));
+		final String ontologyFileName = args[1];
+		final String subFullIri = args[2];
+		final String supFullIri = args[3];
 		
 		final ElkObjectBaseFactory factory = new ElkObjectBaseFactory();
 		
@@ -87,74 +88,102 @@ public class ProofBrowser {
 					.<Conclusion, ElkAxiom> getFactory()
 					.create(inferenceSet, DummyMonitor.INSTANCE);
 			
-			final int sizeLimit = 8;
-			
-			computation.computeJustifications(expression, sizeLimit);
-			
-			final TreeNodeLabelProvider decorator = new TreeNodeLabelProvider() {
-				@Override
-				public String getLabel(final Object obj,
-						final TreePath path) {
-					
-					if (obj instanceof Conclusion) {
-						final Conclusion c = (Conclusion) obj;
-						final Collection<? extends Set<ElkAxiom>> js =
-								computation.computeJustifications(c, sizeLimit);
-						return "[" + js.size() + "] ";
-					} else if (obj instanceof Inference) {
-						final Inference<?, ?> inf = (Inference<?, ?>) obj;
-						int product = 1;
-						for (final Object premise : inf.getPremises()) {
+			for (int size = startingSizeLimit; size <= Integer.MAX_VALUE; size++) {
+				
+				final int sizeLimit = size;
+				
+				final Collection<? extends Set<ElkAxiom>> justs =
+						computation.computeJustifications(expression, sizeLimit);
+				
+				final TreeNodeLabelProvider decorator = new TreeNodeLabelProvider() {
+					@Override
+					public String getLabel(final Object obj,
+							final TreePath path) {
+						
+						if (obj instanceof Conclusion) {
+							final Conclusion c = (Conclusion) obj;
 							final Collection<? extends Set<ElkAxiom>> js =
-									computation.computeJustifications((Conclusion) premise, sizeLimit);
-							product *= js.size();
+									computation.computeJustifications(c, sizeLimit);
+							return "[" + js.size() + "] ";
+						} else if (obj instanceof Inference) {
+							final Inference<?, ?> inf = (Inference<?, ?>) obj;
+							int product = 1;
+							for (final Object premise : inf.getPremises()) {
+								final Collection<? extends Set<ElkAxiom>> js =
+										computation.computeJustifications((Conclusion) premise, sizeLimit);
+								product *= js.size();
+							}
+							return "<" + product + "> ";
 						}
-						return "<" + product + "> ";
+						
+						return "";
 					}
-					
-					return "";
-				}
-			};
-			
-			final TreeNodeLabelProvider toolTipProvider = new TreeNodeLabelProvider() {
-				@Override
-				public String getLabel(final Object obj,
-						final TreePath path) {
-					
-					if (path == null || path.getPathCount() < 2
-							|| !(obj instanceof Conclusion)) {
-						return null;
+				};
+				
+				final TreeNodeLabelProvider toolTipProvider = new TreeNodeLabelProvider() {
+					@Override
+					public String getLabel(final Object obj,
+							final TreePath path) {
+						
+						if (path == null || path.getPathCount() < 2
+								|| !(obj instanceof Conclusion)) {
+							return null;
+						}
+						final Conclusion premise = (Conclusion) obj;
+						final Object o = path.getPathComponent(path.getPathCount() - 2);
+						if (!(o instanceof Inference)) {
+							return null;
+						}
+						final Inference<?, ?> inf = (Inference<?, ?>) o;
+						final Object c = inf.getConclusion();
+						if (!(c instanceof Conclusion)) {
+							return null;
+						}
+						final Conclusion concl = (Conclusion) c;
+						
+						final Collection<? extends Set<ElkAxiom>> premiseJs =
+								computation.computeJustifications(premise, sizeLimit);
+						final Collection<? extends Set<ElkAxiom>> conclJs =
+								computation.computeJustifications(concl, sizeLimit);
+						
+						int countInf = 0;
+						for (final Set<ElkAxiom> just : premiseJs) {
+							if (BottomUpJustificationComputation.isMinimal(just, conclJs)) {
+								countInf++;
+							}
+						}
+						
+						int countGoal = 0;
+						for (final Set<ElkAxiom> just : premiseJs) {
+							if (BottomUpJustificationComputation.isMinimal(just, justs)) {
+								countGoal++;
+							}
+						}
+						
+						return "<html>minimal in inf conclusion: " + countInf +
+								"<br/>minimal in goal: " + countGoal +
+								"</html>";
 					}
-					final Conclusion premise = (Conclusion) obj;
-					final Object o = path.getPathComponent(path.getPathCount() - 2);
-					if (!(o instanceof Inference)) {
-						return null;
-					}
-					final Inference<?, ?> inf = (Inference<?, ?>) o;
-					final Object c = inf.getConclusion();
-					if (!(c instanceof Conclusion)) {
-						return null;
-					}
-					final Conclusion concl = (Conclusion) c;
-					
-					final Collection<? extends Set<ElkAxiom>> premiseJs =
-							computation.computeJustifications(premise, sizeLimit);
-					final Collection<? extends Set<ElkAxiom>> conclJs =
-							computation.computeJustifications(concl, sizeLimit);
-					
-					int count = 0;
-					for (final Set<ElkAxiom> just : premiseJs) {
-						if (BottomUpJustificationComputation.isMinimal(just, conclJs)) {
-							count++;
+				};
+				
+				showProofBrowser(inferenceSet, expression, "size " + sizeLimit,
+						decorator, toolTipProvider);
+				
+				try {
+					System.out.print("Press ENTER to continue: ");
+					for (;;) {
+						final int ch = System.in.read();
+						if (ch == 10) {
+							break;
 						}
 					}
 					
-					return "minimal in conclusion: " + count;
+				} catch (final IOException e) {
+					LOG.error("Error during input!", e);
+					break;
 				}
-			};
-			
-			showProofBrowser(inferenceSet, expression, decorator,
-					toolTipProvider);
+				
+			}
 			
 		} catch (final FileNotFoundException e) {
 			LOG.error("File Not Found!", e);
