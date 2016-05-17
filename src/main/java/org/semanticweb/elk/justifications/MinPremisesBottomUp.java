@@ -10,18 +10,19 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
+import org.semanticweb.elk.util.collections.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
 
 /**
  * Resets the whole context, does not cache anything!
@@ -53,12 +54,17 @@ public class MinPremisesBottomUp<C, A>
 			.create();
 
 	/**
+	 * a map from premises to inferences for relevant conclusions
+	 */
+	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
+			.create();
+
+	/**
 	 * a map from premises and inferences for which they are used to their
 	 * justifications
-	 * <p>
-	 * FIXME: an inference may have one conclusion as two different premises!
 	 */
-	private final Map<C, Map<Inference<C, A>, List<Justification<C, A>>>> premiseJustifications_ = new HashMap<>();
+	private final Multimap<Pair<Inference<C, A>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
+			.create();
 
 	/**
 	 * newly computed justifications to be propagated
@@ -80,6 +86,7 @@ public class MinPremisesBottomUp<C, A>
 			int sizeLimit) {
 		BloomSet.resetStatistics();
 		justifications_.clear();
+		inferencesByPremises_.clear();
 		premiseJustifications_.clear();
 		toDoJustifications_.clear();
 		return new JustificationEnumerator(conclusion, sizeLimit).getResult();
@@ -313,14 +320,7 @@ public class MinPremisesBottomUp<C, A>
 					derived = true;
 					countInferences_++;
 					for (C premise : inf.getPremises()) {
-						Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
-								.get(premise);
-						if (inferenceJusts == null) {
-							inferenceJusts = new HashMap<>();
-							premiseJustifications_.put(premise, inferenceJusts);
-						}
-						inferenceJusts.put(inf,
-								new ArrayList<Justification<C, A>>());
+						inferencesByPremises_.put(premise, inf);
 						toInitialize(premise);
 					}
 					if (inf.getPremises().isEmpty()) {
@@ -391,47 +391,47 @@ public class MinPremisesBottomUp<C, A>
 				LOGGER_.trace("new {}", just);
 
 				if (just.isEmpty()) {
+
 					// all justifications are computed,
 					// the inferences are not needed anymore
 					for (Inference<C, A> inf : getInferences(conclusion)) {
 						for (C premise : inf.getPremises()) {
-							final Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
-									.get(premise);
-							if (inferenceJusts != null) {
-								inferenceJusts.remove(inf);
-							}
+							inferencesByPremises_.remove(premise, inf);
+							final Pair<Inference<C, A>, C> key = Pair
+									.create(inf, premise);
+							premiseJustifications_.removeAll(key);
+							premiseJustifications_.put(key,
+									just.copyTo(premise));
 						}
 					}
-				}
 
-				/*
-				 * minimize premise justifications of inferences deriving this
-				 * conclusion
-				 */
-				for (final Inference<C, A> inf : getInferences(conclusion)) {
-					final Justification<C, A> justLessInf = just
-							.removeElements(inf.getJustification());
-					for (final C premise : inf.getPremises()) {
-						final Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
-								.get(premise);
-						if (inferenceJusts == null) {
-							continue;
-						}
-						final List<Justification<C, A>> premiseJusts = inferenceJusts
-								.get(inf);
-						if (premiseJusts == null) {
-							continue;
-						}
-						final Iterator<Justification<C, A>> premiseJustIt = premiseJusts
-								.iterator();
-						while (premiseJustIt.hasNext()) {
-							final Justification<C, A> premiseJust = premiseJustIt
-									.next();
-							if (premiseJust.containsAll(justLessInf)) {
-								premiseJustIt.remove();
+				} else {
+
+					/*
+					 * minimize premise justifications of inferences deriving
+					 * this conclusion
+					 * 
+					 * if the justification is empty and the inferences are
+					 * removed, there is no need to minimize their premise
+					 * justifications
+					 */
+					for (final Inference<C, A> inf : getInferences(
+							conclusion)) {
+						final Justification<C, A> justLessInf = just
+								.removeElements(inf.getJustification());
+						for (final C premise : inf.getPremises()) {
+							final Iterator<Justification<C, A>> premiseJustIt = premiseJustifications_
+									.get(Pair.create(inf, premise)).iterator();
+							while (premiseJustIt.hasNext()) {
+								final Justification<C, A> premiseJust = premiseJustIt
+										.next();
+								if (premiseJust.containsAll(justLessInf)) {
+									premiseJustIt.remove();
+								}
 							}
 						}
 					}
+
 				}
 
 				/*
@@ -439,17 +439,16 @@ public class MinPremisesBottomUp<C, A>
 				 * where this conclusion is the premise iff it is minimal w.r.t.
 				 * justifications of the inference conclusion
 				 */
-				final Map<Inference<C, A>, List<Justification<C, A>>> inferenceJusts = premiseJustifications_
+				final Collection<Inference<C, A>> inferences = inferencesByPremises_
 						.get(conclusion);
-				if (inferenceJusts == null) {
+				if (inferences == null || inferences.isEmpty()) {
 					continue;
 				}
 				final List<Inference<C, A>> infsToPropagate = new ArrayList<>(
-						inferenceJusts.size());
-				for (final Entry<Inference<C, A>, List<Justification<C, A>>> e : inferenceJusts
-						.entrySet()) {
-					final Inference<C, A> inf = e.getKey();
-					final List<Justification<C, A>> premiseJusts = e.getValue();
+						inferences.size());
+				for (final Inference<C, A> inf : inferences) {
+					final Collection<Justification<C, A>> premiseJusts = premiseJustifications_
+							.get(Pair.create(inf, conclusion));
 
 					final Justification<C, A> justWithInf = just
 							.addElements(inf.getJustification());
@@ -473,20 +472,9 @@ public class MinPremisesBottomUp<C, A>
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {
-							final Map<Inference<C, A>, List<Justification<C, A>>> infJusts = premiseJustifications_
-									.get(premise);
-							if (infJusts == null) {
-								// premise is not a premise of any inference
-								continue;
-							}
-							final List<Justification<C, A>> premiseJusts = infJusts
-									.get(inf);
-							if (premiseJusts == null) {
-								// premise is not a premise of this inference
-								continue;
-							}
 							conclusionJusts = join(conclusionJusts,
-									premiseJusts);
+									premiseJustifications_
+											.get(Pair.create(inf, premise)));
 						}
 					}
 
