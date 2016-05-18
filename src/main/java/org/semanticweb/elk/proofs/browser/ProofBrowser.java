@@ -18,6 +18,7 @@ import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.DummyMonitor;
 import org.semanticweb.elk.justifications.JustificationComputation;
+import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
 import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
@@ -148,14 +149,14 @@ public class ProofBrowser {
 						
 						int countInf = 0;
 						for (final Set<ElkAxiom> just : premiseJs) {
-							if (BottomUpJustificationComputation.isMinimal(just, conclJs)) {
+							if (Utils.isMinimal(just, conclJs)) {
 								countInf++;
 							}
 						}
 						
 						int countGoal = 0;
 						for (final Set<ElkAxiom> just : premiseJs) {
-							if (BottomUpJustificationComputation.isMinimal(just, justs)) {
+							if (Utils.isMinimal(just, justs)) {
 								countGoal++;
 							}
 						}

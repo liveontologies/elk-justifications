@@ -3,7 +3,6 @@ package org.semanticweb.elk.justifications;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -171,83 +170,6 @@ public class MinPremisesBottomUp<C, A>
 		return (Factory<C, A>) FACTORY_;
 	}
 
-	/**
-	 * Checks if the given justification has a subset in the given collection of
-	 * justifications
-	 * 
-	 * @param just
-	 * @param justs
-	 * @return {@code true} if the given justification is not a superset of any
-	 *         justification in the given collection
-	 */
-	public static <J extends Set<?>> boolean isMinimal(J just,
-			Collection<? extends J> justs) {
-		for (J other : justs) {
-			if (just.containsAll(other)) {
-				return false;
-			}
-		}
-		// otherwise
-		return true;
-	}
-
-	/**
-	 * Merges a given justification into a given collection of justifications.
-	 * The justification is added to the collection unless its subset is already
-	 * contained in the collection. Furthermore, all proper supersets of the
-	 * justification are removed from the collection.
-	 * 
-	 * @param just
-	 * @param justs
-	 * @return {@code true} if the collection is modified as a result of this
-	 *         operation and {@code false} otherwise
-	 */
-	private static <J extends Set<?>> boolean merge(J just,
-			Collection<J> justs) {
-		int justSize = just.size();
-		final Iterator<J> oldJustIter = justs.iterator();
-		boolean isASubsetOfOld = false;
-		while (oldJustIter.hasNext()) {
-			final J oldJust = oldJustIter.next();
-			if (justSize < oldJust.size()) {
-				if (oldJust.containsAll(just)) {
-					// new justification is smaller
-					oldJustIter.remove();
-					isASubsetOfOld = true;
-				}
-			} else if (!isASubsetOfOld & just.containsAll(oldJust)) {
-				// is a superset of some old justification
-				return false;
-			}
-		}
-		// justification survived all tests, it is minimal
-		justs.add(just);
-		return true;
-	}
-
-	/**
-	 * @param first
-	 * @param second
-	 * @return the list of all pairwise unions of the justifications in the
-	 *         first and the second collections, minimized under set inclusion
-	 */
-	private static <C, T> List<Justification<C, T>> join(
-			Collection<? extends Justification<C, T>> first,
-			Collection<? extends Justification<C, T>> second) {
-		if (first.isEmpty() || second.isEmpty()) {
-			return Collections.emptyList();
-		}
-		List<Justification<C, T>> result = new ArrayList<Justification<C, T>>(
-				first.size() * second.size());
-		for (Justification<C, T> firstSet : first) {
-			for (Justification<C, T> secondSet : second) {
-				Justification<C, T> union = firstSet.addElements(secondSet);
-				merge(union, result);
-			}
-		}
-		return result;
-	}
-
 	@SafeVarargs
 	private static <C, A> Justification<C, A> createJustification(C conclusion,
 			Collection<? extends A>... collections) {
@@ -378,10 +300,10 @@ public class MinPremisesBottomUp<C, A>
 				}
 				List<Justification<C, A>> justs = justifications_
 						.get(conclusion);
-				if (!isMinimal(just, justs)) {
+				if (!Utils.isMinimal(just, justs)) {
 					continue;
 				}
-				if (!isMinimal(just, result_)) {
+				if (!Utils.isMinimal(just, result_)) {
 					countBlocked_++;
 					LOGGER_.trace("blocked {}", just);
 					continue;
@@ -452,7 +374,7 @@ public class MinPremisesBottomUp<C, A>
 
 					final Justification<C, A> justWithInf = just
 							.addElements(inf.getJustification());
-					if (isMinimal(justWithInf,
+					if (Utils.isMinimal(justWithInf,
 							justifications_.get(inf.getConclusion()))) {
 						premiseJusts.add(just);
 						infsToPropagate.add(inf);
@@ -472,7 +394,7 @@ public class MinPremisesBottomUp<C, A>
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {
-							conclusionJusts = join(conclusionJusts,
+							conclusionJusts = Utils.join(conclusionJusts,
 									premiseJustifications_
 											.get(Pair.create(inf, premise)));
 						}

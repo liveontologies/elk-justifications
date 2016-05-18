@@ -177,7 +177,7 @@ public class CollectJustificationStatisticsUsingElk {
 												
 												long count = 0;
 												for (final Set<ElkAxiom> just : js) {
-													if (BottomUpJustificationComputation.isMinimal(
+													if (Utils.isMinimal(
 															new BloomSet<>(inf.getConclusion(), just, inf.getJustification()),
 															conclJs)) {
 														count++;
