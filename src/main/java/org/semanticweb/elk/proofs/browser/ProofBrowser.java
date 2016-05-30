@@ -78,8 +78,9 @@ public class ProofBrowser {
 					factory.getClass(new ElkFullIri(subFullIri)),
 					factory.getClass(new ElkFullIri(supFullIri)));
 			
-			final ClassConclusion expression =
-					reasoner.getConclusion(conclusion);
+			final ClassConclusion expression = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner,
+							conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner.explainConclusion(expression));

@@ -11,8 +11,13 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
+import org.semanticweb.elk.exceptions.ElkException;
+import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
+import org.semanticweb.elk.reasoner.Reasoner;
+import org.semanticweb.elk.reasoner.saturation.conclusions.classes.DerivedClassConclusionDummyVisitor;
+import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
 
 import com.google.common.base.Function;
 
@@ -21,7 +26,7 @@ public final class Utils {
 	private Utils() {
 		// Empty.
 	}
-	
+
 	public static boolean cleanDir(final File dir) {
 		boolean success = true;
 		if (dir.exists()) {
@@ -29,7 +34,7 @@ public final class Utils {
 		}
 		return dir.mkdirs() && success;
 	}
-	
+
 	public static boolean recursiveDelete(final File file) {
 		boolean success = true;
 		if (file.isDirectory()) {
@@ -39,47 +44,46 @@ public final class Utils {
 		}
 		return file.delete() && success;
 	}
-	
+
 	public static String toFileName(final Object obj) {
 		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
 	}
-	
+
 	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
 			final InferenceSet<C, A> inferenceSet,
 			final Function<Inference<C, A>, IO> perInference,
 			final Function<C, CO> perConclusion,
 			final Function<A, AO> perAxiom) {
-		
+
 		final Queue<C> toDo = new LinkedList<C>();
 		final Set<C> done = new HashSet<C>();
-		
+
 		toDo.add(expression);
 		done.add(expression);
-		
+
 		for (;;) {
 			final C next = toDo.poll();
-			
+
 			if (next == null) {
 				break;
 			}
-			
+
 			perConclusion.apply(next);
-			
-			for (final Inference<C, A> inf
-					: inferenceSet.getInferences(next)) {
+
+			for (final Inference<C, A> inf : inferenceSet.getInferences(next)) {
 				perInference.apply(inf);
-				
+
 				for (final A axiom : inf.getJustification()) {
 					perAxiom.apply(axiom);
 				}
-				
+
 				for (final C premise : inf.getPremises()) {
 					if (done.add(premise)) {
 						toDo.add(premise);
 					}
 				}
 			}
-			
+
 		}
 	}
 
@@ -159,5 +163,24 @@ public final class Utils {
 		}
 		return result;
 	}
-	
+
+	public static ClassConclusion getFirstDerivedConclusionForSubsumption(Reasoner reasoner,
+			ElkSubClassOfAxiom axiom) throws ElkException {
+		final List<ClassConclusion> conclusions = new ArrayList<ClassConclusion>(
+				1);
+		reasoner.visitDerivedConclusionsForSubsumption(axiom.getSubClassExpression(),
+				axiom.getSuperClassExpression(),
+				new DerivedClassConclusionDummyVisitor() {
+			
+					@Override
+					protected boolean defaultVisit(ClassConclusion conclusion) {
+						conclusions.add(conclusion);
+						return false;
+					}
+
+				});
+		return conclusions.get(0);
+
+	}
+
 }

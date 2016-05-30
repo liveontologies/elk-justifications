@@ -135,8 +135,9 @@ public class CollectJustificationStatisticsUsingElk {
 							
 							final long startTime = System.nanoTime();
 							
-							final ClassConclusion expression =
-									reasoner.getConclusion(conclusion);
+							final ClassConclusion expression = Utils
+									.getFirstDerivedConclusionForSubsumption(
+											reasoner, conclusion);
 							final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 									new TracingInferenceSetInferenceSetAdapter(
 											reasoner.explainConclusion(expression));
