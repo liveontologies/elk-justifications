@@ -156,8 +156,9 @@ public class ProofBrowser {
 					factory.getObjectProperty(new ElkFullIri("http://purl.obolibrary.org/obo/RO_0002211")),
 					factory.getClass(new ElkFullIri("http://purl.obolibrary.org/obo/GO_0072583"))));
 			
-			final ClassConclusion expression =
-					reasoner.getConclusion(conclusion);
+			final ClassConclusion expression = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner,
+							conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner.explainConclusion(expression));
@@ -314,15 +315,25 @@ public class ProofBrowser {
 								computation.computeJustifications(concl, sizeLimit);
 						
 						int countInf = 0;
+//<<<<<<< HEAD
+//						for (final Set<A> just : premiseJs) {
+//							if (BottomUpJustificationComputation.isMinimal(just, conclJs)) {
+//=======
 						for (final Set<A> just : premiseJs) {
-							if (BottomUpJustificationComputation.isMinimal(just, conclJs)) {
+							if (Utils.isMinimal(just, conclJs)) {
+//>>>>>>> master
 								countInf++;
 							}
 						}
 						
 						int countGoal = 0;
+//<<<<<<< HEAD
+//						for (final Set<A> just : premiseJs) {
+//							if (BottomUpJustificationComputation.isMinimal(just, justs)) {
+//=======
 						for (final Set<A> just : premiseJs) {
-							if (BottomUpJustificationComputation.isMinimal(just, justs)) {
+							if (Utils.isMinimal(just, justs)) {
+//>>>>>>> master
 								countGoal++;
 							}
 						}

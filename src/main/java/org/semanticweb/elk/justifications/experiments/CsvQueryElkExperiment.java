@@ -207,8 +207,9 @@ public class CsvQueryElkExperiment extends Experiment {
 			
 //			long time = System.currentTimeMillis();
 			long time = System.nanoTime();
-			final ClassConclusion expression =
-					reasoner_.getConclusion(conclusion);
+			final ClassConclusion expression = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner_,
+							conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner_.explainConclusion(expression));
@@ -246,8 +247,9 @@ public class CsvQueryElkExperiment extends Experiment {
 		
 		try {
 			
-			final ClassConclusion expression =
-					reasoner_.getConclusion(conclusion);
+			final ClassConclusion expression = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner_,
+							conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner_.explainConclusion(expression));

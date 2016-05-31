@@ -156,8 +156,9 @@ public class DirectSatEncodingUsingElk {
 				hWriter = new PrintWriter(hFile);
 				final PrintWriter cnf = cnfWriter;
 				
-				final ClassConclusion expression =
-						reasoner.getConclusion(conclusion);
+				final ClassConclusion expression = Utils
+						.getFirstDerivedConclusionForSubsumption(reasoner,
+								conclusion);
 				final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 						new TracingInferenceSetInferenceSetAdapter(
 								reasoner.explainConclusion(expression));

@@ -135,8 +135,9 @@ public class CollectJustificationStatisticsUsingElk {
 							
 							final long startTime = System.nanoTime();
 							
-							final ClassConclusion expression =
-									reasoner.getConclusion(conclusion);
+							final ClassConclusion expression = Utils
+									.getFirstDerivedConclusionForSubsumption(
+											reasoner, conclusion);
 							final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 									new TracingInferenceSetInferenceSetAdapter(
 											reasoner.explainConclusion(expression));
@@ -177,7 +178,7 @@ public class CollectJustificationStatisticsUsingElk {
 												
 												long count = 0;
 												for (final Set<ElkAxiom> just : js) {
-													if (BottomUpJustificationComputation.isMinimal(
+													if (Utils.isMinimal(
 															new BloomSet<>(inf.getConclusion(), just, inf.getJustification()),
 															conclJs)) {
 														count++;

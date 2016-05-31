@@ -84,7 +84,8 @@ public class CheckOutDepths {
 					factory.getClass(new ElkFullIri(supFullIri)));
 			
 			final ClassConclusion expression =
-					reasoner.getConclusion(conclusion);
+					Utils.getFirstDerivedConclusionForSubsumption(
+							reasoner, conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner.explainConclusion(expression));
@@ -242,7 +243,7 @@ public class CheckOutDepths {
 					
 					long count = 0;
 					for (final Set<A> just : js) {
-						if (BottomUpJustificationComputation.isMinimal(
+						if (Utils.isMinimal(
 								new BloomSet<>(inf.getConclusion(), just, inf.getJustification()),
 								conclJs)) {
 							count++;
@@ -264,7 +265,7 @@ public class CheckOutDepths {
 						
 						long count = 0;
 						for (final Set<A> just : js) {
-							if (BottomUpJustificationComputation.isMinimal(
+							if (Utils.isMinimal(
 									new BloomSet<>(inf.getConclusion(), just, inf.getJustification()),
 									conclJs)) {
 								count++;
@@ -338,7 +339,7 @@ public class CheckOutDepths {
 					
 					long count = 0;
 					for (final Set<Wrap<C, A>> just : js) {
-						if (BottomUpJustificationComputation.isMinimal(
+						if (Utils.isMinimal(
 								new BloomSet<>(inf.getConclusion(), just, inf.getJustification()),
 								conclJs)) {
 							count++;
@@ -388,7 +389,7 @@ public class CheckOutDepths {
 						
 						long count = 0;
 						for (final Set<A> just : js) {
-							if (BottomUpJustificationComputation.isMinimal(
+							if (Utils.isMinimal(
 									new BloomSet<>(concl, just, axiomsInLeaves),
 									conclJs)) {
 								count++;
