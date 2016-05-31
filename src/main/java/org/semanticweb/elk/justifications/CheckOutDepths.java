@@ -119,7 +119,7 @@ public class CheckOutDepths {
 			final C goalConclusion, final int maxDepth,
 			final PrintWriter record) {
 		
-		record.println("conclusion,nLeaves,nConclusionsInDepthLimit,nInferencesInDepthLimit,avgInfsOfConcl,leafProductSum,minLeafProductSum,productSum,minProductSum,unusedLeaves,symbolicProductSum,symbolicMinProductSum,nonRedundantProductSum,nonRedundantMinProductSum");
+		record.println("conclusion,nLeaves,nConclusionsInDepthLimit,nInferencesInDepthLimit,avgInfsOfConcl,mConclManyInfs,leafProductSum,minLeafProductSum,productSum,minProductSum,unusedLeaves,symbolicProductSum,symbolicMinProductSum,nonRedundantProductSum,nonRedundantMinProductSum");
 		
 		// collect conclusions
 		final Set<C> conclusions = new HashSet<C>();
@@ -156,6 +156,8 @@ public class CheckOutDepths {
 			final Set<Wrap<C, A>> leaves = new HashSet<Wrap<C, A>>();
 			final Set<C> conclsInDepthLimit = new HashSet<C>();
 			final List<Integer> sumInfsPerConcl = Arrays.asList(0);
+			final int infCountThreshold = 5;
+			final List<Integer> nConclManyInfs = Arrays.asList(0);
 			Utils.traverseProofs(conclusion, limited,
 					new Function<Inference<C, Wrap<C, A>>, Void>() {
 						@Override
@@ -168,10 +170,15 @@ public class CheckOutDepths {
 						@Override
 						public Void apply(final C concl) {
 							conclsInDepthLimit.add(concl);
+							int infCount = 0;
 							for (@SuppressWarnings("unused")
 									final Inference<C, Wrap<C, A>> inf
 									: limited.getInferences(concl)) {
-								sumInfsPerConcl.set(0, sumInfsPerConcl.get(0) + 1);
+								infCount++;
+							}
+							sumInfsPerConcl.set(0, sumInfsPerConcl.get(0) + infCount);
+							if (infCount >= infCountThreshold) {
+								nConclManyInfs.set(0, nConclManyInfs.get(0) + 1);
 							}
 							return null;
 						}
@@ -187,6 +194,7 @@ public class CheckOutDepths {
 			LOG.info("{} = number of conclusions within the depth limit", conclsInDepthLimit.size());
 			LOG.info("{} = number of inferences within the depth limit", infs.size());
 			LOG.info("{} = average number of inferences of a conclusion", ((double) sumInfsPerConcl.get(0)) / conclsInDepthLimit.size());
+			LOG.info("{} = number of conclusions with at least {} inferences", nConclManyInfs.get(0), infCountThreshold);
 			record.print(',');
 			record.print(leaves.size());
 			record.print(',');
@@ -195,12 +203,14 @@ public class CheckOutDepths {
 			record.print(infs.size());
 			record.print(',');
 			record.print(((double) sumInfsPerConcl.get(0)) / conclsInDepthLimit.size());
+			record.print(',');
+			record.print(nConclManyInfs.get(0));
 			
-			if (infs.size() > 10 * maxDepth) {
-				LOG.info("Too many inferences, skipping");
-				record.println();
-				continue;
-			}
+//			if (infs.size() > 10 * maxDepth) {
+//				LOG.info("Too many inferences, skipping");
+//				record.println();
+//				continue;
+//			}
 			
 			// product of justifications of leaves
 			
