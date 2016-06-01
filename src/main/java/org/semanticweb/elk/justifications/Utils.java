@@ -142,6 +142,9 @@ public final class Utils {
 	}
 
 	/**
+	 * FIXME: The order of arguments matter !!! The conclusion is copied from
+	 * the justifications in the first argument, but not from the second!
+	 * 
 	 * @param first
 	 * @param second
 	 * @return the list of all pairwise unions of the justifications in the
@@ -164,14 +167,62 @@ public final class Utils {
 		return result;
 	}
 
-	public static ClassConclusion getFirstDerivedConclusionForSubsumption(Reasoner reasoner,
-			ElkSubClassOfAxiom axiom) throws ElkException {
+	/**
+	 * FIXME: The order of arguments matter !!! The conclusion is copied from
+	 * the justifications in the first argument, but not from the second!
+	 * 
+	 * @param first
+	 * @param second
+	 * @return the list of all pairwise unions of the justifications in the
+	 *         first and the second collections, minimized under set inclusion
+	 */
+	public static <C, T> List<Justification<C, T>> joinCheckingSubsets(
+			Collection<? extends Justification<C, T>> first,
+			Collection<? extends Justification<C, T>> second) {
+		if (first.isEmpty() || second.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<Justification<C, T>> result = new ArrayList<Justification<C, T>>(
+				first.size() * second.size());
+		/*
+		 * If some set from one argument is a superset of something in the other
+		 * argument, it can be merged into the result without joining it with
+		 * anything from the other argument.
+		 */
+		final C conclusion = first.iterator().next().getConclusion();
+		final List<Justification<C, T>> minimalSecond = new ArrayList<Justification<C, T>>(
+				second.size());
+		for (final Justification<C, T> secondSet : second) {
+			if (isMinimal(secondSet, first)) {
+				minimalSecond.add(secondSet);
+			} else {
+				merge(secondSet.copyTo(conclusion), result);
+			}
+		}
+
+		for (Justification<C, T> firstSet : first) {
+			if (isMinimal(firstSet, minimalSecond)) {
+				for (Justification<C, T> secondSet : minimalSecond) {
+					Justification<C, T> union = firstSet.addElements(secondSet);
+					merge(union, result);
+				}
+			} else {
+				merge(firstSet, result);
+			}
+		}
+
+		return result;
+	}
+
+	public static ClassConclusion getFirstDerivedConclusionForSubsumption(
+			Reasoner reasoner, ElkSubClassOfAxiom axiom) throws ElkException {
 		final List<ClassConclusion> conclusions = new ArrayList<ClassConclusion>(
 				1);
-		reasoner.visitDerivedConclusionsForSubsumption(axiom.getSubClassExpression(),
-				axiom.getSuperClassExpression(),
+		reasoner.visitDerivedConclusionsForSubsumption(
+				axiom.getSubClassExpression(), axiom.getSuperClassExpression(),
 				new DerivedClassConclusionDummyVisitor() {
-			
+
 					@Override
 					protected boolean defaultVisit(ClassConclusion conclusion) {
 						conclusions.add(conclusion);
