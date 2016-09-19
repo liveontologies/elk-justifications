@@ -6,6 +6,8 @@ import java.io.FileOutputStream;
 import java.util.Collection;
 import java.util.Set;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.owlapi.proof.OWLProver;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.proofs.InferenceSet;
@@ -23,15 +25,11 @@ import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
-import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
-import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLExpression, OWLAxiom, OWLSubClassOfAxiom, OWLAxiomExpression, ExplainingOWLReasoner> {
+public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLProofNode, OWLAxiom, OWLSubClassOfAxiom, OWLProofNode, OWLProver> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(
 			CsvQueryOwlapiExperiment.class);
@@ -58,7 +56,7 @@ public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLExpression, OWLA
 	}
 	
 	@Override
-	protected ExplainingOWLReasoner loadAndClassifyOntology(
+	protected OWLProver loadAndClassifyOntology(
 			final String ontologyFileName) throws ExperimentException {
 		
 		try {
@@ -72,7 +70,7 @@ public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLExpression, OWLA
 			LOG.info("Loaded ontology: {}", ont.getOntologyID());
 			
 			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
-			final ExplainingOWLReasoner reasoner = (ExplainingOWLReasoner) reasonerFactory.createReasoner(ont);
+			final OWLProver reasoner = (OWLProver) reasonerFactory.createReasoner(ont);
 			
 			LOG.info("Classifying ...");
 			start = System.currentTimeMillis();
@@ -103,25 +101,23 @@ public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLExpression, OWLA
 	}
 
 	@Override
-	protected OWLAxiomExpression getGoalConclusion(
-			final ExplainingOWLReasoner reasoner, final OWLSubClassOfAxiom query)
+	protected OWLProofNode getGoalConclusion(
+			final OWLProver reasoner, final OWLSubClassOfAxiom query)
 					throws ExperimentException {
 		try {
 			
-			return reasoner.getDerivedExpression(query);
+			return reasoner.getProof(query);
 			
 		} catch (final UnsupportedEntailmentTypeException e) {
-			throw new ExperimentException(e);
-		} catch (final ProofGenerationException e) {
 			throw new ExperimentException(e);
 		}
 	}
 
 	@Override
-	protected InferenceSet<OWLExpression, OWLAxiom> newInferenceSet(
-			final ExplainingOWLReasoner reasoner, final OWLAxiomExpression goal)
+	protected InferenceSet<OWLProofNode, OWLAxiom> newInferenceSet(
+			final OWLProver reasoner, final OWLProofNode goal)
 					throws ExperimentException {
-		return new OWLExpressionInferenceSetAdapter();
+		return new OWLExpressionInferenceSetAdapter(reasoner.getRootOntology());
 	}
 
 	@Override

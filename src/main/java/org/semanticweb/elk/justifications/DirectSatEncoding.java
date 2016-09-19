@@ -14,8 +14,10 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
-import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+import org.semanticweb.elk.owlapi.ElkProver;
+import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.elk.owlapi.wrapper.OwlConverter;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
@@ -28,12 +30,7 @@ import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLPropertyAxiom;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.reasoner.InferenceType;
-import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
-import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
-import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,9 +82,8 @@ public class DirectSatEncoding {
 					(System.currentTimeMillis() - start)/1000.0);
 			LOG.info("Number of conclusions: {}", conclusions.size());
 			
-			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
-			final ExplainingOWLReasoner reasoner =
-					(ExplainingOWLReasoner) reasonerFactory.createReasoner(ont);
+			final ElkProverFactory proverFactory = new ElkProverFactory();
+			final ElkProver reasoner = proverFactory.createReasoner(ont);
 			
 			LOG.info("Classifying ...");
 			start = System.currentTimeMillis();
@@ -105,9 +101,6 @@ public class DirectSatEncoding {
 		} catch (final UnsupportedEntailmentTypeException e) {
 			LOG.error("Could not obtain the proof!", e);
 			System.exit(3);
-		} catch (final ProofGenerationException e) {
-			LOG.error("Could not obtain the proof!", e);
-			System.exit(3);
 		} catch (final FileNotFoundException e) {
 			LOG.error("File Not Found!", e);
 			System.exit(2);
@@ -115,9 +108,9 @@ public class DirectSatEncoding {
 		
 	}
 
-	private static void encodeConclusion(final ExplainingOWLReasoner reasoner,
+	private static void encodeConclusion(final ElkProver reasoner,
 			final OWLSubClassOfAxiom conclusion, final File outputDirectory)
-					throws ProofGenerationException, FileNotFoundException {
+					throws FileNotFoundException {
 
 		final String conclName = Utils.toFileName(conclusion);
 		final File outDir = new File(outputDirectory, conclName);
@@ -140,21 +133,20 @@ public class DirectSatEncoding {
 			hWriter = new PrintWriter(hFile);
 			final PrintWriter cnf = cnfWriter;
 			
-			final OWLAxiomExpression expression = reasoner
-					.getDerivedExpression(conclusion);
+			final OWLProofNode proofNode = reasoner.getProof(conclusion);
 			final OWLExpressionInferenceSetAdapter inferenceSet =
-					new OWLExpressionInferenceSetAdapter();
+					new OWLExpressionInferenceSetAdapter(reasoner.getRootOntology());
 			
 			final Set<OWLAxiom> axiomExprs =
 					new HashSet<OWLAxiom>();
-			final Set<OWLExpression> lemmaExprs =
-					new HashSet<OWLExpression>();
+			final Set<OWLProofNode> lemmaExprs =
+					new HashSet<OWLProofNode>();
 			
-			Utils.traverseProofs(expression, inferenceSet,
-					Functions.<Inference<OWLExpression, OWLAxiom>>identity(),
-					new Function<OWLExpression, Void>(){
+			Utils.traverseProofs(proofNode, inferenceSet,
+					Functions.<Inference<OWLProofNode, OWLAxiom>>identity(),
+					new Function<OWLProofNode, Void>(){
 						@Override
-						public Void apply(final OWLExpression expr) {
+						public Void apply(final OWLProofNode expr) {
 							lemmaExprs.add(expr);
 							return null;
 						}
@@ -176,18 +168,18 @@ public class DirectSatEncoding {
 			for (final OWLAxiom axExpr : axiomExprs) {
 				axiomIndex.put(axExpr, literalCounter.next());
 			}
-			final Map<OWLExpression, Integer> conclusionIndex =
-					new HashMap<OWLExpression, Integer>();
-			for (final OWLExpression expr : lemmaExprs) {
+			final Map<OWLProofNode, Integer> conclusionIndex =
+					new HashMap<OWLProofNode, Integer>();
+			for (final OWLProofNode expr : lemmaExprs) {
 				conclusionIndex.put(expr, literalCounter.next());
 			}
 			
 			// cnf
-			Utils.traverseProofs(expression, inferenceSet,
-					new Function<Inference<OWLExpression, OWLAxiom>, Void>() {
+			Utils.traverseProofs(proofNode, inferenceSet,
+					new Function<Inference<OWLProofNode, OWLAxiom>, Void>() {
 						@Override
 						public Void apply(
-								final Inference<OWLExpression, OWLAxiom> inf) {
+								final Inference<OWLProofNode, OWLAxiom> inf) {
 							
 							LOG.trace("processing {}", inf);
 							
@@ -197,7 +189,7 @@ public class DirectSatEncoding {
 								cnf.print(" ");
 							}
 							
-							for (final OWLExpression premise :
+							for (final OWLProofNode premise :
 									inf.getPremises()) {
 								cnf.print(-conclusionIndex.get(premise));
 								cnf.print(" ");
@@ -210,7 +202,7 @@ public class DirectSatEncoding {
 							return null;
 						}
 					},
-					Functions.<OWLExpression>identity(),
+					Functions.<OWLProofNode>identity(),
 					Functions.<OWLAxiom>identity());
 			
 			final int lastLiteral = literalCounter.next();
@@ -229,7 +221,7 @@ public class DirectSatEncoding {
 			writeLines(orderedAxioms, pppguFile);
 			
 			// question
-			writeLines(Collections.singleton(conclusionIndex.get(expression)),
+			writeLines(Collections.singleton(conclusionIndex.get(proofNode)),
 					questionFile);
 			
 			// zzz
@@ -247,9 +239,9 @@ public class DirectSatEncoding {
 					gcis.put(lit, expr);
 				}
 			}
-			final SortedMap<Integer, OWLExpression> lemmas =
-					new TreeMap<Integer, OWLExpression>();
-			for (final Entry<OWLExpression, Integer> entry
+			final SortedMap<Integer, OWLProofNode> lemmas =
+					new TreeMap<Integer, OWLProofNode>();
+			for (final Entry<OWLProofNode, Integer> entry
 					: conclusionIndex.entrySet()) {
 				lemmas.put(entry.getValue(), entry.getKey());
 			}
@@ -291,24 +283,18 @@ public class DirectSatEncoding {
 	
 	private static final OwlConverter OWLCONVERTER = OwlConverter.getInstance();
 	
-	private static final Function<Entry<Integer, OWLExpression>, String> PRINT =
-			new Function<Entry<Integer, OWLExpression>, String>() {
+	private static final Function<Entry<Integer, OWLProofNode>, String> PRINT =
+			new Function<Entry<Integer, OWLProofNode>, String>() {
 		
 		@Override
-		public String apply(final Entry<Integer, OWLExpression> entry) {
+		public String apply(final Entry<Integer, OWLProofNode> entry) {
 			final StringBuilder result = new StringBuilder();
 			
 			result.append(entry.getKey()).append(" ");
 			
 			final ElSatPrinterVisitor printer = new ElSatPrinterVisitor(result);
 			
-			if (entry.getValue() instanceof OWLAxiomExpression) {
-				final OWLAxiomExpression axExpr =
-						(OWLAxiomExpression) entry.getValue();
-				OWLCONVERTER.convert(axExpr.getAxiom()).accept(printer);
-			} else {
-				result.append(entry.getValue()).append("\n");
-			}
+			OWLCONVERTER.convert(entry.getValue().getMember()).accept(printer);
 			
 			result.setLength(result.length() - 1);// Remove the last line end.
 			
