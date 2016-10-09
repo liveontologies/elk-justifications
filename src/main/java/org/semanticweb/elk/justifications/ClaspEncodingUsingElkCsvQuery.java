@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,6 +41,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 
 public class ClaspEncodingUsingElkCsvQuery {
 	
@@ -158,7 +161,7 @@ public class ClaspEncodingUsingElkCsvQuery {
 		return trimmed.substring(start, end);
 	}
 	
-	private static void encode(final ElkSubClassOfAxiom conclusion,
+	private static void encode(final ElkSubClassOfAxiom elkGoalConclusion,
 			final Reasoner reasoner, final File outputDirectory,
 			final int conclCount, final int conclusionIndex)
 					throws ElkException, IOException {
@@ -184,22 +187,25 @@ public class ClaspEncodingUsingElkCsvQuery {
 			
 //			dot.println("digraph {");
 			
-			final ClassConclusion expression =
-					reasoner.getConclusion(conclusion);
+			final ClassConclusion goalConclusion =
+					reasoner.getConclusion(elkGoalConclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
-							reasoner.explainConclusion(expression));
+							reasoner.explainConclusion(goalConclusion));
 			
-			final int maximalDepth = computeMaximalDepth(expression,
-					inferenceSet);
+//			final int maximalDepth = computeMaximalDepth(expression,
+//					inferenceSet);
+			final Set<Conclusion> deepeningPremises =
+					computeDeepeningPremises(goalConclusion, inferenceSet);
+			final int maximalDepth = deepeningPremises.size();
 			
 			LOG.debug("maximalDepth: {}", maximalDepth);
 			
 			final Map<Conclusion, Integer> minDepths = new HashMap<>();
 			final Map<Conclusion, Integer> maxDepths = new HashMap<>();
 			// TODO: actually I can simply remember all the depths in sets ?!?
-			assignDepths(expression, 0, maximalDepth, inferenceSet, minDepths,
-					maxDepths);
+			assignDepths(goalConclusion, 0, maximalDepth, deepeningPremises,
+					inferenceSet, minDepths, maxDepths);
 			
 			final Index<Conclusion> conclIndex = new Index<>();
 			final Index<ElkAxiom> axiomIndex = new Index<>();
@@ -208,9 +214,9 @@ public class ClaspEncodingUsingElkCsvQuery {
 			
 			// Assert the goal conclusion
 			
-			final String cLit = getConclLiteral(expression, conclIndex, literalIndex);
+			final String cLit = getConclLiteral(goalConclusion, conclIndex, literalIndex);
 			final int cl = literalIndex.get(cLit);
-			final String cdLit = getConclDepthLiteral(expression, 0, conclIndex, literalIndex);
+			final String cdLit = getConclDepthLiteral(goalConclusion, 0, conclIndex, literalIndex);
 			final int cdl = literalIndex.get(cdLit);
 			/* 
 			 * write "cl."
@@ -253,9 +259,11 @@ public class ClaspEncodingUsingElkCsvQuery {
 			 * Conclusion implies at least one of its inferences.
 			 * Each conclusion and inference has depth at which it is reached
 			 * when traversing the proof from the goal conclusion.
-			 * When traversing the proof, depth increases only when a conclusion
-			 * has more than on inference that derive it.
-			 * Depth must not increase over the maximal depth without loops.
+			 * Depth increases only when traversing from inference to premise
+			 * that is used as premise in multiple inferences
+			 * or is the goal conclusion.
+			 * Depth must not increase over the maximal depth,
+			 * which is the number of premises used in multiple inferences.
 			 * 
 			 * inf(I,L)
 			 * Inference I is used in the minimal proof and its label is L.
@@ -268,6 +276,7 @@ public class ClaspEncodingUsingElkCsvQuery {
 			 * 
 			 * infDepth(I,D)
 			 * Inference I is used in the minimal proof at the depth D.
+			 * TODO: I can have only depths of conclusions.
 			 * 
 			 * conclDepth(C,D)
 			 * Conclusion C is used in the minimal proof at the depth D.
@@ -281,55 +290,42 @@ public class ClaspEncodingUsingElkCsvQuery {
 			 * inf(I1,_) | ... | inf(In,_) :- concl(C,_).
 			 * where I1, ..., In are all inferences that derive C.
 			 * 
-			 * conclDepth(P,D) :- concl(P), infDepth(I,D).
-			 * where P is a premise of I.
+			 * conclDepth(P,D) :- concl(P,_), infDepth(I,D).
+			 * where P is a premise use only in the inference I.
+			 * 
+			 * conclDepth(P,D+1) :- concl(P,_), infDepth(I,D).
+			 * where P is a premise of I and it is used in multiple inferences
+			 * or it is the goal conclusion.
 			 * 
 			 * infDepth(I,D) :- inf(I,_), conclDepth(C,D).
-			 * where I is the only inference that derives C.
+			 * where C is the conclusion derived by I.
 			 * 
-			 * infDepth(I,D+1) :- inf(I,_), conclDepth(C,D).
-			 * where I is one of multiple inferences that derive C.
-			 * 
-			 * :- conclDepth(C,D).
-			 * where C is derived by more than one inference
+			 * :- concl(P,_), infDepth(I,D).
+			 * where P is a premise of I and it is used in multiple inferences
+			 * or it is the goal conclusion,
 			 * and D is the maximal depth.
+			 * 
+			 * % Saturation to use ASP minimality
 			 * 
 			 * concl(C,_) :- inf(I,_).
 			 * where C is the conclusion of I.
 			 * 
-			 * inf(I,_) :- concl(P1,_), ..., concl(Pm).
+			 * inf(I,_) :- concl(P1,_), ..., concl(Pm,_).
 			 * where P1, ..., Pm are all premises of I.
 			 * FIXME: I must have empty justification !!!
-			 * 
-			 * TODO: Add the actual SATIRATION !!!
 			 * 
 			 * @formatter:on
 			 */
 			
-			Utils.traverseProofs(expression, inferenceSet,
+			Utils.traverseProofs(goalConclusion, inferenceSet,
 					new Function<Inference<Conclusion, ElkAxiom>, Void>(){
 						@Override
 						public Void apply(
 								final Inference<Conclusion, ElkAxiom> inf) {
 							
-							final Iterable<Inference<Conclusion, ElkAxiom>> infs =
-									inferenceSet.getInferences(inf.getConclusion());
-							int nInfs = 0;
-							for (@SuppressWarnings("unused")
-									final Inference<Conclusion, ElkAxiom> i
-									: infs) {
-								nInfs++;
-							}
-							
-							final int depthIncrememnt = nInfs > 1 ? 1 : 0;
-							
-							final Integer minDepth = minDepths.get(inf.getConclusion())
-									+ depthIncrememnt;
-//							final Integer maxDepth = Math.min(
-//									maxDepths.get(inf.getConclusion()) + depthIncrememnt,
-//									maximalDepth);
-							final Integer maxDepth = maxDepths.get(inf.getConclusion())
-									+ depthIncrememnt;
+							final Conclusion conclusion = inf.getConclusion();
+							final Integer minDepth = minDepths.get(conclusion);
+							final Integer maxDepth = maxDepths.get(conclusion);
 							
 							final int i = infIndex.get(inf);
 							final String iLit = getInfLiteral(inf, infIndex, literalIndex);
@@ -363,31 +359,62 @@ public class ClaspEncodingUsingElkCsvQuery {
 //								out.print('.');
 //								out.println();
 								
+								final int depthIncrement = deepeningPremises.contains(premise) ? 1 : 0;
+								
 								for (int depth = minDepth; depth <= maxDepth; depth++) {
 									
 									final String idLit = getInfDepthLiteral(inf, depth, infIndex, literalIndex);
 									final int idl = literalIndex.get(idLit);
-									final String pdLit = getConclDepthLiteral(premise, depth, conclIndex, literalIndex);
-									final int pdl = literalIndex.get(pdLit);
 									
-									/* 
-									 * write "pdl :- pl, idl."
-									 * 
-									 * rule_type head body_size neg_size neg pos
-									 * 1         pdl  2         0            pl idl
-									 */
-									out.print(1);
-									out.print(' ');
-									out.print(pdl);
-									out.print(' ');
-									out.print(2);
-									out.print(' ');
-									out.print(0);
-									out.print(' ');
-									out.print(pl);
-									out.print(' ');
-									out.print(idl);
-									out.println();
+									final int premiseDepth = depth + depthIncrement;
+									if (premiseDepth > maximalDepth) {
+										// write constraint
+										
+										/* 
+										 * write ":- pl, idl."
+										 * 
+										 * rule_type head body_size neg_size neg pos
+										 * 1         1    2         0            pl idl
+										 */
+										out.print(1);
+										out.print(' ');
+										out.print(1);
+										out.print(' ');
+										out.print(2);
+										out.print(' ');
+										out.print(0);
+										out.print(' ');
+										out.print(pl);
+										out.print(' ');
+										out.print(idl);
+										out.println();
+										
+									} else {
+										// propagate depth
+										
+										final String pdLit = getConclDepthLiteral(premise, premiseDepth, conclIndex, literalIndex);
+										final int pdl = literalIndex.get(pdLit);
+										
+										/* 
+										 * write "pdl :- pl, idl."
+										 * 
+										 * rule_type head body_size neg_size neg pos
+										 * 1         pdl  2         0            pl idl
+										 */
+										out.print(1);
+										out.print(' ');
+										out.print(pdl);
+										out.print(' ');
+										out.print(2);
+										out.print(' ');
+										out.print(0);
+										out.print(' ');
+										out.print(pl);
+										out.print(' ');
+										out.print(idl);
+										out.println();
+										
+									}
 									
 								}
 								
@@ -445,7 +472,7 @@ public class ClaspEncodingUsingElkCsvQuery {
 								
 							}
 							
-							final String cLit = getConclLiteral(inf.getConclusion(), conclIndex, literalIndex);
+							final String cLit = getConclLiteral(conclusion, conclIndex, literalIndex);
 							final int cl = literalIndex.get(cLit);
 							/* 
 							 * write "cl :- il."
@@ -468,6 +495,35 @@ public class ClaspEncodingUsingElkCsvQuery {
 //							out.print(iLit);
 //							out.print('.');
 //							out.println();
+							
+							for (int depth = minDepth; depth <= maxDepth; depth++) {
+								
+								final String idLit = getInfDepthLiteral(inf, depth, infIndex, literalIndex);
+								final int idl = literalIndex.get(idLit);
+								
+								final String cdLit = getConclDepthLiteral(conclusion, depth, conclIndex, literalIndex);
+								final int cdl = literalIndex.get(cdLit);
+								
+								/* 
+								 * write "idl :- il, cdl."
+								 * 
+								 * rule_type head body_size neg_size neg pos
+								 * 1         idl  2         0            il cdl
+								 */
+								out.print(1);
+								out.print(' ');
+								out.print(idl);
+								out.print(' ');
+								out.print(2);
+								out.print(' ');
+								out.print(0);
+								out.print(' ');
+								out.print(il);
+								out.print(' ');
+								out.print(cdl);
+								out.println();
+								
+							}
 							
 							/* 
 							 * write "il :- pl1, ..., plm."
@@ -542,11 +598,6 @@ public class ClaspEncodingUsingElkCsvQuery {
 								nInfs++;
 							}
 							
-							final int depthIncrememnt = nInfs > 1 ? 1 : 0;
-							
-							final Integer minDepth = minDepths.get(conclusion);
-							final Integer maxDepth = maxDepths.get(conclusion);
-							
 							final int c = conclIndex.get(conclusion);
 							final String cLit = getConclLiteral(conclusion, conclIndex, literalIndex);
 							final int cl = literalIndex.get(cLit);
@@ -591,69 +642,6 @@ public class ClaspEncodingUsingElkCsvQuery {
 //							out.print(cLit);
 //							out.print('.');
 //							out.println();
-							
-							for (int depth = minDepth; depth <= maxDepth; depth++) {
-								
-								final String cdLit = getConclDepthLiteral(conclusion,
-										depth, conclIndex, literalIndex);
-								final int cdl = literalIndex.get(cdLit);
-								
-								// TODO .: There may be bugs in these depths !!!
-								final int newDepth = depth + depthIncrememnt;
-								if (newDepth >= maximalDepth) {
-									// write constraint
-									
-									/* 
-									 * write ":- cdl."
-									 * 
-									 * rule_type head body_size neg_size neg pos
-									 * 1         1    1         0            cdl
-									 */
-									out.print(1);
-									out.print(' ');
-									out.print(1);
-									out.print(' ');
-									out.print(1);
-									out.print(' ');
-									out.print(0);
-									out.print(' ');
-									out.print(cdl);
-									out.println();
-									
-								} else {
-									// propagate depth
-									
-									for (final Inference<Conclusion, ElkAxiom> inf
-											: infs) {
-										
-										final String iLit = getInfLiteral(inf, infIndex, literalIndex);
-										final int il = literalIndex.get(iLit);
-										final String idLit = getInfDepthLiteral(inf, newDepth, infIndex, literalIndex);
-										final int idl = literalIndex.get(idLit);
-										/* 
-										 * write "idl :- il, cdl."
-										 * 
-										 * rule_type head body_size neg_size neg pos
-										 * 1         idl  2         0            il cdl
-										 */
-										out.print(1);
-										out.print(' ');
-										out.print(idl);
-										out.print(' ');
-										out.print(2);
-										out.print(' ');
-										out.print(0);
-										out.print(' ');
-										out.print(il);
-										out.print(' ');
-										out.print(cdl);
-										out.println();
-										
-									}
-									
-								}
-								
-							}
 							
 							
 							// Write dot.
@@ -721,16 +709,16 @@ public class ClaspEncodingUsingElkCsvQuery {
 		
 	}
 	
-	private static <C, A> int computeMaximalDepth(final C expression,
-			final InferenceSet<C, A> inferenceSet) {
+	private static <C, A> Set<C> computeDeepeningPremises(
+			final C goalConclusion, final InferenceSet<C, A> inferenceSet) {
 		
-		int result = 0;
+		final Multimap<C, Inference<C, A>> premiseToInf = HashMultimap.create();
 		
 		final Queue<C> toDo = new LinkedList<C>();
 		final Set<C> done = new HashSet<C>();
 		
-		toDo.add(expression);
-		done.add(expression);
+		toDo.add(goalConclusion);
+		done.add(goalConclusion);
 		
 		for (;;) {
 			final C next = toDo.poll();
@@ -738,32 +726,37 @@ public class ClaspEncodingUsingElkCsvQuery {
 				break;
 			}
 			
-			int nInfs = 0;
 			for (final Inference<C, A> inf
 					: inferenceSet.getInferences(next)) {
-				nInfs++;
-				
 				for (final C premise : inf.getPremises()) {
+					
+					premiseToInf.put(premise, inf);
+					
 					if (done.add(premise)) {
 						toDo.add(premise);
 					}
 				}
 			}
 			
-			if (nInfs > 1) {
-				result++;
+		}
+		
+		final Set<C> result = new HashSet<>();
+		result.add(goalConclusion);
+		for (final Entry<C, Collection<Inference<C, A>>> e : premiseToInf.asMap().entrySet()) {
+			if (e.getValue().size() > 1) {
+				result.add(e.getKey());
 			}
-			
 		}
 		
 		return result;
 	}
 	
 	private static <C, A> void assignDepths(final C conclusion, final int depth,
-			final int maximalDepth, final InferenceSet<C, A> inferenceSet,
+			final int maximalDepth, final Set<C> deepeningPremises,
+			final InferenceSet<C, A> inferenceSet,
 			final Map<C, Integer> minDepths, final Map<C, Integer> maxDepths) {
 		
-		if (depth > maximalDepth) {// TODO > or >= !?!?!?
+		if (depth > maximalDepth) {
 			return;
 		}
 		
@@ -793,22 +786,17 @@ public class ClaspEncodingUsingElkCsvQuery {
 		
 		if (update) {
 			
-			final Iterable<Inference<C, A>> infs = inferenceSet.getInferences(
-					conclusion);
-			
-			int nInfs = 0;
-			for (@SuppressWarnings("unused") final Inference<C, A> inf : infs) {
-				nInfs++;
-			}
-			
-			int nextDepth = depth;
-			if (nInfs > 1) {
-				nextDepth++;
-			}
-			
-			for (final Inference<C, A> inf : infs) {
+			for (final Inference<C, A> inf : inferenceSet.getInferences(
+					conclusion)) {
 				for (final C premise : inf.getPremises()) {
-					assignDepths(premise, nextDepth, maximalDepth, inferenceSet,
+					
+					int nextDepth = depth;
+					if (deepeningPremises.contains(premise)) {
+						nextDepth++;
+					}
+					
+					assignDepths(premise, nextDepth, maximalDepth,
+							deepeningPremises, inferenceSet,
 							minDepths, maxDepths);
 				}
 			}
