@@ -123,6 +123,7 @@ public class CsvQueryOwlapiExperiment extends Experiment {
 	@Override
 	public void init() throws ExperimentException {
 		conclusion_.set(null);
+		conclusionsToDo_.clear();
 		
 		try {
 			if (conclusionReader_ != null) {
