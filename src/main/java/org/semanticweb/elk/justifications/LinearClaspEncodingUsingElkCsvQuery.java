@@ -8,13 +8,16 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.semanticweb.elk.exceptions.ElkException;
+import org.semanticweb.elk.justifications.asp.BackwardClaspEncoder;
+import org.semanticweb.elk.justifications.asp.DerivabilityClaspEncoder;
+import org.semanticweb.elk.justifications.asp.DotEncoder;
+import org.semanticweb.elk.justifications.asp.Encoder;
+import org.semanticweb.elk.justifications.asp.Encoders;
+import org.semanticweb.elk.justifications.asp.ForwardClaspEncoder;
+import org.semanticweb.elk.justifications.asp.Index;
+import org.semanticweb.elk.justifications.asp.SuffixClaspEncoder;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
 import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
@@ -33,9 +36,6 @@ import org.semanticweb.elk.reasoner.stages.RestartingStageExecutor;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 
 public class LinearClaspEncodingUsingElkCsvQuery {
 	
@@ -159,7 +159,6 @@ public class LinearClaspEncodingUsingElkCsvQuery {
 			final int conclCount, final int conclusionIndex)
 					throws ElkException, IOException {
 		
-//		final String conclName = Utils.toFileName(conclusion);
 		final String conclName = String.format(
 				"%0" + Integer.toString(conclCount).length() + "d", conclusionIndex);
 		final File outDir = new File(outputDirectory, conclName);
@@ -173,12 +172,7 @@ public class LinearClaspEncodingUsingElkCsvQuery {
 		try {
 			
 			outWriter = new PrintWriter(outFile);
-			final PrintWriter out = outWriter;
-			
 			dotWriter = new PrintWriter(dotFile);
-			final PrintWriter dot = dotWriter;
-			
-//			dot.println("digraph {");
 			
 			final ClassConclusion goalConclusion =
 					reasoner.getConclusion(elkGoalConclusion);
@@ -255,412 +249,18 @@ public class LinearClaspEncodingUsingElkCsvQuery {
 			 * @formatter:on
 			 */
 			
-			// Assert the goal conclusion
+			final Encoder<Conclusion, ElkAxiom> encoder = Encoders.combine(
+					new BackwardClaspEncoder<Conclusion, ElkAxiom>(outWriter, inferenceSet, conclIndex, axiomIndex, infIndex, literalIndex),
+					new ForwardClaspEncoder<Conclusion, ElkAxiom>(outWriter, inferenceSet, conclIndex, axiomIndex, infIndex, literalIndex),
+					new DerivabilityClaspEncoder<Conclusion, ElkAxiom>(outWriter, inferenceSet, conclIndex, axiomIndex, infIndex, literalIndex),
+					new SuffixClaspEncoder<Conclusion, ElkAxiom>("", outWriter, inferenceSet, conclIndex, axiomIndex, infIndex, literalIndex),
+//					new SuffixClaspEncoder<Conclusion, ElkAxiom>("axiom", outWriter, inferenceSet, conclIndex, axiomIndex, infIndex, literalIndex),
+					new DotEncoder<Conclusion, ElkAxiom>(dotWriter, inferenceSet, conclIndex, axiomIndex, infIndex)
+				);
 			
-			final String cLit = getConclLiteral(goalConclusion, conclIndex, literalIndex);
-			final int cl = literalIndex.get(cLit);
-			final String cdLit = getConclDerivedLiteral(goalConclusion, conclIndex, literalIndex);
-			final int cdl = literalIndex.get(cdLit);
-			/* 
-			 * write "cl."
-			 * 
-			 * rule_type head body_size neg_size neg pos
-			 * 1         cl   0         0
-			 */
-			out.print(1);
-			out.print(' ');
-			out.print(cl);
-			out.print(' ');
-			out.print(0);
-			out.print(' ');
-			out.print(0);
-			out.println();
-//			out.print(cLit);
-//			out.print('.');
-//			out.println();
-			/* 
-			 * write ":- not cdl."
-			 * 
-			 * rule_type head body_size neg_size neg pos
-			 * 1         1    1         1        cdl
-			 */
-			out.print(1);
-			out.print(' ');
-			out.print(1);
-			out.print(' ');
-			out.print(1);
-			out.print(' ');
-			out.print(1);
-			out.print(' ');
-			out.print(cdl);
-			out.println();
-//			out.print(":- not ");
-//			out.print(cdLit);
-//			out.print('.');
-//			out.println();
-			
-			// Everything else
-			
-			Utils.traverseProofs(goalConclusion, inferenceSet,
-					new Function<Inference<Conclusion, ElkAxiom>, Void>(){
-						@Override
-						public Void apply(
-								final Inference<Conclusion, ElkAxiom> inf) {
-							
-							final Conclusion conclusion = inf.getConclusion();
-							
-							final int i = infIndex.get(inf);
-							final String iLit = getInfLiteral(inf, infIndex, literalIndex);
-							final int il = literalIndex.get(iLit);
-							
-							for (final Conclusion premise : inf.getPremises()) {
-								
-								final int p = conclIndex.get(premise);
-								final String pLit = getConclLiteral(premise, conclIndex, literalIndex);
-								final int pl = literalIndex.get(pLit);
-								
-								/* 
-								 * write "pl :- il."
-								 * 
-								 * rule_type head body_size neg_size neg pos
-								 * 1         pl   1         0            il
-								 */
-								out.print(1);
-								out.print(' ');
-								out.print(pl);
-								out.print(' ');
-								out.print(1);
-								out.print(' ');
-								out.print(0);
-								out.print(' ');
-								out.print(il);
-								out.println();
-//								out.print(pLit);
-//								out.print(" :- ");
-//								out.print(iLit);
-//								out.print('.');
-//								out.println();
-								
-								/* Write dot.
-								 * 
-								 * write: "i$(i) -> c$(p);"
-								 */
-								dot.print('i');
-								dot.print(i);
-								dot.print(" -> ");
-								dot.print('c');
-								dot.print(p);
-								dot.println(";");
-								
-							}
-							
-							for (final ElkAxiom axiom : inf.getJustification()) {
-								
-								final int a = axiomIndex.get(axiom);
-								final String aLit = getAxiomLiteral(axiom, axiomIndex, literalIndex);
-								final int al = literalIndex.get(aLit);
-								
-								/* 
-								 * write "al :- il."
-								 * 
-								 * rule_type head body_size neg_size neg pos
-								 * 1         al   1         0            il
-								 */
-								out.print(1);
-								out.print(' ');
-								out.print(al);
-								out.print(' ');
-								out.print(1);
-								out.print(' ');
-								out.print(0);
-								out.print(' ');
-								out.print(il);
-								out.println();
-//								out.print(aLit);
-//								out.print(" :- ");
-//								out.print(iLit);
-//								out.print('.');
-//								out.println();
-								
-								/* Write dot.
-								 * 
-								 * write: "i$(i) -> a$(a);"
-								 */
-								dot.print('i');
-								dot.print(i);
-								dot.print(" -> ");
-								dot.print('a');
-								dot.print(a);
-								dot.println(";");
-								
-							}
-							
-							final String cLit = getConclLiteral(conclusion, conclIndex, literalIndex);
-							final int cl = literalIndex.get(cLit);
-							/* 
-							 * write "cl :- il."
-							 * 
-							 * rule_type head body_size neg_size neg pos
-							 * 1         cl   1         0            il
-							 */
-							out.print(1);
-							out.print(' ');
-							out.print(cl);
-							out.print(' ');
-							out.print(1);
-							out.print(' ');
-							out.print(0);
-							out.print(' ');
-							out.print(il);
-							out.println();
-//							out.print(cLit);
-//							out.print(" :- ");
-//							out.print(iLit);
-//							out.print('.');
-//							out.println();
-							
-							/* 
-							 * write "il :- pl1, ..., plm, a1, ..., an."
-							 * 
-							 * rule_type head body_size neg_size neg pos
-							 * 1         il   m+n       0            pl1 ... plm a1 ... an
-							 */
-							out.print(1);
-							out.print(' ');
-							out.print(il);
-							out.print(' ');
-							out.print(inf.getPremises().size() + inf.getJustification().size());
-							out.print(' ');
-							out.print(0);
-							for (final Conclusion premise : inf.getPremises()) {
-								
-								final String pLit = getConclLiteral(premise, conclIndex, literalIndex);
-								final int pl = literalIndex.get(pLit);
-								
-								out.print(' ');
-								out.print(pl);
-								
-							}
-							for (final ElkAxiom axiom : inf.getJustification()) {
-								
-								final String aLit = getAxiomLiteral(axiom, axiomIndex, literalIndex);
-								final int al = literalIndex.get(aLit);
-								
-								out.print(' ');
-								out.print(al);
-								
-							}
-							out.println();
-//							out.print(iLit);
-//							if (!inf.getPremises().isEmpty() || !inf.getJustification().isEmpty()) {
-//								out.print(" :- ");
-//								boolean firstWrite = true;
-//								for (final Conclusion premise : inf.getPremises()) {
-//									if (firstWrite) {
-//										firstWrite = false;
-//									} else {
-//										out.print(", ");
-//									}
-//									final String pLit = getConclLiteral(premise, conclIndex, literalIndex);
-//									out.print(pLit);
-//								}
-//								for (final ElkAxiom axiom : inf.getJustification()) {
-//									if (firstWrite) {
-//										firstWrite = false;
-//									} else {
-//										out.print(", ");
-//									}
-//									final String aLit = getAxiomLiteral(axiom, axiomIndex, literalIndex);
-//									out.print(aLit);
-//								}
-//							}
-//							out.print('.');
-//							out.println();
-							
-							/* Write dot.
-							 * 
-							 * write: "i$(i) [shape=square];"
-							 */
-							dot.print('i');
-							dot.print(i);
-							dot.println(" [shape=square];");
-							
-							final String cdLit = getConclDerivedLiteral(conclusion, conclIndex, literalIndex);
-							final int cdl = literalIndex.get(cdLit);
-							
-							/* 
-							 * write "cdl :- pdl1, ..., pdlm, a1, ..., an."
-							 * 
-							 * rule_type head body_size neg_size neg pos
-							 * 1         cdl  m+n       0            pdl1 ... pdlm a1 ... an
-							 */
-							out.print(1);
-							out.print(' ');
-							out.print(cdl);
-							out.print(' ');
-							out.print(inf.getPremises().size() + inf.getJustification().size());
-							out.print(' ');
-							out.print(0);
-							for (final Conclusion premise : inf.getPremises()) {
-								
-								final String pdLit = getConclDerivedLiteral(premise, conclIndex, literalIndex);
-								final int pdl = literalIndex.get(pdLit);
-								
-								out.print(' ');
-								out.print(pdl);
-								
-							}
-							for (final ElkAxiom axiom : inf.getJustification()) {
-								
-								final String aLit = getAxiomLiteral(axiom, axiomIndex, literalIndex);
-								final int al = literalIndex.get(aLit);
-								
-								out.print(' ');
-								out.print(al);
-								
-							}
-							out.println();
-//							out.print(cdLit);
-//							if (!inf.getPremises().isEmpty() || !inf.getJustification().isEmpty()) {
-//								out.print(" :- ");
-//								boolean firstWrite = true;
-//								for (final Conclusion premise : inf.getPremises()) {
-//									if (firstWrite) {
-//										firstWrite = false;
-//									} else {
-//										out.print(", ");
-//									}
-//									final String pdLit = getConclDerivedLiteral(premise, conclIndex, literalIndex);
-//									out.print(pdLit);
-//								}
-//								for (final ElkAxiom axiom : inf.getJustification()) {
-//									if (firstWrite) {
-//										firstWrite = false;
-//									} else {
-//										out.print(", ");
-//									}
-//									final String aLit = getAxiomLiteral(axiom, axiomIndex, literalIndex);
-//									out.print(aLit);
-//								}
-//							}
-//							out.print('.');
-//							out.println();
-							
-							return null;
-						}
-					},
-					new Function<Conclusion, Void>(){
-						@Override
-						public Void apply(final Conclusion conclusion) {
-							
-							final Iterable<Inference<Conclusion, ElkAxiom>> infs =
-									inferenceSet.getInferences(conclusion);
-							int nInfs = 0;
-							for (@SuppressWarnings("unused")
-									final Inference<Conclusion, ElkAxiom> inf
-									: infs) {
-								nInfs++;
-							}
-							
-							final int c = conclIndex.get(conclusion);
-							final String cLit = getConclLiteral(conclusion, conclIndex, literalIndex);
-							final int cl = literalIndex.get(cLit);
-							
-							/* 
-							 * write "il1 | il2 | ... | iln :- cl."
-							 * 
-							 * rule_type head_size head            body_size neg_size neg pos
-							 * 8         nInfs     il1 il2 ... iln 1         0            cl
-							 */
-							out.print(8);
-							out.print(' ');
-							out.print(nInfs);
-							for (final Inference<Conclusion, ElkAxiom> inf
-									: infs) {
-								
-								final String iLit = getInfLiteral(inf, infIndex, literalIndex);
-								final int il = literalIndex.get(iLit);
-								
-								out.print(' ');
-								out.print(il);
-								
-							}
-							out.print(' ');
-							out.print(1);
-							out.print(' ');
-							out.print(0);
-							out.print(' ');
-							out.print(cl);
-							out.println();
-//							final Iterator<Inference<Conclusion, ElkAxiom>> iter = infs.iterator();
-//							Inference<Conclusion, ElkAxiom> infe = iter.next();
-//							String iLit = getInfLiteral(infe, infIndex, literalIndex);
-//							out.print(iLit);
-//							while (iter.hasNext()) {
-//								out.print(" | ");
-//								infe = iter.next();
-//								iLit = getInfLiteral(infe, infIndex, literalIndex);
-//								out.print(iLit);
-//							}
-//							out.print(" :- ");
-//							out.print(cLit);
-//							out.print('.');
-//							out.println();
-							
-							
-							// Write dot.
-							
-							for (final Inference<Conclusion, ElkAxiom> inf
-									: infs) {
-								
-								final int i = infIndex.get(inf);
-								
-								/* 
-								 * write: "c$(c) -> i$(i);"
-								 */
-								dot.print('c');
-								dot.print(c);
-								dot.print(" -> ");
-								dot.print('i');
-								dot.print(i);
-								dot.println(";");
-								
-							}
-							
-							return null;
-						}
-					},
-					Functions.<ElkAxiom>identity()
-			);
-			
-//			dot.println("}");
+			Encoders.encode(inferenceSet, goalConclusion, encoder);
 			
 			LOG.debug("number of literals: {}", literalIndex.getIndex().size());
-			
-			// delimiter
-			out.println(0);
-			
-			// Write literal index
-			
-			for (final Entry<String, Integer> e : literalIndex.getIndex().entrySet()) {
-//				if (e.getKey().startsWith("axiom")) {
-					out.print(e.getValue());
-					out.print(' ');
-					out.print(e.getKey());
-					out.println();
-//				}
-			}
-			
-			// delimiter
-			out.println(0);
-			
-			// Write the magic at the bottom :-P
-			out.println("B+");
-			out.println(0);
-			out.println("B-");
-			out.println(1);
-			out.println(0);
-			out.println(1);
 			
 		} finally {
 			if (outWriter != null) {
@@ -671,79 +271,6 @@ public class LinearClaspEncodingUsingElkCsvQuery {
 			}
 		}
 		
-	}
-	
-	private static class Counter {
-		private int counter;
-		public Counter() {
-			this(0);
-		}
-		public Counter(final int first) {
-			this.counter = first;
-		}
-		public int next() {
-			return counter++;
-		}
-	}
-	
-	private static class Index<T> {
-		
-		private final Counter counter;
-		
-		private final Map<T, Integer> index = new HashMap<>();
-		
-		public Index(final int firstIndex) {
-			this.counter = new Counter(firstIndex);
-		}
-		
-		public Index() {
-			this(0);
-		}
-		
-		public int get(final T arg) {
-			Integer result = index.get(arg);
-			if (result == null) {
-				result = counter.next();
-				index.put(arg, result);
-			}
-			return result;
-		}
-		
-		public Map<T, Integer> getIndex() {
-			return Collections.unmodifiableMap(index);
-		}
-		
-	}
-	
-	private static String getInfLiteral(final Inference<Conclusion, ElkAxiom> inf,
-			final Index<Inference<Conclusion, ElkAxiom>> infIndex,
-			final Index<String> literalIndex) {
-		final int i = infIndex.get(inf);
-		return String.format("inf(%d,\"%s\")", i, inf);
-//		return String.format("inf(%d)", i);
-	}
-	
-	private static String getConclLiteral(final Conclusion concl,
-			final Index<Conclusion> conclIndex,
-			final Index<String> literalIndex) {
-		final int c = conclIndex.get(concl);
-		return String.format("concl(%d,\"%s\")", c, concl);
-//		return String.format("concl(%d)", c);
-	}
-	
-	private static String getAxiomLiteral(final ElkAxiom axiom,
-			final Index<ElkAxiom> axiomIndex,
-			final Index<String> literalIndex) {
-		final int a = axiomIndex.get(axiom);
-		return String.format("axiom(%d,\"%s\")", a, axiom);
-//		return String.format("axiom(%d)", a);
-	}
-	
-	private static String getConclDerivedLiteral(final Conclusion concl,
-			final Index<Conclusion> conclIndex,
-			final Index<String> literalIndex) {
-		final int c = conclIndex.get(concl);
-		return String.format("conclDerived(%d)", c);
 	}
 	
 }
