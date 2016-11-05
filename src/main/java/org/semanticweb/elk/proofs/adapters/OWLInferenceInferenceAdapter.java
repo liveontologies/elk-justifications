@@ -4,11 +4,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.owlapi.proof.OWLProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferencePrinter;
 import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapitools.proofs.OWLInference;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 /**
  * An adapter from an {@link OWLInference} to an {@link Inference} that has the
@@ -20,20 +20,20 @@ import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
  * 
  * @author Yevgeny Kazakov
  */
-class OWLInferenceInferenceAdapter extends AbstractAdapter<OWLInference>
-		implements Inference<OWLExpression, OWLAxiom> {
+class OWLInferenceInferenceAdapter extends AbstractAdapter<OWLProofStep>
+		implements Inference<OWLProofNode, OWLAxiom> {
 
-	OWLInferenceInferenceAdapter(OWLInference inference) {
+	OWLInferenceInferenceAdapter(OWLProofStep inference) {
 		super(inference);
 	}
 
 	@Override
-	public OWLExpression getConclusion() {
+	public OWLProofNode getConclusion() {
 		return adapted_.getConclusion();
 	}
 
 	@Override
-	public Collection<? extends OWLExpression> getPremises() {
+	public Collection<? extends OWLProofNode> getPremises() {
 		return adapted_.getPremises();
 	}
 

@@ -16,11 +16,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.owlapi.proof.OWLProver;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.justifications.Utils;
-import org.semanticweb.elk.owlapi.ElkReasonerFactory;
+import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -36,12 +38,7 @@ import org.semanticweb.owlapi.model.OWLOntologyStorageException;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.Node;
-import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
-import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
-import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +56,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 	private final File outputDirectory_;
 	private final OWLOntologyManager manager_;
 	private final OWLDataFactory factory;
-	private final ExplainingOWLReasoner reasoner_;
+	private final OWLProver reasoner_;
 	
 	private AtomicReference<Collection<? extends Set<OWLAxiom>>> justifications_ =
 			new AtomicReference<Collection<? extends Set<OWLAxiom>>>();
@@ -72,8 +69,8 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			new ConcurrentLinkedQueue<Node<OWLClass>>();
 	private final Queue<OWLSubClassOfAxiom> conclusionsToDo_ =
 			new ConcurrentLinkedQueue<OWLSubClassOfAxiom>();
-	private AtomicReference<JustificationComputation<OWLExpression, OWLAxiom>> computation_ =
-			new AtomicReference<JustificationComputation<OWLExpression, OWLAxiom>>();
+	private AtomicReference<JustificationComputation<OWLProofNode, OWLAxiom>> computation_ =
+			new AtomicReference<JustificationComputation<OWLProofNode, OWLAxiom>>();
 	private AtomicReference<Map<String, Object>> stats_ =
 			new AtomicReference<Map<String, Object>>();
 	
@@ -109,9 +106,8 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 					(System.currentTimeMillis() - start)/1000.0);
 			LOG.info("Loaded ontology: {}", ont.getOntologyID());
 			
-			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
-			reasoner_ =
-					(ExplainingOWLReasoner) reasonerFactory.createReasoner(ont);
+			final ElkProverFactory proverFactory = new ElkProverFactory();
+			reasoner_ = proverFactory.createReasoner(ont);
 			
 			LOG.info("Classifying ...");
 			start = System.currentTimeMillis();
@@ -231,9 +227,9 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 		}
 		conclusion_.set(conclusion);
 		
-		final JustificationComputation<OWLExpression, OWLAxiom> computation = BottomUpJustificationComputation
-				.<OWLExpression, OWLAxiom> getFactory()
-				.create(new OWLExpressionInferenceSetAdapter(), monitor);
+		final JustificationComputation<OWLProofNode, OWLAxiom> computation = BottomUpJustificationComputation
+				.<OWLProofNode, OWLAxiom> getFactory()
+				.create(new OWLExpressionInferenceSetAdapter(reasoner_.getRootOntology()), monitor);
 		
 		try {
 			
@@ -241,7 +237,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			long time = System.nanoTime();
 			final Collection<? extends Set<OWLAxiom>> justifications =
 					computation.computeJustifications(
-								reasoner_.getDerivedExpression(conclusion));
+								reasoner_.getProof(conclusion));
 //			time = System.currentTimeMillis() - time;
 			time = System.nanoTime() - time;
 			
@@ -252,8 +248,6 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			return new Record(time/1000000.0, justifications.size());
 			
 		} catch (final UnsupportedEntailmentTypeException e) {
-			throw new ExperimentException(e);
-		} catch (final ProofGenerationException e) {
 			throw new ExperimentException(e);
 		}
 		
@@ -271,30 +265,30 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			
 			final OWLSubClassOfAxiom conclusion = conclusion_.get();
 			
-			final OWLAxiomExpression expression = reasoner_
-					.getDerivedExpression(conclusion);
+			final OWLProofNode expression = reasoner_
+					.getProof(conclusion);
 			final OWLExpressionInferenceSetAdapter inferenceSet =
-					new OWLExpressionInferenceSetAdapter();
+					new OWLExpressionInferenceSetAdapter(reasoner_.getRootOntology());
 			
 			final Set<OWLAxiom> axiomExprs =
 					new HashSet<OWLAxiom>();
-			final Set<OWLExpression> lemmaExprs =
-					new HashSet<OWLExpression>();
-			final Set<Inference<OWLExpression, OWLAxiom>> inferences =
-					new HashSet<Inference<OWLExpression, OWLAxiom>>();
+			final Set<OWLProofNode> lemmaExprs =
+					new HashSet<OWLProofNode>();
+			final Set<Inference<OWLProofNode, OWLAxiom>> inferences =
+					new HashSet<Inference<OWLProofNode, OWLAxiom>>();
 			
 			Utils.traverseProofs(expression, inferenceSet,
-					new Function<Inference<OWLExpression, OWLAxiom>, Void>() {
+					new Function<Inference<OWLProofNode, OWLAxiom>, Void>() {
 						@Override
 						public Void apply(
-								final Inference<OWLExpression, OWLAxiom> inf) {
+								final Inference<OWLProofNode, OWLAxiom> inf) {
 							inferences.add(inf);
 							return null;
 						}
 					},
-					new Function<OWLExpression, Void>(){
+					new Function<OWLProofNode, Void>(){
 						@Override
-						public Void apply(final OWLExpression expr) {
+						public Void apply(final OWLProofNode expr) {
 							lemmaExprs.add(expr);
 							return null;
 						}
@@ -342,8 +336,6 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			throw new ExperimentException(e);
 		} catch (final UnsupportedEntailmentTypeException e) {
 			throw new ExperimentException(e);
-		} catch (final ProofGenerationException e) {
-			throw new ExperimentException(e);
 		}
 		
 	}
@@ -370,7 +362,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 		if (stats == null) {
 			stats = new HashMap<String, Object>();
 		}
-		final JustificationComputation<OWLExpression, OWLAxiom> computation =
+		final JustificationComputation<OWLProofNode, OWLAxiom> computation =
 				computation_.get();
 		if (computation != null) {
 			stats.putAll(computation.getStatistics());
@@ -389,7 +381,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 			LOG.debug("{}: number of inferences in all proofs",
 					stats.get(STAT_NAME_INFERENCES));
 		}
-		final JustificationComputation<OWLExpression, OWLAxiom> computation =
+		final JustificationComputation<OWLProofNode, OWLAxiom> computation =
 				computation_.get();
 		if (computation != null) {
 			computation.logStatistics();
@@ -399,7 +391,7 @@ public class OwlapiAllDirectSubsumptionsExperiment extends Experiment {
 	@Override
 	public void resetStatistics() {
 		stats_.set(null);
-		final JustificationComputation<OWLExpression, OWLAxiom> computation =
+		final JustificationComputation<OWLProofNode, OWLAxiom> computation =
 				computation_.get();
 		if (computation != null) {
 			computation.resetStatistics();

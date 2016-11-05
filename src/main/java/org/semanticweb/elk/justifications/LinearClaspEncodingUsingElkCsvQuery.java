@@ -32,7 +32,7 @@ import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
-import org.semanticweb.elk.reasoner.stages.RestartingStageExecutor;
+import org.semanticweb.elk.reasoner.stages.SimpleStageExecutor;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,10 +66,10 @@ public class LinearClaspEncodingUsingElkCsvQuery {
 			
 			ontologyIS = new FileInputStream(ontologyFileName);
 			
-			final AxiomLoader ontologyLoader = new Owl2StreamLoader(
+			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
 					new Owl2FunctionalStyleParserFactory(), ontologyIS);
 			final Reasoner reasoner = new ReasonerFactory().createReasoner(
-					ontologyLoader, new RestartingStageExecutor());
+					loader, new SimpleStageExecutor());
 			
 			LOG.info("Classifying ...");
 			long start = System.currentTimeMillis();
@@ -174,8 +174,9 @@ public class LinearClaspEncodingUsingElkCsvQuery {
 			outWriter = new PrintWriter(outFile);
 			dotWriter = new PrintWriter(dotFile);
 			
-			final ClassConclusion goalConclusion =
-					reasoner.getConclusion(elkGoalConclusion);
+			final ClassConclusion goalConclusion = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner,
+							elkGoalConclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner.explainConclusion(goalConclusion));

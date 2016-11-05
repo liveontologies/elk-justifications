@@ -11,8 +11,14 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
+import org.semanticweb.elk.exceptions.ElkException;
+import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
+import org.semanticweb.elk.reasoner.Reasoner;
+import org.semanticweb.elk.reasoner.saturation.conclusions.classes.DerivedClassConclusionDummyVisitor;
+import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
+import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 
 import com.google.common.base.Function;
 
@@ -21,7 +27,7 @@ public final class Utils {
 	private Utils() {
 		// Empty.
 	}
-	
+
 	public static boolean cleanDir(final File dir) {
 		boolean success = true;
 		if (dir.exists()) {
@@ -29,7 +35,7 @@ public final class Utils {
 		}
 		return dir.mkdirs() && success;
 	}
-	
+
 	public static boolean recursiveDelete(final File file) {
 		boolean success = true;
 		if (file.isDirectory()) {
@@ -39,47 +45,46 @@ public final class Utils {
 		}
 		return file.delete() && success;
 	}
-	
+
 	public static String toFileName(final Object obj) {
 		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
 	}
-	
+
 	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
 			final InferenceSet<C, A> inferenceSet,
 			final Function<Inference<C, A>, IO> perInference,
 			final Function<C, CO> perConclusion,
 			final Function<A, AO> perAxiom) {
-		
+
 		final Queue<C> toDo = new LinkedList<C>();
 		final Set<C> done = new HashSet<C>();
-		
+
 		toDo.add(expression);
 		done.add(expression);
-		
+
 		for (;;) {
 			final C next = toDo.poll();
-			
+
 			if (next == null) {
 				break;
 			}
-			
+
 			perConclusion.apply(next);
-			
-			for (final Inference<C, A> inf
-					: inferenceSet.getInferences(next)) {
+
+			for (final Inference<C, A> inf : inferenceSet.getInferences(next)) {
 				perInference.apply(inf);
-				
+
 				for (final A axiom : inf.getJustification()) {
 					perAxiom.apply(axiom);
 				}
-				
+
 				for (final C premise : inf.getPremises()) {
 					if (done.add(premise)) {
 						toDo.add(premise);
 					}
 				}
 			}
-			
+
 		}
 	}
 
@@ -138,6 +143,9 @@ public final class Utils {
 	}
 
 	/**
+	 * FIXME: The order of arguments matter !!! The conclusion is copied from
+	 * the justifications in the first argument, but not from the second!
+	 * 
 	 * @param first
 	 * @param second
 	 * @return the list of all pairwise unions of the justifications in the
@@ -159,5 +167,83 @@ public final class Utils {
 		}
 		return result;
 	}
-	
+
+	/**
+	 * FIXME: The order of arguments matter !!! The conclusion is copied from
+	 * the justifications in the first argument, but not from the second!
+	 * 
+	 * @param first
+	 * @param second
+	 * @return the list of all pairwise unions of the justifications in the
+	 *         first and the second collections, minimized under set inclusion
+	 */
+	public static <C, T> List<Justification<C, T>> joinCheckingSubsets(
+			Collection<? extends Justification<C, T>> first,
+			Collection<? extends Justification<C, T>> second) {
+		if (first.isEmpty() || second.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<Justification<C, T>> result = new ArrayList<Justification<C, T>>(
+				first.size() * second.size());
+		/*
+		 * If some set from one argument is a superset of something in the other
+		 * argument, it can be merged into the result without joining it with
+		 * anything from the other argument.
+		 */
+		final C conclusion = first.iterator().next().getConclusion();
+		final List<Justification<C, T>> minimalSecond = new ArrayList<Justification<C, T>>(
+				second.size());
+		for (final Justification<C, T> secondSet : second) {
+			if (isMinimal(secondSet, first)) {
+				minimalSecond.add(secondSet);
+			} else {
+				merge(secondSet.copyTo(conclusion), result);
+			}
+		}
+
+		for (Justification<C, T> firstSet : first) {
+			if (isMinimal(firstSet, minimalSecond)) {
+				for (Justification<C, T> secondSet : minimalSecond) {
+					Justification<C, T> union = firstSet.addElements(secondSet);
+					merge(union, result);
+				}
+			} else {
+				merge(firstSet, result);
+			}
+		}
+
+		return result;
+	}
+
+	public static ClassConclusion getFirstDerivedConclusionForSubsumption(
+			Reasoner reasoner, ElkSubClassOfAxiom axiom) throws ElkException {
+		final List<ClassConclusion> conclusions = new ArrayList<ClassConclusion>(
+				1);
+		reasoner.visitDerivedConclusionsForSubsumption(
+				axiom.getSubClassExpression(), axiom.getSuperClassExpression(),
+				new DerivedClassConclusionDummyVisitor() {
+
+					@Override
+					protected boolean defaultVisit(ClassConclusion conclusion) {
+						conclusions.add(conclusion);
+						return false;
+					}
+
+				});
+		return conclusions.get(0);
+
+	}
+
+	public static InterruptMonitor getDummyInterruptMonitor() {
+		return new InterruptMonitor() {
+			
+			@Override
+			public boolean isInterrupted() {
+				return false;
+			}
+		};
+		
+	}
+
 }

@@ -1,9 +1,9 @@
 package org.semanticweb.elk.proofs.adapters;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.owlapi.proof.OWLProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapitools.proofs.OWLInference;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 import com.google.common.base.Function;
 
@@ -14,10 +14,10 @@ import com.google.common.base.Function;
  * @author Yevgeny Kazakov
  */
 class OWLInferenceToInferenceFunction
-		implements Function<OWLInference, Inference<OWLExpression, OWLAxiom>> {
+		implements Function<OWLProofStep, Inference<OWLProofNode, OWLAxiom>> {
 
 	@Override
-	public Inference<OWLExpression, OWLAxiom> apply(OWLInference input) {
+	public Inference<OWLProofNode, OWLAxiom> apply(OWLProofStep input) {
 		return new OWLInferenceInferenceAdapter(input);
 	}
 

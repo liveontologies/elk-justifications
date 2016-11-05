@@ -2,13 +2,12 @@ package org.semanticweb.elk.proofs.adapters;
 
 import java.util.Collections;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.owlapi.proof.OWLProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapitools.proofs.OWLInference;
-import org.semanticweb.owlapitools.proofs.exception.ProofGenerationException;
-import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
+import org.semanticweb.owlapi.model.OWLOntology;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -29,30 +28,26 @@ import com.google.common.collect.Iterables;
  * @author Yevgeny Kazakov
  */
 public class OWLExpressionInferenceSetAdapter
-		implements InferenceSet<OWLExpression, OWLAxiom> {
+		implements InferenceSet<OWLProofNode, OWLAxiom> {
 
-	private final static Function<OWLInference, Inference<OWLExpression, OWLAxiom>> FUNCTION_ = new OWLInferenceToInferenceFunction();
+	private final static Function<OWLProofStep, Inference<OWLProofNode, OWLAxiom>> FUNCTION_ = new OWLInferenceToInferenceFunction();
+
+	private final OWLOntology ontology_;
+
+	public OWLExpressionInferenceSetAdapter(OWLOntology ontology) {
+		this.ontology_ = ontology;
+	}
 
 	@Override
-	public Iterable<Inference<OWLExpression, OWLAxiom>> getInferences(
-			OWLExpression conclusion) {
+	public Iterable<Inference<OWLProofNode, OWLAxiom>> getInferences(
+			OWLProofNode conclusion) {
 
-		Iterable<Inference<OWLExpression, OWLAxiom>> result;
+		Iterable<Inference<OWLProofNode, OWLAxiom>> result = Iterables
+				.transform(conclusion.getInferences(), FUNCTION_);
 
-		try {
-			result = Iterables.transform(conclusion.getInferences(), FUNCTION_);
-		} catch (ProofGenerationException e) {
-			throw new RuntimeException(e);
-		}
-
-		if (conclusion instanceof OWLAxiomExpression) {
-			OWLAxiomExpression expression = (OWLAxiomExpression) conclusion;
-			if (!expression.isAsserted()) {
-				return result;
-			}
-			// else
+		if (ontology_.containsAxiom(conclusion.getMember())) {
 			result = Iterables.concat(result, Collections.singleton(
-					new OWLAxiomExpressionInferenceAdapter(expression)));
+					new OWLAxiomExpressionInferenceAdapter(conclusion)));
 		}
 		return result;
 	}

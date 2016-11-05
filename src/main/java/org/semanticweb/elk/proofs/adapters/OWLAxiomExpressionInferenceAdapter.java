@@ -4,11 +4,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
+import org.liveontologies.owlapi.proof.OWLProofNode;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferencePrinter;
 import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapitools.proofs.expressions.OWLAxiomExpression;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 /**
  * An adapter from an {@link OWLAxiomExpression} to an {@link Inference} that
@@ -20,26 +19,26 @@ import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
  * @author Yevgeny Kazakov
  */
 class OWLAxiomExpressionInferenceAdapter
-		extends AbstractAdapter<OWLAxiomExpression>
-		implements Inference<OWLExpression, OWLAxiom> {
+		extends AbstractAdapter<OWLProofNode>
+		implements Inference<OWLProofNode, OWLAxiom> {
 
-	OWLAxiomExpressionInferenceAdapter(OWLAxiomExpression expression) {
+	OWLAxiomExpressionInferenceAdapter(OWLProofNode expression) {
 		super(expression);
 	}
 
 	@Override
-	public OWLExpression getConclusion() {
+	public OWLProofNode getConclusion() {
 		return adapted_;
 	}
 
 	@Override
-	public Collection<? extends OWLExpression> getPremises() {
+	public Collection<? extends OWLProofNode> getPremises() {
 		return Collections.emptyList();
 	}
 
 	@Override
 	public Set<? extends OWLAxiom> getJustification() {
-		return Collections.singleton(adapted_.getAxiom());
+		return Collections.singleton(adapted_.getMember());
 	}
 
 	@Override

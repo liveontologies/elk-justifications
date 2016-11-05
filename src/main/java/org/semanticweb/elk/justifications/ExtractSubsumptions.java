@@ -23,7 +23,6 @@ import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.Node;
 import org.semanticweb.owlapi.reasoner.OWLReasoner;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
-import org.semanticweb.owlapitools.proofs.ExplainingOWLReasoner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,8 +81,7 @@ public class ExtractSubsumptions {
 			LOG.info("Loaded ontology: {}", ont.getOntologyID());
 			
 			final OWLReasonerFactory reasonerFactory = new ElkReasonerFactory();
-			final ExplainingOWLReasoner reasoner =
-					(ExplainingOWLReasoner) reasonerFactory.createReasoner(ont);
+			final OWLReasoner reasoner = reasonerFactory.createReasoner(ont);
 			
 			LOG.info("Classifying ...");
 			start = System.currentTimeMillis();

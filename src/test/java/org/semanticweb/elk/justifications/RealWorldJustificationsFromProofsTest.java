@@ -11,12 +11,12 @@ import java.util.Set;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+import org.liveontologies.owlapi.proof.OWLProofNode;
 import org.semanticweb.owlapi.model.AxiomType;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLLogicalAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
-import org.semanticweb.owlapitools.proofs.expressions.OWLExpression;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -32,14 +32,14 @@ public class RealWorldJustificationsFromProofsTest extends
 	@Parameters
 	public static Collection<Object[]> data() {
 		
-		final List<JustificationComputation.Factory<OWLExpression, OWLAxiom>> computations =
-				new ArrayList<JustificationComputation.Factory<OWLExpression, OWLAxiom>>();
-		computations.add(BottomUpJustificationComputation.<OWLExpression, OWLAxiom>getFactory());
+		final List<JustificationComputation.Factory<OWLProofNode, OWLAxiom>> computations =
+				new ArrayList<JustificationComputation.Factory<OWLProofNode, OWLAxiom>>();
+		computations.add(BottomUpJustificationComputation.<OWLProofNode, OWLAxiom>getFactory());
 		computations.add(BinarizedJustificationComputation
 				.getFactory(BottomUpJustificationComputation
-						.<List<OWLExpression>, OWLAxiom> getFactory()));
-		computations.add(MinPremisesBottomUp.<OWLExpression, OWLAxiom>getFactory());
-		computations.add(PruningJustificationComputation.<OWLExpression, OWLAxiom>getFactory());
+						.<List<OWLProofNode>, OWLAxiom> getFactory()));
+		computations.add(MinPremisesBottomUp.<OWLProofNode, OWLAxiom>getFactory());
+//		computations.add(PruningJustificationComputation.<OWLProofNode, OWLAxiom>getFactory());
 		
 		final String[][] fileNames = new String[][] {
 			{
@@ -54,7 +54,7 @@ public class RealWorldJustificationsFromProofsTest extends
 		};
 		
 		final List<Object[]> result = new ArrayList<Object[]>();
-		for (final JustificationComputation.Factory<OWLExpression, OWLAxiom> c : computations) {
+		for (final JustificationComputation.Factory<OWLProofNode, OWLAxiom> c : computations) {
 			for (final String[] fns : fileNames) {
 				final Object[] r = new Object[fns.length + 1];
 				r[0] = c;
@@ -70,7 +70,7 @@ public class RealWorldJustificationsFromProofsTest extends
 	private final String expectedDirName;
 	
 	public RealWorldJustificationsFromProofsTest(
-			final JustificationComputation.Factory<OWLExpression, OWLAxiom> computationFactory,
+			final JustificationComputation.Factory<OWLProofNode, OWLAxiom> computationFactory,
 			final String inputFileName, final String queriesFileName,
 			final String expectedDirName) {
 		super(computationFactory);

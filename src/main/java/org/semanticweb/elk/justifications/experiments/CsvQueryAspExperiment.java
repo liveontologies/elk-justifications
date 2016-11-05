@@ -37,13 +37,16 @@ import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
-import org.semanticweb.elk.reasoner.stages.RestartingStageExecutor;
+import org.semanticweb.elk.reasoner.stages.SimpleStageExecutor;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+/**
+ * TODO: Switch to {@link BaseExperiment} !!!
+ */
 public class CsvQueryAspExperiment extends Experiment {
 
 	public static final String STAT_NAME_AXIOMS = "CsvQueryAspExperiment.nAxiomsInAllProofs";
@@ -99,10 +102,10 @@ public class CsvQueryAspExperiment extends Experiment {
 			
 			ontologyIS = new FileInputStream(ontologyFileName);
 			
-			final AxiomLoader ontologyLoader = new Owl2StreamLoader(
+			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
 					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			reasoner_ = new ReasonerFactory().createReasoner(
-					ontologyLoader, new RestartingStageExecutor());
+			reasoner_ = new ReasonerFactory().createReasoner(loader,
+					new SimpleStageExecutor());
 			
 			LOG.info("Classifying ...");
 			long start = System.currentTimeMillis();
@@ -209,8 +212,9 @@ public class CsvQueryAspExperiment extends Experiment {
 			
 //			long time = System.currentTimeMillis();
 			long time = System.nanoTime();
-			final ClassConclusion expression =
-					reasoner_.getConclusion(conclusion);
+			final ClassConclusion expression = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner_,
+							conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner_.explainConclusion(expression));
@@ -247,8 +251,9 @@ public class CsvQueryAspExperiment extends Experiment {
 		
 		try {
 			
-			final ClassConclusion expression =
-					reasoner_.getConclusion(conclusion);
+			final ClassConclusion expression = Utils
+					.getFirstDerivedConclusionForSubsumption(reasoner_,
+							conclusion);
 			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
 					new TracingInferenceSetInferenceSetAdapter(
 							reasoner_.explainConclusion(expression));
