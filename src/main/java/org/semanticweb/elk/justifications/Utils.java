@@ -18,6 +18,7 @@ import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.saturation.conclusions.classes.DerivedClassConclusionDummyVisitor;
 import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
+import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 
 import com.google.common.base.Function;
 
@@ -232,6 +233,17 @@ public final class Utils {
 				});
 		return conclusions.get(0);
 
+	}
+
+	public static InterruptMonitor getDummyInterruptMonitor() {
+		return new InterruptMonitor() {
+			
+			@Override
+			public boolean isInterrupted() {
+				return false;
+			}
+		};
+		
 	}
 
 }

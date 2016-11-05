@@ -39,7 +39,7 @@ public class RealWorldJustificationsFromProofsTest extends
 				.getFactory(BottomUpJustificationComputation
 						.<List<OWLProofNode>, OWLAxiom> getFactory()));
 		computations.add(MinPremisesBottomUp.<OWLProofNode, OWLAxiom>getFactory());
-		computations.add(PruningJustificationComputation.<OWLProofNode, OWLAxiom>getFactory());
+//		computations.add(PruningJustificationComputation.<OWLProofNode, OWLAxiom>getFactory());
 		
 		final String[][] fileNames = new String[][] {
 			{
