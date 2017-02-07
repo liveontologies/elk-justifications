@@ -14,7 +14,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.proof.util.ProofNode;
+import org.liveontologies.proof.util.ProofNodes;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.semanticweb.elk.owlapi.ElkProver;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
@@ -133,20 +134,21 @@ public class DirectSatEncoding {
 			hWriter = new PrintWriter(hFile);
 			final PrintWriter cnf = cnfWriter;
 			
-			final OWLProofNode proofNode = reasoner.getProof(conclusion);
+			final ProofNode<OWLAxiom> proofNode = ProofNodes
+					.create(reasoner.getProof(conclusion), conclusion);
 			final OWLExpressionInferenceSetAdapter inferenceSet =
 					new OWLExpressionInferenceSetAdapter(reasoner.getRootOntology());
 			
 			final Set<OWLAxiom> axiomExprs =
 					new HashSet<OWLAxiom>();
-			final Set<OWLProofNode> lemmaExprs =
-					new HashSet<OWLProofNode>();
+			final Set<ProofNode<OWLAxiom>> lemmaExprs =
+					new HashSet<ProofNode<OWLAxiom>>();
 			
 			Utils.traverseProofs(proofNode, inferenceSet,
-					Functions.<Inference<OWLProofNode, OWLAxiom>>identity(),
-					new Function<OWLProofNode, Void>(){
+					Functions.<Inference<ProofNode<OWLAxiom>, OWLAxiom>>identity(),
+					new Function<ProofNode<OWLAxiom>, Void>(){
 						@Override
-						public Void apply(final OWLProofNode expr) {
+						public Void apply(final ProofNode<OWLAxiom> expr) {
 							lemmaExprs.add(expr);
 							return null;
 						}
@@ -168,18 +170,18 @@ public class DirectSatEncoding {
 			for (final OWLAxiom axExpr : axiomExprs) {
 				axiomIndex.put(axExpr, literalCounter.next());
 			}
-			final Map<OWLProofNode, Integer> conclusionIndex =
-					new HashMap<OWLProofNode, Integer>();
-			for (final OWLProofNode expr : lemmaExprs) {
+			final Map<ProofNode<OWLAxiom>, Integer> conclusionIndex =
+					new HashMap<ProofNode<OWLAxiom>, Integer>();
+			for (final ProofNode<OWLAxiom> expr : lemmaExprs) {
 				conclusionIndex.put(expr, literalCounter.next());
 			}
 			
 			// cnf
 			Utils.traverseProofs(proofNode, inferenceSet,
-					new Function<Inference<OWLProofNode, OWLAxiom>, Void>() {
+					new Function<Inference<ProofNode<OWLAxiom>, OWLAxiom>, Void>() {
 						@Override
 						public Void apply(
-								final Inference<OWLProofNode, OWLAxiom> inf) {
+								final Inference<ProofNode<OWLAxiom>, OWLAxiom> inf) {
 							
 							LOG.trace("processing {}", inf);
 							
@@ -189,7 +191,7 @@ public class DirectSatEncoding {
 								cnf.print(" ");
 							}
 							
-							for (final OWLProofNode premise :
+							for (final ProofNode<OWLAxiom> premise :
 									inf.getPremises()) {
 								cnf.print(-conclusionIndex.get(premise));
 								cnf.print(" ");
@@ -202,7 +204,7 @@ public class DirectSatEncoding {
 							return null;
 						}
 					},
-					Functions.<OWLProofNode>identity(),
+					Functions.<ProofNode<OWLAxiom>>identity(),
 					Functions.<OWLAxiom>identity());
 			
 			final int lastLiteral = literalCounter.next();
@@ -239,9 +241,9 @@ public class DirectSatEncoding {
 					gcis.put(lit, expr);
 				}
 			}
-			final SortedMap<Integer, OWLProofNode> lemmas =
-					new TreeMap<Integer, OWLProofNode>();
-			for (final Entry<OWLProofNode, Integer> entry
+			final SortedMap<Integer, ProofNode<OWLAxiom>> lemmas =
+					new TreeMap<Integer, ProofNode<OWLAxiom>>();
+			for (final Entry<ProofNode<OWLAxiom>, Integer> entry
 					: conclusionIndex.entrySet()) {
 				lemmas.put(entry.getValue(), entry.getKey());
 			}
@@ -283,11 +285,11 @@ public class DirectSatEncoding {
 	
 	private static final OwlConverter OWLCONVERTER = OwlConverter.getInstance();
 	
-	private static final Function<Entry<Integer, OWLProofNode>, String> PRINT =
-			new Function<Entry<Integer, OWLProofNode>, String>() {
+	private static final Function<Entry<Integer, ProofNode<OWLAxiom>>, String> PRINT =
+			new Function<Entry<Integer, ProofNode<OWLAxiom>>, String>() {
 		
 		@Override
-		public String apply(final Entry<Integer, OWLProofNode> entry) {
+		public String apply(final Entry<Integer, ProofNode<OWLAxiom>> entry) {
 			final StringBuilder result = new StringBuilder();
 			
 			result.append(entry.getKey()).append(" ");

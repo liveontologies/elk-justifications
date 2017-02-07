@@ -1,7 +1,7 @@
 package org.semanticweb.elk.proofs.adapters;
 
-import org.liveontologies.owlapi.proof.OWLProofNode;
-import org.liveontologies.owlapi.proof.OWLProofStep;
+import org.liveontologies.proof.util.ProofNode;
+import org.liveontologies.proof.util.ProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.owlapi.model.OWLAxiom;
 
@@ -13,11 +13,12 @@ import com.google.common.base.Function;
  * 
  * @author Yevgeny Kazakov
  */
-class OWLInferenceToInferenceFunction
-		implements Function<OWLProofStep, Inference<OWLProofNode, OWLAxiom>> {
+class OWLInferenceToInferenceFunction implements
+		Function<ProofStep<OWLAxiom>, Inference<ProofNode<OWLAxiom>, OWLAxiom>> {
 
 	@Override
-	public Inference<OWLProofNode, OWLAxiom> apply(OWLProofStep input) {
+	public Inference<ProofNode<OWLAxiom>, OWLAxiom> apply(
+			final ProofStep<OWLAxiom> input) {
 		return new OWLInferenceInferenceAdapter(input);
 	}
 

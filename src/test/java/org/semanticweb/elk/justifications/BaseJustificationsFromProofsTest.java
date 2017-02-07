@@ -6,7 +6,8 @@ import java.util.Set;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.proof.util.ProofNode;
+import org.liveontologies.proof.util.ProofNodes;
 import org.semanticweb.elk.owlapi.ElkProver;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
@@ -28,16 +29,16 @@ public abstract class BaseJustificationsFromProofsTest {
 	protected OWLDataFactory owlFactory;
 	protected OWLOntology owlOntology;
 	
-	private final JustificationComputation.Factory<OWLProofNode, OWLAxiom> computationFactory_;
+	private final JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom> computationFactory_;
 	
 	public BaseJustificationsFromProofsTest(
-			JustificationComputation.Factory<OWLProofNode, OWLAxiom> computationFactory) {
+			JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom> computationFactory) {
 		this.computationFactory_ = computationFactory;
 	}
 
 	protected abstract OWLOntology getInputOntology() throws Exception;
 
-	protected JustificationComputation<OWLProofNode, OWLAxiom> getJustificationComputation() {
+	protected JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> getJustificationComputation() {
 		
 		return computationFactory_.create(new OWLExpressionInferenceSetAdapter(owlOntology), DummyMonitor.INSTANCE);
 	}
@@ -72,11 +73,13 @@ public abstract class BaseJustificationsFromProofsTest {
 					reasoner.getSubClasses(conclusion.getSuperClass(), false)
 					.containsEntity((OWLClass) conclusion.getSubClass()));
 			
-			final JustificationComputation<OWLProofNode, OWLAxiom> computation =
+			final JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> computation =
 					getJustificationComputation();
 			
+			final ProofNode<OWLAxiom> proofNode = ProofNodes
+					.create(reasoner.getProof(conclusion), conclusion);
 			final Set<Set<OWLAxiom>> justifications = new HashSet<Set<OWLAxiom>>(
-					computation.computeJustifications(reasoner.getProof(conclusion)));
+					computation.computeJustifications(proofNode));
 			
 			final Set<Set<OWLAxiom>> expected = getExpectedJustifications(
 					conclusionIndex++, conclusion);

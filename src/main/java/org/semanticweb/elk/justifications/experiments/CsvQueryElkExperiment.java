@@ -20,14 +20,12 @@ import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapte
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
-import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
-import org.semanticweb.elk.reasoner.stages.SimpleStageExecutor;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CsvQueryElkExperiment extends
-		BaseExperiment<Conclusion, ElkAxiom, ElkSubClassOfAxiom, ClassConclusion, Reasoner> {
+		BaseExperiment<Conclusion, ElkAxiom, ElkSubClassOfAxiom, Conclusion, Reasoner> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(CsvQueryElkExperiment.class);
@@ -55,7 +53,7 @@ public class CsvQueryElkExperiment extends
 			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
 					new Owl2FunctionalStyleParserFactory(), ontologyIS);
 			final Reasoner reasoner = new ReasonerFactory().createReasoner(
-					loader, new SimpleStageExecutor());
+					loader);
 
 			LOG.info("Classifying ...");
 			long start = System.currentTimeMillis();
@@ -97,7 +95,7 @@ public class CsvQueryElkExperiment extends
 	}
 
 	@Override
-	protected ClassConclusion getGoalConclusion(final Reasoner reasoner,
+	protected Conclusion getGoalConclusion(final Reasoner reasoner,
 			final ElkSubClassOfAxiom query) throws ExperimentException {
 		try {
 
@@ -111,7 +109,7 @@ public class CsvQueryElkExperiment extends
 
 	@Override
 	protected InferenceSet<Conclusion, ElkAxiom> newInferenceSet(
-			final Reasoner reasoner, final ClassConclusion goal)
+			final Reasoner reasoner, final Conclusion goal)
 					throws ExperimentException {
 		try {
 

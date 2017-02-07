@@ -6,8 +6,9 @@ import java.io.FileOutputStream;
 import java.util.Collection;
 import java.util.Set;
 
-import org.liveontologies.owlapi.proof.OWLProofNode;
 import org.liveontologies.owlapi.proof.OWLProver;
+import org.liveontologies.proof.util.ProofNode;
+import org.liveontologies.proof.util.ProofNodes;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.proofs.InferenceSet;
@@ -29,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLProofNode, OWLAxiom, OWLSubClassOfAxiom, OWLProofNode, OWLProver> {
+public class CsvQueryOwlapiExperiment extends BaseExperiment<ProofNode<OWLAxiom>, OWLAxiom, OWLSubClassOfAxiom, ProofNode<OWLAxiom>, OWLProver> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(
 			CsvQueryOwlapiExperiment.class);
@@ -101,12 +102,12 @@ public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLProofNode, OWLAx
 	}
 
 	@Override
-	protected OWLProofNode getGoalConclusion(
+	protected ProofNode<OWLAxiom> getGoalConclusion(
 			final OWLProver reasoner, final OWLSubClassOfAxiom query)
 					throws ExperimentException {
 		try {
 			
-			return reasoner.getProof(query);
+			return ProofNodes.create(reasoner.getProof(query), query);
 			
 		} catch (final UnsupportedEntailmentTypeException e) {
 			throw new ExperimentException(e);
@@ -114,8 +115,8 @@ public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLProofNode, OWLAx
 	}
 
 	@Override
-	protected InferenceSet<OWLProofNode, OWLAxiom> newInferenceSet(
-			final OWLProver reasoner, final OWLProofNode goal)
+	protected InferenceSet<ProofNode<OWLAxiom>, OWLAxiom> newInferenceSet(
+			final OWLProver reasoner, final ProofNode<OWLAxiom> goal)
 					throws ExperimentException {
 		return new OWLExpressionInferenceSetAdapter(reasoner.getRootOntology());
 	}

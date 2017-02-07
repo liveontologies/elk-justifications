@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
-import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.proof.util.ProofNode;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferencePrinter;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -19,20 +19,20 @@ import org.semanticweb.owlapi.model.OWLAxiom;
  * @author Yevgeny Kazakov
  */
 class OWLAxiomExpressionInferenceAdapter
-		extends AbstractAdapter<OWLProofNode>
-		implements Inference<OWLProofNode, OWLAxiom> {
+		extends AbstractAdapter<ProofNode<OWLAxiom>>
+		implements Inference<ProofNode<OWLAxiom>, OWLAxiom> {
 
-	OWLAxiomExpressionInferenceAdapter(OWLProofNode expression) {
+	OWLAxiomExpressionInferenceAdapter(ProofNode<OWLAxiom> expression) {
 		super(expression);
 	}
 
 	@Override
-	public OWLProofNode getConclusion() {
+	public ProofNode<OWLAxiom> getConclusion() {
 		return adapted_;
 	}
 
 	@Override
-	public Collection<? extends OWLProofNode> getPremises() {
+	public Collection<? extends ProofNode<OWLAxiom>> getPremises() {
 		return Collections.emptyList();
 	}
 

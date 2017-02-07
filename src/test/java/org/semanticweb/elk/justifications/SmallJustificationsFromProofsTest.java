@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.liveontologies.owlapi.proof.OWLProofNode;
+import org.liveontologies.proof.util.ProofNode;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotation;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -41,14 +41,14 @@ public class SmallJustificationsFromProofsTest extends
 	@Parameters
 	public static Collection<Object[]> data() {
 		
-		final List<JustificationComputation.Factory<OWLProofNode, OWLAxiom>> computations =
-				new ArrayList<JustificationComputation.Factory<OWLProofNode, OWLAxiom>>();
-		computations.add(BottomUpJustificationComputation.<OWLProofNode, OWLAxiom>getFactory());
+		final List<JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom>> computations =
+				new ArrayList<JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom>>();
+		computations.add(BottomUpJustificationComputation.<ProofNode<OWLAxiom>, OWLAxiom>getFactory());
 		computations.add(BinarizedJustificationComputation
 				.getFactory(BottomUpJustificationComputation
-						.<List<OWLProofNode>, OWLAxiom> getFactory()));
-		computations.add(MinPremisesBottomUp.<OWLProofNode, OWLAxiom>getFactory());
-		computations.add(PruningJustificationComputation.<OWLProofNode, OWLAxiom>getFactory());
+						.<List<ProofNode<OWLAxiom>>, OWLAxiom> getFactory()));
+		computations.add(MinPremisesBottomUp.<ProofNode<OWLAxiom>, OWLAxiom>getFactory());
+		computations.add(PruningJustificationComputation.<ProofNode<OWLAxiom>, OWLAxiom>getFactory());
 		
 		final String[] fileNames = new String[] {
 				"ExistCycle",
@@ -60,7 +60,7 @@ public class SmallJustificationsFromProofsTest extends
 			};
 		
 		final List<Object[]> result = new ArrayList<Object[]>();
-		for (final JustificationComputation.Factory<OWLProofNode, OWLAxiom> c : computations) {
+		for (final JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom> c : computations) {
 			for (final String fileName : fileNames) {
 				result.add(new Object[] {c, fileName});
 			}
@@ -72,7 +72,7 @@ public class SmallJustificationsFromProofsTest extends
 	private final String expectedDirName;
 	
 	public SmallJustificationsFromProofsTest(
-			final JustificationComputation.Factory<OWLProofNode, OWLAxiom> computationFactory,
+			final JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom> computationFactory,
 			final String fileName) {
 		super(computationFactory);
 		this.inputFileName = fileName + ".owl";

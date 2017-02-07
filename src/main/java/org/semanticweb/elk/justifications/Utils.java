@@ -12,12 +12,22 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.semanticweb.elk.exceptions.ElkException;
+import org.semanticweb.elk.exceptions.ElkRuntimeException;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.saturation.conclusions.classes.DerivedClassConclusionDummyVisitor;
-import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
+import org.semanticweb.elk.reasoner.entailments.model.Entailment;
+import org.semanticweb.elk.reasoner.entailments.model.EntailmentInference;
+import org.semanticweb.elk.reasoner.entailments.model.EntailmentInferenceSet;
+import org.semanticweb.elk.reasoner.entailments.model.HasReason;
+import org.semanticweb.elk.reasoner.query.ElkQueryException;
+import org.semanticweb.elk.reasoner.query.EntailmentQueryResult;
+import org.semanticweb.elk.reasoner.query.ProperEntailmentQueryResult;
+import org.semanticweb.elk.reasoner.query.UnsupportedIndexingEntailmentQueryResult;
+import org.semanticweb.elk.reasoner.query.UnsupportedQueryTypeEntailmentQueryResult;
+import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.util.collections.ArrayHashSet;
 import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 
 import com.google.common.base.Function;
@@ -216,22 +226,78 @@ public final class Utils {
 		return result;
 	}
 
-	public static ClassConclusion getFirstDerivedConclusionForSubsumption(
+	public static Conclusion getFirstDerivedConclusionForSubsumption(
 			Reasoner reasoner, ElkSubClassOfAxiom axiom) throws ElkException {
-		final List<ClassConclusion> conclusions = new ArrayList<ClassConclusion>(
-				1);
-		reasoner.visitDerivedConclusionsForSubsumption(
-				axiom.getSubClassExpression(), axiom.getSuperClassExpression(),
-				new DerivedClassConclusionDummyVisitor() {
+		final List<Conclusion> conclusions = new ArrayList<Conclusion>(1);
+
+		final EntailmentQueryResult result = reasoner.isEntailed(axiom);
+		result.accept(
+				new EntailmentQueryResult.Visitor<Void, ElkQueryException>() {
 
 					@Override
-					protected boolean defaultVisit(ClassConclusion conclusion) {
-						conclusions.add(conclusion);
-						return false;
+					public Void visit(final ProperEntailmentQueryResult result)
+							throws ElkQueryException {
+						try {
+							collectReasons(result.getEntailment(),
+									result.getEvidence(true), conclusions);
+						} finally {
+							result.unlock();
+						}
+						return null;
+					}
+
+					@Override
+					public Void visit(
+							final UnsupportedIndexingEntailmentQueryResult result) {
+						throw new ElkRuntimeException(
+								UnsupportedIndexingEntailmentQueryResult.class
+										.getSimpleName());
+					}
+
+					@Override
+					public Void visit(
+							final UnsupportedQueryTypeEntailmentQueryResult result) {
+						throw new ElkRuntimeException(
+								UnsupportedQueryTypeEntailmentQueryResult.class
+										.getSimpleName());
 					}
 
 				});
+
 		return conclusions.get(0);
+	}
+
+	private static void collectReasons(final Entailment goal,
+			final EntailmentInferenceSet evidence,
+			final Collection<Conclusion> result) {
+
+		final Set<Entailment> done = new ArrayHashSet<Entailment>();
+		final Queue<Entailment> toDo = new LinkedList<Entailment>();
+
+		if (done.add(goal)) {
+			toDo.offer(goal);
+		}
+
+		Entailment entailment;
+		while ((entailment = toDo.poll()) != null) {
+			for (final EntailmentInference inf : evidence
+					.getInferences(entailment)) {
+
+				if (inf instanceof HasReason) {
+					final Object reason = ((HasReason<?>) inf).getReason();
+					if (reason instanceof Conclusion) {
+						result.add((Conclusion) reason);
+					}
+				}
+
+				for (final Entailment premise : inf.getPremises()) {
+					if (done.add(premise)) {
+						toDo.offer(premise);
+					}
+				}
+
+			}
+		}
 
 	}
 

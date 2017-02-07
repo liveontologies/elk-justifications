@@ -2,8 +2,8 @@ package org.semanticweb.elk.proofs.adapters;
 
 import java.util.Collections;
 
-import org.liveontologies.owlapi.proof.OWLProofNode;
-import org.liveontologies.owlapi.proof.OWLProofStep;
+import org.liveontologies.proof.util.ProofNode;
+import org.liveontologies.proof.util.ProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -28,9 +28,9 @@ import com.google.common.collect.Iterables;
  * @author Yevgeny Kazakov
  */
 public class OWLExpressionInferenceSetAdapter
-		implements InferenceSet<OWLProofNode, OWLAxiom> {
+		implements InferenceSet<ProofNode<OWLAxiom>, OWLAxiom> {
 
-	private final static Function<OWLProofStep, Inference<OWLProofNode, OWLAxiom>> FUNCTION_ = new OWLInferenceToInferenceFunction();
+	private final static Function<ProofStep<OWLAxiom>, Inference<ProofNode<OWLAxiom>, OWLAxiom>> FUNCTION_ = new OWLInferenceToInferenceFunction();
 
 	private final OWLOntology ontology_;
 
@@ -39,10 +39,10 @@ public class OWLExpressionInferenceSetAdapter
 	}
 
 	@Override
-	public Iterable<Inference<OWLProofNode, OWLAxiom>> getInferences(
-			OWLProofNode conclusion) {
+	public Iterable<Inference<ProofNode<OWLAxiom>, OWLAxiom>> getInferences(
+			ProofNode<OWLAxiom> conclusion) {
 
-		Iterable<Inference<OWLProofNode, OWLAxiom>> result = Iterables
+		Iterable<Inference<ProofNode<OWLAxiom>, OWLAxiom>> result = Iterables
 				.transform(conclusion.getInferences(), FUNCTION_);
 
 		if (ontology_.containsAxiom(conclusion.getMember())) {
