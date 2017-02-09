@@ -14,8 +14,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.liveontologies.proof.util.ProofNode;
-import org.liveontologies.proof.util.ProofNodes;
+import org.liveontologies.puli.ProofNode;
+import org.liveontologies.puli.ProofNodes;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.semanticweb.elk.owlapi.ElkProver;
 import org.semanticweb.elk.owlapi.ElkProverFactory;

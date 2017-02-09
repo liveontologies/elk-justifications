@@ -2,8 +2,8 @@ package org.semanticweb.elk.proofs.adapters;
 
 import java.util.Collections;
 
-import org.liveontologies.proof.util.ProofNode;
-import org.liveontologies.proof.util.ProofStep;
+import org.liveontologies.puli.ProofNode;
+import org.liveontologies.puli.ProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.owlapi.model.OWLAxiom;

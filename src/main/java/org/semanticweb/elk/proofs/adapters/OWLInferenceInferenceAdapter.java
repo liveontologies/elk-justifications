@@ -4,8 +4,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
-import org.liveontologies.proof.util.ProofNode;
-import org.liveontologies.proof.util.ProofStep;
+import org.liveontologies.puli.ProofNode;
+import org.liveontologies.puli.ProofStep;
 import org.semanticweb.elk.proofs.Inference;
 import org.semanticweb.elk.proofs.InferencePrinter;
 import org.semanticweb.owlapi.model.OWLAxiom;

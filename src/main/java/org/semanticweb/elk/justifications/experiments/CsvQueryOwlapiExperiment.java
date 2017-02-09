@@ -7,8 +7,8 @@ import java.util.Collection;
 import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
-import org.liveontologies.proof.util.ProofNode;
-import org.liveontologies.proof.util.ProofNodes;
+import org.liveontologies.puli.ProofNode;
+import org.liveontologies.puli.ProofNodes;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
 import org.semanticweb.elk.proofs.InferenceSet;

@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.liveontologies.proof.util.ProofNode;
+import org.liveontologies.puli.ProofNode;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotation;
 import org.semanticweb.owlapi.model.OWLAxiom;

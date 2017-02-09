@@ -14,8 +14,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.liveontologies.proof.util.ProofNode;
-import org.liveontologies.proof.util.ProofNodes;
+import org.liveontologies.puli.ProofNode;
+import org.liveontologies.puli.ProofNodes;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Monitor;
