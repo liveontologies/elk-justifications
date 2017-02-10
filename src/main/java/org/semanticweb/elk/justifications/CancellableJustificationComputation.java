@@ -1,6 +1,7 @@
 package org.semanticweb.elk.justifications;
 
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 
 public abstract class CancellableJustificationComputation<C, A>
 		extends AbstractJustificationComputation<C, A> {
@@ -8,7 +9,8 @@ public abstract class CancellableJustificationComputation<C, A>
 	protected final Monitor monitor_;
 
 	public CancellableJustificationComputation(
-			final InferenceSet<C, A> inferences, final Monitor monitor) {
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			final Monitor monitor) {
 		super(inferences);
 		this.monitor_ = monitor;
 	}

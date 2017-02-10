@@ -6,11 +6,11 @@ import java.util.Set;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.liveontologies.puli.ProofNode;
-import org.liveontologies.puli.ProofNodes;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.owlapi.ElkProver;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
-import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
+import org.semanticweb.elk.proofs.adapters.InferenceSets;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
@@ -18,6 +18,7 @@ import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
+import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 
 /**
@@ -29,18 +30,18 @@ public abstract class BaseJustificationsFromProofsTest {
 	protected OWLDataFactory owlFactory;
 	protected OWLOntology owlOntology;
 	
-	private final JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom> computationFactory_;
+	private final JustificationComputation.Factory<OWLAxiom, OWLAxiom> computationFactory_;
 	
 	public BaseJustificationsFromProofsTest(
-			JustificationComputation.Factory<ProofNode<OWLAxiom>, OWLAxiom> computationFactory) {
+			JustificationComputation.Factory<OWLAxiom, OWLAxiom> computationFactory) {
 		this.computationFactory_ = computationFactory;
 	}
 
 	protected abstract OWLOntology getInputOntology() throws Exception;
 
-	protected JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> getJustificationComputation() {
-		
-		return computationFactory_.create(new OWLExpressionInferenceSetAdapter(owlOntology), DummyMonitor.INSTANCE);
+	protected JustificationComputation<OWLAxiom, OWLAxiom> getJustificationComputation(
+			final GenericInferenceSet<OWLAxiom, ? extends JustifiedInference<OWLAxiom, OWLAxiom>> inferenceSet) {
+		return computationFactory_.create(inferenceSet, DummyMonitor.INSTANCE);
 	}
 	
 	protected abstract Iterable<OWLSubClassOfAxiom> getConclusions()
@@ -73,13 +74,15 @@ public abstract class BaseJustificationsFromProofsTest {
 					reasoner.getSubClasses(conclusion.getSuperClass(), false)
 					.containsEntity((OWLClass) conclusion.getSubClass()));
 			
-			final JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> computation =
-					getJustificationComputation();
+			final GenericInferenceSet<OWLAxiom, ? extends JustifiedInference<OWLAxiom, OWLAxiom>> inferenceSet =
+					InferenceSets.justifyAsserted(reasoner.getProof(conclusion),
+							reasoner.getRootOntology().getAxioms(Imports.EXCLUDED));
 			
-			final ProofNode<OWLAxiom> proofNode = ProofNodes
-					.create(reasoner.getProof(conclusion), conclusion);
+			final JustificationComputation<OWLAxiom, OWLAxiom> computation =
+					getJustificationComputation(inferenceSet);
+			
 			final Set<Set<OWLAxiom>> justifications = new HashSet<Set<OWLAxiom>>(
-					computation.computeJustifications(proofNode));
+					computation.computeJustifications(conclusion));
 			
 			final Set<Set<OWLAxiom>> expected = getExpectedJustifications(
 					conclusionIndex++, conclusion);

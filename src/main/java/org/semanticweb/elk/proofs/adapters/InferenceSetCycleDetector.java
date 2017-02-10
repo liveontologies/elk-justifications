@@ -6,8 +6,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,9 +20,8 @@ import org.slf4j.LoggerFactory;
  * @author Yevgeny Kazakov
  *
  * @param <C>
- * @param <A>
  */
-public class InferenceSetCycleDetector<C, A> {
+public class InferenceSetCycleDetector<C> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(InferenceSetCycleDetector.class);
@@ -30,7 +29,7 @@ public class InferenceSetCycleDetector<C, A> {
 	/**
 	 * inferences that are filtered
 	 */
-	private final InferenceSet<C, A> originalInferences_;
+	private final InferenceSet<C> originalInferences_;
 
 	/**
 	 * verified conclusions with cyclic proofs will be collected here
@@ -51,14 +50,14 @@ public class InferenceSetCycleDetector<C, A> {
 	 * the current stack of conclusions together with the iterators over
 	 * inferences
 	 */
-	private final Deque<ConclusionRecord<C, A>> conclusionStack_ = new LinkedList<ConclusionRecord<C, A>>();
+	private final Deque<ConclusionRecord<C>> conclusionStack_ = new LinkedList<ConclusionRecord<C>>();
 
 	/**
 	 * the current stack of inferences together with the iterators over premises
 	 */
-	private final Deque<InferenceRecord<C, A>> inferenceStack_ = new LinkedList<InferenceRecord<C, A>>();
+	private final Deque<InferenceRecord<C>> inferenceStack_ = new LinkedList<InferenceRecord<C>>();
 
-	InferenceSetCycleDetector(InferenceSet<C, A> originalInferences) {
+	InferenceSetCycleDetector(final InferenceSet<C> originalInferences) {
 		this.originalInferences_ = originalInferences;
 	}
 
@@ -80,7 +79,7 @@ public class InferenceSetCycleDetector<C, A> {
 
 	private boolean checkCycles() {
 		for (;;) {
-			ConclusionRecord<C, A> conclRec = conclusionStack_.peek();
+			ConclusionRecord<C> conclRec = conclusionStack_.peek();
 			if (conclRec == null) {
 				return false;
 			}
@@ -91,7 +90,7 @@ public class InferenceSetCycleDetector<C, A> {
 				// no more inferences
 				popNonCyclic();
 			}
-			InferenceRecord<C, A> infRec = inferenceStack_.peek();
+			InferenceRecord<C> infRec = inferenceStack_.peek();
 			if (infRec == null) {
 				return false;
 			}
@@ -138,40 +137,41 @@ public class InferenceSetCycleDetector<C, A> {
 		return true;
 	}
 
-	private void push(Inference<C, A> inf) {
+	private void push(final Inference<C> inf) {
 		inferenceStack_.push(new InferenceRecord<>(inf));
 		LOGGER_.trace("{}: inference pushed", inf);
 	}
 
-	private ConclusionRecord<C, A> popNonCyclic() {
-		ConclusionRecord<C, A> result = conclusionStack_.pop();
+	private ConclusionRecord<C> popNonCyclic() {
+		ConclusionRecord<C> result = conclusionStack_.pop();
 		LOGGER_.trace("{}: conclusion popped, non-cyclic", result.conclusion_);
 		conclusionsOnPath_.remove(result.conclusion_);
 		visitedNonCyclic_.add(result.conclusion_);
 		return result;
 	}
 
-	private ConclusionRecord<C, A> popCyclic() {
-		ConclusionRecord<C, A> result = conclusionStack_.pop();
+	private ConclusionRecord<C> popCyclic() {
+		ConclusionRecord<C> result = conclusionStack_.pop();
 		LOGGER_.trace("{}: conclusion popped, cyclic", result.conclusion_);
 		conclusionsOnPath_.remove(result.conclusion_);
 		visitedCyclic_.add(result.conclusion_);
 		return result;
 	}
 
-	private InferenceRecord<C, A> popInference() {
-		InferenceRecord<C, A> result = inferenceStack_.pop();
+	private InferenceRecord<C> popInference() {
+		InferenceRecord<C> result = inferenceStack_.pop();
 		LOGGER_.trace("{}: inference popped", result.inference_);
 		return result;
 	}
 
-	private static class ConclusionRecord<C, A> {
+	private static class ConclusionRecord<C> {
 
 		private final C conclusion_;
 
-		private final Iterator<? extends Inference<C, A>> inferenceIterator_;
+		private final Iterator<? extends Inference<C>> inferenceIterator_;
 
-		ConclusionRecord(InferenceSet<C, A> inferenceSet, C conclusion) {
+		ConclusionRecord(final InferenceSet<C> inferenceSet,
+				final C conclusion) {
 			this.conclusion_ = conclusion;
 			this.inferenceIterator_ = inferenceSet.getInferences(conclusion)
 					.iterator();
@@ -179,13 +179,13 @@ public class InferenceSetCycleDetector<C, A> {
 
 	}
 
-	private static class InferenceRecord<C, A> {
+	private static class InferenceRecord<C> {
 
-		Inference<C, A> inference_;
+		Inference<C> inference_;
 
 		private final Iterator<? extends C> premiseIterator_;
 
-		InferenceRecord(Inference<C, A> inference) {
+		InferenceRecord(Inference<C> inference) {
 			this.inference_ = inference;
 			this.premiseIterator_ = inference.getPremises().iterator();
 		}

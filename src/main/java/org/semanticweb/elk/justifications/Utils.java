@@ -11,11 +11,11 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.exceptions.ElkRuntimeException;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.entailments.model.Entailment;
 import org.semanticweb.elk.reasoner.entailments.model.EntailmentInference;
@@ -61,8 +61,8 @@ public final class Utils {
 	}
 
 	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
-			final InferenceSet<C, A> inferenceSet,
-			final Function<Inference<C, A>, IO> perInference,
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final Function<JustifiedInference<C, A>, IO> perInference,
 			final Function<C, CO> perConclusion,
 			final Function<A, AO> perAxiom) {
 
@@ -81,7 +81,8 @@ public final class Utils {
 
 			perConclusion.apply(next);
 
-			for (final Inference<C, A> inf : inferenceSet.getInferences(next)) {
+			for (final JustifiedInference<C, A> inf : inferenceSet
+					.getInferences(next)) {
 				perInference.apply(inf);
 
 				for (final A axiom : inf.getJustification()) {

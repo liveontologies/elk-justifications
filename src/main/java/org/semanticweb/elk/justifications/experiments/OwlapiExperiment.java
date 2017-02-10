@@ -14,16 +14,15 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.liveontologies.puli.ProofNode;
-import org.liveontologies.puli.ProofNodes;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkProver;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
+import org.semanticweb.elk.proofs.adapters.InferenceSets;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
 import org.semanticweb.owlapi.model.AxiomType;
@@ -34,6 +33,7 @@ import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLOntologyStorageException;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
+import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
 import org.slf4j.Logger;
@@ -60,8 +60,8 @@ public class OwlapiExperiment extends Experiment {
 	private AtomicInteger inputIndex_ = new AtomicInteger(0);
 	private AtomicReference<OWLSubClassOfAxiom> conclusion_ =
 			new AtomicReference<OWLSubClassOfAxiom>();
-	private AtomicReference<JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom>> computation_ =
-			new AtomicReference<JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom>>();
+	private AtomicReference<JustificationComputation<OWLAxiom, OWLAxiom>> computation_ =
+			new AtomicReference<JustificationComputation<OWLAxiom, OWLAxiom>>();
 	private AtomicReference<Map<String, Object>> stats_ =
 			new AtomicReference<Map<String, Object>>();
 	
@@ -139,16 +139,16 @@ public class OwlapiExperiment extends Experiment {
 		try {
 			final OWLSubClassOfAxiom conclusion = conclusions_.get(
 					inputIndex_.getAndIncrement());
-			final JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> computation = BottomUpJustificationComputation
-					.<ProofNode<OWLAxiom>, OWLAxiom> getFactory()
-					.create(new OWLExpressionInferenceSetAdapter(reasoner_.getRootOntology()), monitor);
+			final JustificationComputation<OWLAxiom, OWLAxiom> computation = BottomUpJustificationComputation
+					.<OWLAxiom, OWLAxiom> getFactory()
+					.create(InferenceSets.justifyAsserted(reasoner_.getProof(conclusion),
+							reasoner_.getRootOntology().getAxioms(Imports.EXCLUDED)),
+							monitor);
 					
 //			long time = System.currentTimeMillis();
 			long time = System.nanoTime();
-			final ProofNode<OWLAxiom> proofNode = ProofNodes
-					.create(reasoner_.getProof(conclusion), conclusion);
 			final Collection<? extends Set<OWLAxiom>> justifications =
-					computation.computeJustifications(proofNode);
+					computation.computeJustifications(conclusion);
 //			time = System.currentTimeMillis() - time;
 			time = System.nanoTime() - time;
 			conclusion_.set(conclusion);
@@ -173,30 +173,29 @@ public class OwlapiExperiment extends Experiment {
 			
 			final OWLSubClassOfAxiom conclusion = conclusion_.get();
 			
-			final ProofNode<OWLAxiom> expression = ProofNodes
-					.create(reasoner_.getProof(conclusion), conclusion);
-			final OWLExpressionInferenceSetAdapter inferenceSet =
-					new OWLExpressionInferenceSetAdapter(reasoner_.getRootOntology());
+			final GenericInferenceSet<OWLAxiom, ? extends JustifiedInference<OWLAxiom, OWLAxiom>> inferenceSet =
+					InferenceSets.justifyAsserted(reasoner_.getProof(conclusion),
+							reasoner_.getRootOntology().getAxioms(Imports.EXCLUDED));
 			
 			final Set<OWLAxiom> axiomExprs =
 					new HashSet<OWLAxiom>();
-			final Set<ProofNode<OWLAxiom>> lemmaExprs =
-					new HashSet<ProofNode<OWLAxiom>>();
-			final Set<Inference<ProofNode<OWLAxiom>, OWLAxiom>> inferences =
-					new HashSet<Inference<ProofNode<OWLAxiom>, OWLAxiom>>();
+			final Set<OWLAxiom> lemmaExprs =
+					new HashSet<OWLAxiom>();
+			final Set<JustifiedInference<OWLAxiom, OWLAxiom>> inferences =
+					new HashSet<JustifiedInference<OWLAxiom, OWLAxiom>>();
 			
-			Utils.traverseProofs(expression, inferenceSet,
-					new Function<Inference<ProofNode<OWLAxiom>, OWLAxiom>, Void>() {
+			Utils.traverseProofs(conclusion, inferenceSet,
+					new Function<JustifiedInference<OWLAxiom, OWLAxiom>, Void>() {
 						@Override
 						public Void apply(
-								final Inference<ProofNode<OWLAxiom>, OWLAxiom> inf) {
+								final JustifiedInference<OWLAxiom, OWLAxiom> inf) {
 							inferences.add(inf);
 							return null;
 						}
 					},
-					new Function<ProofNode<OWLAxiom>, Void>(){
+					new Function<OWLAxiom, Void>(){
 						@Override
-						public Void apply(final ProofNode<OWLAxiom> expr) {
+						public Void apply(final OWLAxiom expr) {
 							lemmaExprs.add(expr);
 							return null;
 						}
@@ -270,7 +269,7 @@ public class OwlapiExperiment extends Experiment {
 		if (stats == null) {
 			stats = new HashMap<String, Object>();
 		}
-		final JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> computation =
+		final JustificationComputation<OWLAxiom, OWLAxiom> computation =
 				computation_.get();
 		if (computation != null) {
 			stats.putAll(computation.getStatistics());
@@ -289,7 +288,7 @@ public class OwlapiExperiment extends Experiment {
 			LOG.debug("{}: number of inferences in all proofs",
 					stats.get(STAT_NAME_INFERENCES));
 		}
-		final JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> computation =
+		final JustificationComputation<OWLAxiom, OWLAxiom> computation =
 				computation_.get();
 		if (computation != null) {
 			computation.logStatistics();
@@ -299,7 +298,7 @@ public class OwlapiExperiment extends Experiment {
 	@Override
 	public void resetStatistics() {
 		stats_.set(null);
-		final JustificationComputation<ProofNode<OWLAxiom>, OWLAxiom> computation =
+		final JustificationComputation<OWLAxiom, OWLAxiom> computation =
 				computation_.get();
 		if (computation != null) {
 			computation.resetStatistics();

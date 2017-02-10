@@ -9,8 +9,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -28,20 +28,20 @@ public class PruningJustificationComputation<C, A>
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, JustifiedInference<C, A>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
 	 * a set of inferences currently blocked in the recursive traversal
 	 */
-	private final Set<Inference<C, A>> blocked_ = new HashSet<>();
+	private final Set<JustifiedInference<C, A>> blocked_ = new HashSet<>();
 
 	/**
 	 * a set of conclusions that was chosen for the recursive traversal before
 	 */
 	private final Set<C> chosenBefore_ = new HashSet<>();
 
-	private PruningJustificationComputation(final InferenceSet<C, A> inferences,
+	private PruningJustificationComputation(final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			final Monitor monitor) {
 		super(inferences, monitor);
 	}
@@ -125,7 +125,7 @@ public class PruningJustificationComputation<C, A>
 					chosenBefore_.add(next);
 
 					// block from
-					final Set<Inference<C, A>> blockedFrom = blockInferencesFrom(
+					final Set<JustifiedInference<C, A>> blockedFrom = blockInferencesFrom(
 							next);
 					blocked_.addAll(blockedFrom);
 
@@ -148,7 +148,7 @@ public class PruningJustificationComputation<C, A>
 					blocked_.removeAll(context.blocked);
 
 					// block to
-					final Set<Inference<C, A>> blockedTo = blockInferencesTo(
+					final Set<JustifiedInference<C, A>> blockedTo = blockInferencesTo(
 							context.next);
 					blocked_.addAll(blockedTo);
 
@@ -184,10 +184,10 @@ public class PruningJustificationComputation<C, A>
 		public final int programCounter;
 		public final C current;
 		public final C next;
-		public final Set<Inference<C, A>> blocked;
+		public final Set<JustifiedInference<C, A>> blocked;
 
 		public RecursionContext(final int programCounter, final C current,
-				final C next, final Set<Inference<C, A>> blocked) {
+				final C next, final Set<JustifiedInference<C, A>> blocked) {
 			this.programCounter = programCounter;
 			this.current = current;
 			this.next = next;
@@ -202,7 +202,7 @@ public class PruningJustificationComputation<C, A>
 		 * reachable conclusion with most inferences that use it as a premise,
 		 * are reachable and are not blocked
 		 */
-		final Set<Inference<C, A>> reachable = collectReachableInferences(
+		final Set<JustifiedInference<C, A>> reachable = collectReachableInferences(
 				current, blocked_);
 
 		C result = null;
@@ -219,7 +219,7 @@ public class PruningJustificationComputation<C, A>
 			 */
 
 			int nReachableInfs = 0;
-			for (final Inference<C, A> inf : inferencesByPremises_
+			for (final JustifiedInference<C, A> inf : inferencesByPremises_
 					.get(conclusion)) {
 				if (reachable.contains(inf)) {
 					nReachableInfs++;
@@ -246,7 +246,7 @@ public class PruningJustificationComputation<C, A>
 		C concl;
 		while ((concl = toDo.poll()) != null) {
 
-			for (final Inference<C, A> inf : getInferences(concl)) {
+			for (final JustifiedInference<C, A> inf : getInferences(concl)) {
 				for (final C premise : inf.getPremises()) {
 					inferencesByPremises_.put(premise, inf);
 					if (done.add(premise)) {
@@ -259,9 +259,9 @@ public class PruningJustificationComputation<C, A>
 
 	}
 
-	private Set<Inference<C, A>> blockInferencesFrom(final C premise) {
+	private Set<JustifiedInference<C, A>> blockInferencesFrom(final C premise) {
 
-		final Set<Inference<C, A>> blocked = new HashSet<Inference<C, A>>();
+		final Set<JustifiedInference<C, A>> blocked = new HashSet<JustifiedInference<C, A>>();
 
 		final Queue<C> toDo = new LinkedList<C>();
 		final Set<C> done = new HashSet<C>();
@@ -275,13 +275,13 @@ public class PruningJustificationComputation<C, A>
 				break;
 			}
 
-			for (final Inference<C, A> inf : inferencesByPremises_.get(prem)) {
+			for (final JustifiedInference<C, A> inf : inferencesByPremises_.get(prem)) {
 
 				blocked.add(inf);
 
 				final C concl = inf.getConclusion();
 				boolean conclusionDerived = false;
-				for (final Inference<C, A> i : getInferences(concl)) {
+				for (final JustifiedInference<C, A> i : getInferences(concl)) {
 					if (!blocked.contains(i)) {
 						conclusionDerived = true;
 						break;
@@ -300,21 +300,21 @@ public class PruningJustificationComputation<C, A>
 		return blocked;
 	}
 
-	private Set<Inference<C, A>> blockInferencesTo(final C conclusion) {
+	private Set<JustifiedInference<C, A>> blockInferencesTo(final C conclusion) {
 
-		final Set<Inference<C, A>> blocked = new HashSet<Inference<C, A>>();
+		final Set<JustifiedInference<C, A>> blocked = new HashSet<JustifiedInference<C, A>>();
 
-		for (final Inference<C, A> inf : getInferences(conclusion)) {
+		for (final JustifiedInference<C, A> inf : getInferences(conclusion)) {
 			blocked.add(inf);
 		}
 
 		return blocked;
 	}
 
-	private Set<Inference<C, A>> collectReachableInferences(final C conclusion,
-			final Set<Inference<C, A>> blocked) {
+	private Set<JustifiedInference<C, A>> collectReachableInferences(final C conclusion,
+			final Set<JustifiedInference<C, A>> blocked) {
 
-		final Set<Inference<C, A>> reachable = new HashSet<Inference<C, A>>();
+		final Set<JustifiedInference<C, A>> reachable = new HashSet<JustifiedInference<C, A>>();
 
 		final Queue<C> toDo = new LinkedList<C>();
 		final Set<C> done = new HashSet<C>();
@@ -328,7 +328,7 @@ public class PruningJustificationComputation<C, A>
 				break;
 			}
 
-			for (final Inference<C, A> inf : getInferences(concl)) {
+			for (final JustifiedInference<C, A> inf : getInferences(concl)) {
 				if (!blocked.contains(inf)) {
 
 					reachable.add(inf);
@@ -363,7 +363,7 @@ public class PruningJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
+				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet, final Monitor monitor) {
 			return new PruningJustificationComputation<>(inferenceSet, monitor);
 		}
 

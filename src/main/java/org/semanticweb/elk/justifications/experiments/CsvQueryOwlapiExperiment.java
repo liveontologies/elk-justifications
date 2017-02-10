@@ -7,12 +7,11 @@ import java.util.Collection;
 import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
-import org.liveontologies.puli.ProofNode;
-import org.liveontologies.puli.ProofNodes;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.owlapi.ElkReasonerFactory;
-import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.OWLExpressionInferenceSetAdapter;
+import org.semanticweb.elk.proofs.adapters.InferenceSets;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.formats.FunctionalSyntaxDocumentFormat;
 import org.semanticweb.owlapi.model.IRI;
@@ -23,6 +22,7 @@ import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLOntologyStorageException;
 import org.semanticweb.owlapi.model.OWLSubClassOfAxiom;
+import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory;
 import org.semanticweb.owlapi.reasoner.UnsupportedEntailmentTypeException;
@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class CsvQueryOwlapiExperiment extends BaseExperiment<ProofNode<OWLAxiom>, OWLAxiom, OWLSubClassOfAxiom, ProofNode<OWLAxiom>, OWLProver> {
+public class CsvQueryOwlapiExperiment extends BaseExperiment<OWLAxiom, OWLAxiom, OWLSubClassOfAxiom, OWLAxiom, OWLProver> {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(
 			CsvQueryOwlapiExperiment.class);
@@ -102,23 +102,18 @@ public class CsvQueryOwlapiExperiment extends BaseExperiment<ProofNode<OWLAxiom>
 	}
 
 	@Override
-	protected ProofNode<OWLAxiom> getGoalConclusion(
+	protected OWLAxiom getGoalConclusion(
 			final OWLProver reasoner, final OWLSubClassOfAxiom query)
 					throws ExperimentException {
-		try {
-			
-			return ProofNodes.create(reasoner.getProof(query), query);
-			
-		} catch (final UnsupportedEntailmentTypeException e) {
-			throw new ExperimentException(e);
-		}
+		return query;
 	}
 
 	@Override
-	protected InferenceSet<ProofNode<OWLAxiom>, OWLAxiom> newInferenceSet(
-			final OWLProver reasoner, final ProofNode<OWLAxiom> goal)
+	protected GenericInferenceSet<OWLAxiom, ? extends JustifiedInference<OWLAxiom, OWLAxiom>> newInferenceSet(
+			final OWLProver reasoner, final OWLAxiom goal)
 					throws ExperimentException {
-		return new OWLExpressionInferenceSetAdapter(reasoner.getRootOntology());
+		return InferenceSets.justifyAsserted(reasoner.getProof(goal),
+				reasoner.getRootOntology().getAxioms(Imports.EXCLUDED));
 	}
 
 	@Override

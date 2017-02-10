@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,13 +28,15 @@ public class InferenceSetInfoForConclusion<C, A> {
 
 	private final Set<C> usedConclusions_ = new HashSet<>();
 	private final Set<A> usedAxioms_ = new HashSet<>();
-	private final List<Inference<C, A>> usedInferences_ = new ArrayList<>();
+	private final List<JustifiedInference<C, A>> usedInferences_ = new ArrayList<>();
 
 	private final Queue<C> toDo_ = new LinkedList<C>();
 
-	private final InferenceSet<C, A> inferences_;
+	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences_;
 
-	InferenceSetInfoForConclusion(InferenceSet<C, A> inferences, C conclusion) {
+	InferenceSetInfoForConclusion(
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			C conclusion) {
 		this.inferences_ = inferences;
 		toDo(conclusion);
 		process();
@@ -43,7 +45,7 @@ public class InferenceSetInfoForConclusion<C, A> {
 	/**
 	 * @return the inferences used in the proofs for the given conclusion
 	 */
-	public List<Inference<C, A>> getUsedInferences() {
+	public List<JustifiedInference<C, A>> getUsedInferences() {
 		return usedInferences_;
 	}
 
@@ -65,7 +67,7 @@ public class InferenceSetInfoForConclusion<C, A> {
 	public void log() {
 		LOGGER_.debug("{} used inferences", usedInferences_.size());
 		LOGGER_.debug("{} used conclusions", usedConclusions_.size());
-		LOGGER_.debug("{} used axioms", usedAxioms_.size());		
+		LOGGER_.debug("{} used axioms", usedAxioms_.size());
 	}
 
 	private void toDo(C conclusion) {
@@ -77,7 +79,8 @@ public class InferenceSetInfoForConclusion<C, A> {
 	private void process() {
 		C next;
 		while ((next = toDo_.poll()) != null) {
-			for (Inference<C, A> inf : inferences_.getInferences(next)) {
+			for (JustifiedInference<C, A> inf : inferences_
+					.getInferences(next)) {
 				usedInferences_.add(inf);
 				usedAxioms_.addAll(inf.getJustification());
 				for (C premise : inf.getPremises()) {

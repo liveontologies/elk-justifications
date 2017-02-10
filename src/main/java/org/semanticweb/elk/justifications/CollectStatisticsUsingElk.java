@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
@@ -23,14 +24,12 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.InferenceSets;
-import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapter;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,22 +163,21 @@ public class CollectStatisticsUsingElk {
 		
 		final Conclusion expression = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner, conclusion);
-		final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
-				new TracingInferenceSetInferenceSetAdapter(
-						reasoner.explainConclusion(expression));
+		final TracingInferenceSet inferenceSet =
+				reasoner.explainConclusion(expression);
 		
 		final Set<ElkAxiom> axiomExprs =
 				new HashSet<ElkAxiom>();
 		final Set<Conclusion> lemmaExprs =
 				new HashSet<Conclusion>();
-		final Set<Inference<Conclusion, ElkAxiom>> inferences =
-				new HashSet<Inference<Conclusion, ElkAxiom>>();
+		final Set<JustifiedInference<Conclusion, ElkAxiom>> inferences =
+				new HashSet<JustifiedInference<Conclusion, ElkAxiom>>();
 		
 		Utils.traverseProofs(expression, inferenceSet,
-				new Function<Inference<Conclusion, ElkAxiom>, Void>() {
+				new Function<JustifiedInference<Conclusion, ElkAxiom>, Void>() {
 					@Override
 					public Void apply(
-							final Inference<Conclusion, ElkAxiom> inf) {
+							final JustifiedInference<Conclusion, ElkAxiom> inf) {
 						inferences.add(inf);
 						return null;
 					}

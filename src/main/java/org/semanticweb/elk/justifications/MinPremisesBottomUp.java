@@ -13,8 +13,8 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.util.collections.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,14 +55,14 @@ public class MinPremisesBottomUp<C, A>
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, JustifiedInference<C, A>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
 	 * a map from premises and inferences for which they are used to their
 	 * justifications
 	 */
-	private final Multimap<Pair<Inference<C, A>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
+	private final Multimap<Pair<JustifiedInference<C, A>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -75,7 +75,8 @@ public class MinPremisesBottomUp<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0, countBlocked_ = 0;
 
-	MinPremisesBottomUp(final InferenceSet<C, A> inferences,
+	private MinPremisesBottomUp(
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			final Monitor monitor) {
 		super(inferences, monitor);
 	}
@@ -237,7 +238,8 @@ public class MinPremisesBottomUp<C, A>
 				LOGGER_.trace("{}: computation of justifiations initialized",
 						conclusion);
 				boolean derived = false;
-				for (Inference<C, A> inf : getInferences(conclusion)) {
+				for (final JustifiedInference<C, A> inf : getInferences(
+						conclusion)) {
 					LOGGER_.trace("{}: new inference", inf);
 					derived = true;
 					countInferences_++;
@@ -316,10 +318,11 @@ public class MinPremisesBottomUp<C, A>
 
 					// all justifications are computed,
 					// the inferences are not needed anymore
-					for (Inference<C, A> inf : getInferences(conclusion)) {
+					for (final JustifiedInference<C, A> inf : getInferences(
+							conclusion)) {
 						for (C premise : inf.getPremises()) {
 							inferencesByPremises_.remove(premise, inf);
-							final Pair<Inference<C, A>, C> key = Pair
+							final Pair<JustifiedInference<C, A>, C> key = Pair
 									.create(inf, premise);
 							premiseJustifications_.removeAll(key);
 							premiseJustifications_.put(key,
@@ -337,7 +340,7 @@ public class MinPremisesBottomUp<C, A>
 					 * removed, there is no need to minimize their premise
 					 * justifications
 					 */
-					for (final Inference<C, A> inf : getInferences(
+					for (final JustifiedInference<C, A> inf : getInferences(
 							conclusion)) {
 						final Justification<C, A> justLessInf = just
 								.removeElements(inf.getJustification());
@@ -361,14 +364,14 @@ public class MinPremisesBottomUp<C, A>
 				 * where this conclusion is the premise iff it is minimal w.r.t.
 				 * justifications of the inference conclusion
 				 */
-				final Collection<Inference<C, A>> inferences = inferencesByPremises_
+				final Collection<JustifiedInference<C, A>> inferences = inferencesByPremises_
 						.get(conclusion);
 				if (inferences == null || inferences.isEmpty()) {
 					continue;
 				}
-				final List<Inference<C, A>> infsToPropagate = new ArrayList<>(
+				final List<JustifiedInference<C, A>> infsToPropagate = new ArrayList<>(
 						inferences.size());
-				for (final Inference<C, A> inf : inferences) {
+				for (final JustifiedInference<C, A> inf : inferences) {
 					final Collection<Justification<C, A>> premiseJusts = premiseJustifications_
 							.get(Pair.create(inf, conclusion));
 
@@ -385,7 +388,7 @@ public class MinPremisesBottomUp<C, A>
 				/*
 				 * propagating justification over inferences
 				 */
-				for (Inference<C, A> inf : infsToPropagate) {
+				for (final JustifiedInference<C, A> inf : infsToPropagate) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 					Justification<C, A> conclusionJust = just
@@ -428,7 +431,8 @@ public class MinPremisesBottomUp<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
+				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final Monitor monitor) {
 			return new MinPremisesBottomUp<>(inferenceSet, monitor);
 		}
 

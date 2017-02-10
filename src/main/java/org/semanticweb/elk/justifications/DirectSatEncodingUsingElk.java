@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -26,13 +27,11 @@ import org.semanticweb.elk.owl.interfaces.ElkClassAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
 import org.semanticweb.elk.owl.visitors.ElkAxiomProcessor;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapter;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,9 +157,8 @@ public class DirectSatEncodingUsingElk {
 				final Conclusion expression = Utils
 						.getFirstDerivedConclusionForSubsumption(reasoner,
 								conclusion);
-				final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
-						new TracingInferenceSetInferenceSetAdapter(
-								reasoner.explainConclusion(expression));
+				final TracingInferenceSet inferenceSet =
+						reasoner.explainConclusion(expression);
 				
 				final Set<ElkAxiom> axiomExprs =
 						new HashSet<ElkAxiom>();
@@ -168,7 +166,7 @@ public class DirectSatEncodingUsingElk {
 						new HashSet<Conclusion>();
 				
 				Utils.traverseProofs(expression, inferenceSet,
-						Functions.<Inference<Conclusion, ElkAxiom>>identity(),
+						Functions.<JustifiedInference<Conclusion, ElkAxiom>>identity(),
 						new Function<Conclusion, Void>(){
 							@Override
 							public Void apply(final Conclusion expr) {
@@ -201,10 +199,10 @@ public class DirectSatEncodingUsingElk {
 				
 				// cnf
 				Utils.traverseProofs(expression, inferenceSet,
-						new Function<Inference<Conclusion, ElkAxiom>, Void>() {
+						new Function<JustifiedInference<Conclusion, ElkAxiom>, Void>() {
 							@Override
 							public Void apply(
-									final Inference<Conclusion, ElkAxiom> inf) {
+									final JustifiedInference<Conclusion, ElkAxiom> inf) {
 								
 								LOG.trace("processing {}", inf);
 								

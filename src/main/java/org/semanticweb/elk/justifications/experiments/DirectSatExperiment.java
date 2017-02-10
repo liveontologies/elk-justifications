@@ -17,12 +17,12 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.justifications.Utils;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
 import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,7 @@ public class DirectSatExperiment extends Experiment {
 
 	private final List<Integer> conclusions_;
 	private final List<String> labels_;
-	private final InferenceSet<Integer, Integer> inferenceSet_;
+	private final GenericInferenceSet<Integer, ? extends JustifiedInference<Integer, Integer>> inferenceSet_;
 	
 	private AtomicReference<Collection<? extends Set<Integer>>> justifications_ =
 			new AtomicReference<Collection<? extends Set<Integer>>>();
@@ -170,14 +170,14 @@ public class DirectSatExperiment extends Experiment {
 				new HashSet<Integer>();
 		final Set<Integer> lemmaExprs =
 				new HashSet<Integer>();
-		final Set<Inference<Integer, Integer>> inferences =
-				new HashSet<Inference<Integer, Integer>>();
+		final Set<JustifiedInference<Integer, Integer>> inferences =
+				new HashSet<JustifiedInference<Integer, Integer>>();
 		
 		Utils.traverseProofs(conclusion, inferenceSet_,
-				new Function<Inference<Integer, Integer>, Void>() {
+				new Function<JustifiedInference<Integer, Integer>, Void>() {
 					@Override
 					public Void apply(
-							final Inference<Integer, Integer> inf) {
+							final JustifiedInference<Integer, Integer> inf) {
 						inferences.add(inf);
 						return null;
 					}

@@ -11,12 +11,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.JustificationComputation.Factory;
 import org.semanticweb.elk.justifications.Monitor;
 import org.semanticweb.elk.justifications.Utils;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,15 +100,16 @@ public abstract class BaseExperiment<C, A, Q, G extends C, R>
 			throws ExperimentException;
 
 	protected JustificationComputation<C, A> newComputation(
-			final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final Monitor monitor) {
 		return factory_.create(inferenceSet, monitor);
 	}
 
 	protected abstract G getGoalConclusion(R reasoner, Q query)
 			throws ExperimentException;
 
-	protected abstract InferenceSet<C, A> newInferenceSet(R reasoner, G goal)
-			throws ExperimentException;
+	protected abstract GenericInferenceSet<C, ? extends JustifiedInference<C, A>> newInferenceSet(
+			R reasoner, G goal) throws ExperimentException;
 
 	protected void saveJustifications(final Q query,
 			final Collection<? extends Set<A>> justifications,
@@ -148,8 +149,8 @@ public abstract class BaseExperiment<C, A, Q, G extends C, R>
 		// long time = System.currentTimeMillis();
 		long time = System.nanoTime();
 		final G goal = getGoalConclusion(reasoner_, query);
-		final InferenceSet<C, A> inferenceSet = newInferenceSet(reasoner_,
-				goal);
+		final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet = newInferenceSet(
+				reasoner_, goal);
 		final JustificationComputation<C, A> computation = newComputation(
 				inferenceSet, monitor);
 		final Collection<? extends Set<A>> justifications = computation
@@ -176,17 +177,17 @@ public abstract class BaseExperiment<C, A, Q, G extends C, R>
 		final Q query = conclusion_.get();
 
 		final G goal = getGoalConclusion(reasoner_, query);
-		final InferenceSet<C, A> inferenceSet = newInferenceSet(reasoner_,
-				goal);
+		final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet = newInferenceSet(
+				reasoner_, goal);
 
 		final Set<A> axiomExprs = new HashSet<A>();
 		final Set<C> lemmaExprs = new HashSet<C>();
-		final Set<Inference<C, A>> inferences = new HashSet<Inference<C, A>>();
+		final Set<JustifiedInference<C, A>> inferences = new HashSet<JustifiedInference<C, A>>();
 
 		Utils.traverseProofs(goal, inferenceSet,
-				new Function<Inference<C, A>, Void>() {
+				new Function<JustifiedInference<C, A>, Void>() {
 					@Override
-					public Void apply(final Inference<C, A> inf) {
+					public Void apply(final JustifiedInference<C, A> inf) {
 						inferences.add(inf);
 						return null;
 					}

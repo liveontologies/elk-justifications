@@ -1,19 +1,20 @@
 package org.semanticweb.elk.proofs.adapters;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.proofs.InferencePrinter;
 
-public class DirectSatEncodingInference implements Inference<Integer, Integer> {
+public class DirectSatEncodingInference
+		implements JustifiedInference<Integer, Integer> {
 
 	private final Integer conclusion_;
-	private final Collection<? extends Integer> premises_;
+	private final List<? extends Integer> premises_;
 	private final Set<? extends Integer> justifications_;
 
 	DirectSatEncodingInference(final Integer conclusion,
-			final Collection<? extends Integer> premises,
+			final List<? extends Integer> premises,
 			final Set<? extends Integer> justifications) {
 		this.conclusion_ = conclusion;
 		this.premises_ = premises;
@@ -26,7 +27,7 @@ public class DirectSatEncodingInference implements Inference<Integer, Integer> {
 	}
 
 	@Override
-	public Collection<? extends Integer> getPremises() {
+	public List<? extends Integer> getPremises() {
 		return premises_;
 	}
 
@@ -73,6 +74,11 @@ public class DirectSatEncodingInference implements Inference<Integer, Integer> {
 						: justifications_.equals(other.justifications_))
 				&& (premises_ == null ? other.premises_ == null
 						: premises_.equals(other.premises_));
+	}
+
+	@Override
+	public String getName() {
+		return getClass().getSimpleName();
 	}
 
 }

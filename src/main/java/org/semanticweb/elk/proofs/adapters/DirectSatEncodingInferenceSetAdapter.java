@@ -5,19 +5,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
 public class DirectSatEncodingInferenceSetAdapter
-		implements InferenceSet<Integer, Integer> {
+		implements GenericInferenceSet<Integer, JustifiedInference<Integer, Integer>> {
 
 	public static DirectSatEncodingInferenceSetAdapter load(
 			final InputStream assumptions, final InputStream cnf)
@@ -35,7 +36,7 @@ public class DirectSatEncodingInferenceSetAdapter
 //			}
 //		}
 		
-		final ListMultimap<Integer, Inference<Integer, Integer>> inferences =
+		final ListMultimap<Integer, JustifiedInference<Integer, Integer>> inferences =
 				ArrayListMultimap.create();
 		
 		final BufferedReader cnfReader =
@@ -134,15 +135,15 @@ public class DirectSatEncodingInferenceSetAdapter
 		
 	}
 	
-	private final Multimap<Integer, Inference<Integer, Integer>> inferences_;
+	private final Multimap<Integer, JustifiedInference<Integer, Integer>> inferences_;
 	
 	private DirectSatEncodingInferenceSetAdapter(
-			final Multimap<Integer, Inference<Integer, Integer>> inferences) {
+			final Multimap<Integer, JustifiedInference<Integer, Integer>> inferences) {
 		this.inferences_ = inferences;
 	}
 
 	@Override
-	public Iterable<Inference<Integer, Integer>> getInferences(
+	public Collection<JustifiedInference<Integer, Integer>> getInferences(
 			final Integer conclusion) {
 		return inferences_.get(conclusion);
 	}

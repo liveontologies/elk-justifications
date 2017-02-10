@@ -12,8 +12,8 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +63,7 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, JustifiedInference<C, A>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -76,7 +76,8 @@ public class BottomUpJustificationComputation<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0;
 
-	BottomUpJustificationComputation(final InferenceSet<C, A> inferences,
+	private BottomUpJustificationComputation(
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			final Monitor monitor) {
 		super(inferences, monitor);
 	}
@@ -265,7 +266,7 @@ public class BottomUpJustificationComputation<C, A>
 					blocked.clear();
 				}
 				boolean derived = false;
-				for (Inference<C, A> inf : getInferences(conclusion)) {
+				for (JustifiedInference<C, A> inf : getInferences(conclusion)) {
 					LOGGER_.trace("{}: new inference", inf);
 					derived = true;
 					countInferences_++;
@@ -352,7 +353,8 @@ public class BottomUpJustificationComputation<C, A>
 				if (just.isEmpty()) {
 					// all justifications are computed,
 					// the inferences are not needed anymore
-					for (Inference<C, A> inf : getInferences(conclusion)) {
+					for (JustifiedInference<C, A> inf : getInferences(
+							conclusion)) {
 						for (C premise : inf.getPremises()) {
 							inferencesByPremises_.remove(premise, inf);
 						}
@@ -362,7 +364,7 @@ public class BottomUpJustificationComputation<C, A>
 				/*
 				 * propagating justification over inferences
 				 */
-				for (Inference<C, A> inf : inferencesByPremises_
+				for (JustifiedInference<C, A> inf : inferencesByPremises_
 						.get(conclusion)) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
@@ -405,7 +407,8 @@ public class BottomUpJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
+				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final Monitor monitor) {
 			return new BottomUpJustificationComputation<>(inferenceSet,
 					monitor);
 		}

@@ -3,8 +3,8 @@ package org.semanticweb.elk.justifications;
 import java.util.Collection;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 
 /**
  * A common interface for procedures that compute justifications of conclusions
@@ -25,26 +25,26 @@ public interface JustificationComputation<C, A> extends HasStatistics {
 	/**
 	 * @return the inference set used by this computation
 	 */
-	InferenceSet<C, A> getInferenceSet();
+	GenericInferenceSet<C, ? extends JustifiedInference<C, A>> getInferenceSet();
 
 	/**
 	 * Computes all justifications for the given conclusion. This method can be
 	 * called several times for different conclusions.
 	 * 
-	 * @see Inference#getJustification()
+	 * @see JustifiedInference#getJustification()
 	 * 
 	 * @param conclusion
 	 *            the conclusion for which to compute the justification
 	 * @return the set consisting of all justifications for the given conclusion
 	 */
 	Collection<? extends Set<A>> computeJustifications(C conclusion);
-	
+
 	/**
 	 * Computes all justifications up to the given size for the given
 	 * conclusion. This method can be called several times for different
 	 * conclusions.
 	 * 
-	 * @see Inference#getJustification()
+	 * @see JustifiedInference#getJustification()
 	 * 
 	 * @param conclusion
 	 *            the conclusion for which to compute the justification
@@ -88,7 +88,8 @@ public interface JustificationComputation<C, A> extends HasStatistics {
 		 * @return a new justification computation which uses the given
 		 *         inference set
 		 */
-		JustificationComputation<C, A> create(InferenceSet<C, A> inferenceSet,
+		JustificationComputation<C, A> create(
+				GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
 				Monitor monitor);
 
 		/**

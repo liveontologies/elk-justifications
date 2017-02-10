@@ -1,6 +1,7 @@
 package org.semanticweb.elk.proofs.adapters;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -9,8 +10,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.BaseInferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.Inference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,11 +28,13 @@ import org.slf4j.LoggerFactory;
  *
  * @param <C>
  *            the type of conclusion and premises used by the inferences
+ * @param <I>
+ *            The type of the inferences.
  * @param <A>
  *            the type of axioms used by the inferences
  * 
  */
-class CycleRemovingInferenceSetAdapter<C, A> extends SimpleInferenceSet<C, A> {
+class CycleRemovingInferenceSetAdapter<C, I extends Inference<C>> extends BaseInferenceSet<C, I> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(CycleRemovingInferenceSetAdapter.class);
@@ -38,7 +42,7 @@ class CycleRemovingInferenceSetAdapter<C, A> extends SimpleInferenceSet<C, A> {
 	/**
 	 * inferences that are filtered
 	 */
-	private final InferenceSet<C, A> originalInferences_;
+	private final GenericInferenceSet<C, I> originalInferences_;
 
 	/**
 	 * conclusions for which to process inferences recursively
@@ -55,20 +59,21 @@ class CycleRemovingInferenceSetAdapter<C, A> extends SimpleInferenceSet<C, A> {
 	 * conclusion of an inference in this inference that does not use the
 	 * conclusion of the inference as one of the premises
 	 */
-	private final Map<C, List<Inference<C, A>>> blocked_ = new HashMap<C, List<Inference<C, A>>>();
+	private final Map<C, List<I>> blocked_ = new HashMap<C, List<I>>();
 
 	/**
 	 * the inferences that are (no longer) blocked as a result of adding other
 	 * (unblocked) inferences to this inference set
 	 */
-	private final Queue<Inference<C, A>> unblocked_ = new LinkedList<Inference<C, A>>();
+	private final Queue<I> unblocked_ = new LinkedList<I>();
 
-	CycleRemovingInferenceSetAdapter(InferenceSet<C, A> originalInferences) {
+	CycleRemovingInferenceSetAdapter(
+			final GenericInferenceSet<C, I> originalInferences) {
 		this.originalInferences_ = originalInferences;
 	}
 
 	@Override
-	public Iterable<Inference<C, A>> getInferences(C conclusion) {
+	public Collection<? extends I> getInferences(C conclusion) {
 		toDo(conclusion);
 		process();
 		return super.getInferences(conclusion);
@@ -83,65 +88,65 @@ class CycleRemovingInferenceSetAdapter<C, A> extends SimpleInferenceSet<C, A> {
 	private void process() {
 		C conclusion;
 		while ((conclusion = toDoConclusions_.poll()) != null) {
-			for (Inference<C, A> inf : originalInferences_
+			for (final I inf : originalInferences_
 					.getInferences(conclusion)) {
 				process(inf);
 			}
 		}
 	}
 
-	private void process(Inference<C, A> next) {
+	private void process(I next) {
 		for (C premise : next.getPremises()) {
 			toDo(premise);
 		}
 		checkBlocked(next);
 		while ((next = unblocked_.poll()) != null) {
-			addInference(next);
-			List<Inference<C, A>> blockedByNext = blocked_
+			produce(next);
+			final List<I> blockedByNext = blocked_
 					.remove(next.getConclusion());
 			if (blockedByNext == null) {
 				continue;
 			}
 			// else
-			for (Inference<C, A> inf : blockedByNext) {
+			for (final I inf : blockedByNext) {
 				checkBlocked(inf);
 			}
 		}
 	}
 
-	private void checkBlocked(Inference<C, A> inference) {
-		if (inference.getPremises().contains(inference.getConclusion())) {
-			LOGGER_.trace("{}: permanently blocked", inference);
+	private void checkBlocked(final I next) {
+		if (next.getPremises().contains(next.getConclusion())) {
+			LOGGER_.trace("{}: permanently blocked", next);
 			return;
 		}
-		C blockedPremise = getBlockedPremise(inference);
+		C blockedPremise = getBlockedPremise(next);
 		if (blockedPremise == null) {
-			LOGGER_.trace("{}: unblocked", inference);
-			unblocked_.add(inference);
+			LOGGER_.trace("{}: unblocked", next);
+			unblocked_.add(next);
 		} else {
-			LOGGER_.trace("{}: blocked by {}", inference, blockedPremise);
-			block(inference, blockedPremise);
+			LOGGER_.trace("{}: blocked by {}", next, blockedPremise);
+			block(next, blockedPremise);
 		}
 	}
 
-	private void block(Inference<C, A> inference, C conclusion) {
-		List<Inference<C, A>> blockedForConclusion = blocked_.get(conclusion);
+	private void block(final I inference, C conclusion) {
+		List<I> blockedForConclusion = blocked_.get(conclusion);
 		if (blockedForConclusion == null) {
-			blockedForConclusion = new ArrayList<Inference<C, A>>();
+			blockedForConclusion = new ArrayList<I>();
 			blocked_.put(conclusion, blockedForConclusion);
 		}
 		blockedForConclusion.add(inference);
 	}
 
 	/**
-	 * @param inference
+	 * @param next
 	 * @return an inference premise that cannot be derived by other inferences
 	 *         that do not use the conclusion of this inference as one of the
 	 *         premises; returns {@code null} if such a premise does not exist
 	 */
-	private C getBlockedPremise(Inference<C, A> inference) {
-		C conclusion = inference.getConclusion();
-		for (C premise : inference.getPremises()) {
+	private C getBlockedPremise(final I next) {
+		C conclusion = next.getConclusion();
+		for (C premise : next.getPremises()) {
 			if (!derivableWithoutPremise(premise, conclusion)) {
 				return premise;
 			}
@@ -158,7 +163,7 @@ class CycleRemovingInferenceSetAdapter<C, A> extends SimpleInferenceSet<C, A> {
 	 */
 	private boolean derivableWithoutPremise(C conclusion, C nonpremise) {
 		boolean derivable = false;
-		for (Inference<C, A> inf : getInferences(conclusion)) {
+		for (final I inf : getInferences(conclusion)) {
 			if (derivable |= !inf.getPremises().contains(nonpremise)) {
 				return true;
 			}

@@ -3,7 +3,8 @@ package org.semanticweb.elk.justifications;
 import java.io.BufferedWriter;
 import java.io.IOException;
 
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.proofs.ProofPrinter;
 
 /**
@@ -20,28 +21,29 @@ import org.semanticweb.elk.proofs.ProofPrinter;
 public class ProofJustificationPrinter<C, A> extends ProofPrinter<C, A> {
 
 	private final JustificationComputation<C, A> computation_;
-	
+
 	private final int sizeLimit_;
 
 	ProofJustificationPrinter(JustificationComputation<C, A> computation,
-			InferenceSet<C, A> inferences, int sizeLimit) {
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			int sizeLimit) {
 		super(inferences);
 		this.computation_ = computation;
 		this.sizeLimit_ = sizeLimit;
 	}
 
 	public static <C, A> void print(JustificationComputation<C, A> computation,
-			InferenceSet<C, A> inferences, C conclusion, int sizeLimit)
-			throws IOException {
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			C conclusion, int sizeLimit) throws IOException {
 		ProofPrinter<C, A> pp = new ProofJustificationPrinter<>(computation,
 				inferences, sizeLimit);
 		pp.printProof(conclusion);
 	}
-	
+
 	public static <C, A> void print(JustificationComputation<C, A> computation,
-			InferenceSet<C, A> inferences, C conclusion)
-			throws IOException {
-		print(computation, inferences, conclusion, Integer.MAX_VALUE);		
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			C conclusion) throws IOException {
+		print(computation, inferences, conclusion, Integer.MAX_VALUE);
 	}
 
 	@Override

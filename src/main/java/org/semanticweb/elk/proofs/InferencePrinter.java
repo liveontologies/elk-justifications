@@ -2,6 +2,8 @@ package org.semanticweb.elk.proofs;
 
 import java.util.Collection;
 
+import org.liveontologies.puli.JustifiedInference;
+
 /**
  * Static methods for printing inferences
  * 
@@ -9,7 +11,7 @@ import java.util.Collection;
  */
 public class InferencePrinter {
 
-	public static <C, A> String toString(Inference<C, A> inference) {
+	public static <C, A> String toString(JustifiedInference<C, A> inference) {
 		String result = inference.getConclusion() + " -| ";
 		boolean first = true;
 		for (C premise : inference.getPremises()) {

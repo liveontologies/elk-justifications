@@ -3,7 +3,8 @@ package org.semanticweb.elk.justifications;
 import java.io.BufferedWriter;
 import java.io.IOException;
 
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.proofs.ProofPrinter;
 
 /**
@@ -21,14 +22,17 @@ public class ProofComponentsPrinter<C, A> extends ProofPrinter<C, A> {
 
 	private final StronglyConnectedComponents<C> components_;
 
-	ProofComponentsPrinter(InferenceSet<C, A> inferences, C conclusion) {
+	ProofComponentsPrinter(
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			C conclusion) {
 		super(inferences);
 		this.components_ = StronglyConnectedComponentsComputation
 				.computeComponents(inferences, conclusion);
 	}
 
-	public static <C, A> void print(InferenceSet<C, A> inferences, C conclusion)
-			throws IOException {
+	public static <C, A> void print(
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			C conclusion) throws IOException {
 		ProofPrinter<C, A> pp = new ProofComponentsPrinter<>(inferences,
 				conclusion);
 		pp.printProof(conclusion);

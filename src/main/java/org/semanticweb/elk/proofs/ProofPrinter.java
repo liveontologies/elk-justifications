@@ -9,6 +9,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
+
 /**
  * A simple pretty printer for proofs using ASCII characters. Due to potential
  * cycles, inferences for every conclusion are printed only once upon their
@@ -27,12 +30,12 @@ public class ProofPrinter<C, A> {
 	/**
 	 * the set of inferences from which the proofs are formed
 	 */
-	private final InferenceSet<C, A> inferences_;
+	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences_;
 
 	/**
 	 * the current positions of iterators over inferences for conclusions
 	 */
-	private final Deque<Iterator<Inference<C, A>>> inferenceStack_ = new LinkedList<Iterator<Inference<C, A>>>();
+	private final Deque<Iterator<? extends JustifiedInference<C, A>>> inferenceStack_ = new LinkedList<Iterator<? extends JustifiedInference<C, A>>>();
 
 	/**
 	 * the current positions of iterators over conclusions for inferences
@@ -54,13 +57,15 @@ public class ProofPrinter<C, A> {
 	 */
 	private final BufferedWriter writer_;
 
-	protected ProofPrinter(InferenceSet<C, A> inferences,
+	protected ProofPrinter(
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			BufferedWriter writer) {
 		this.inferences_ = inferences;
 		this.writer_ = writer;
 	}
 
-	protected ProofPrinter(InferenceSet<C, A> inferences) {
+	protected ProofPrinter(
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences) {
 		this(inferences,
 				new BufferedWriter(new OutputStreamWriter(System.out)));
 	}
@@ -71,8 +76,9 @@ public class ProofPrinter<C, A> {
 		writer_.flush();
 	}
 
-	public static <C, A> void print(InferenceSet<C, A> inferences, C conclusion)
-			throws IOException {
+	public static <C, A> void print(
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			C conclusion) throws IOException {
 		ProofPrinter<C, A> pp = new ProofPrinter<>(inferences);
 		pp.printProof(conclusion);
 	}
@@ -110,13 +116,14 @@ public class ProofPrinter<C, A> {
 	private void process() throws IOException {
 		for (;;) {
 			// processing inferences
-			Iterator<Inference<C, A>> infIter = inferenceStack_.peek();
+			Iterator<? extends JustifiedInference<C, A>> infIter = inferenceStack_
+					.peek();
 			if (infIter == null) {
 				return;
 			}
 			// else
 			if (infIter.hasNext()) {
-				Inference<C, A> inf = infIter.next();
+				JustifiedInference<C, A> inf = infIter.next();
 				conclusionStack_.push(inf.getPremises().iterator());
 				justificationStack_.push(inf.getJustification().iterator());
 			} else {
@@ -154,14 +161,15 @@ public class ProofPrinter<C, A> {
 	}
 
 	private void writePrefix() throws IOException {
-		Iterator<Iterator<Inference<C, A>>> inferStackItr = inferenceStack_
+		Iterator<Iterator<? extends JustifiedInference<C, A>>> inferStackItr = inferenceStack_
 				.descendingIterator();
 		Iterator<Iterator<? extends C>> conclStackItr = conclusionStack_
 				.descendingIterator();
 		Iterator<Iterator<? extends A>> justStackItr = justificationStack_
 				.descendingIterator();
 		while (inferStackItr.hasNext()) {
-			Iterator<Inference<C, A>> inferIter = inferStackItr.next();
+			Iterator<? extends JustifiedInference<C, A>> inferIter = inferStackItr
+					.next();
 			Iterator<? extends C> conclIter = conclStackItr.next();
 			Iterator<? extends A> justIter = justStackItr.next();
 			boolean hasNextPremise = conclIter.hasNext() || justIter.hasNext();

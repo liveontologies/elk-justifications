@@ -8,7 +8,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
+import org.liveontologies.puli.JustifiedInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,13 +44,13 @@ public class IncrementalBottomUp<C, A> {
 	 * inference is indexed is checked against this map, so it should not
 	 * contain duplicated key-value pairs.
 	 */
-	private final SetMultimap<C, Inference<C, A>> inferencesByConclusions_ = HashMultimap
+	private final SetMultimap<C, JustifiedInference<C, A>> inferencesByConclusions_ = HashMultimap
 			.create();
 
 	/**
 	 * A map from premises to inferences that use them.
 	 */
-	private final Multimap<C, Inference<C, A>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, JustifiedInference<C, A>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -74,7 +74,7 @@ public class IncrementalBottomUp<C, A> {
 	private int countJustificationCandidates_ = 0;
 
 	public ListMultimap<C, Justification<C, A>> propagate(
-			final Set<Inference<C, A>> update) {
+			final Set<JustifiedInference<C, A>> update) {
 
 		initialize(update);
 
@@ -83,14 +83,14 @@ public class IncrementalBottomUp<C, A> {
 		return justifications_;
 	}
 
-	private void initialize(final Set<Inference<C, A>> update) {
+	private void initialize(final Set<JustifiedInference<C, A>> update) {
 
 		// remove inferences that are not in the update
 
-		Iterator<Inference<C, A>> infIt = inferencesByConclusions_.values()
+		Iterator<JustifiedInference<C, A>> infIt = inferencesByConclusions_.values()
 				.iterator();
 		while (infIt.hasNext()) {
-			final Inference<C, A> inf = infIt.next();
+			final JustifiedInference<C, A> inf = infIt.next();
 			if (!update.contains(inf)) {
 				LOG_.trace("{}: removed inference", inf);
 				infIt.remove();
@@ -99,7 +99,7 @@ public class IncrementalBottomUp<C, A> {
 
 		infIt = inferencesByPremises_.values().iterator();
 		while (infIt.hasNext()) {
-			final Inference<C, A> inf = infIt.next();
+			final JustifiedInference<C, A> inf = infIt.next();
 			if (!update.contains(inf)) {
 				LOG_.trace("{}: removed inference", inf);
 				infIt.remove();
@@ -108,7 +108,7 @@ public class IncrementalBottomUp<C, A> {
 
 		// add and queue up inferences from the update that are not indexed
 
-		for (final Inference<C, A> inf : update) {
+		for (final JustifiedInference<C, A> inf : update) {
 			if (inferencesByConclusions_.put(inf.getConclusion(), inf)) {
 				LOG_.trace("{}: added inference", inf);
 
@@ -156,7 +156,7 @@ public class IncrementalBottomUp<C, A> {
 			if (just.isEmpty()) {
 				// all justifications are computed,
 				// the inferences are not needed anymore
-				for (final Inference<C, A> inf : inferencesByConclusions_
+				for (final JustifiedInference<C, A> inf : inferencesByConclusions_
 						.get(conclusion)) {
 					for (final C premise : inf.getPremises()) {
 						inferencesByPremises_.remove(premise, inf);
@@ -168,7 +168,7 @@ public class IncrementalBottomUp<C, A> {
 			/*
 			 * propagating justification over inferences
 			 */
-			for (final Inference<C, A> inf : inferencesByPremises_
+			for (final JustifiedInference<C, A> inf : inferencesByPremises_
 					.get(conclusion)) {
 
 				Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();

@@ -6,12 +6,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.Inference;
+import org.liveontologies.puli.Delegator;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.proofs.InferencePrinter;
-import org.semanticweb.elk.proofs.InferenceSet;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Collections2;
 
 /**
  * An inference set containing inferences with at most two premises, obtained
@@ -20,7 +21,7 @@ import com.google.common.collect.Iterables;
  * inferences. It is guaranteed that if one can derive a conclusion {@code C}
  * using a set of axioms in justificaiton of inferences, then using the same
  * justification one can derive the conlcusion {@code [C]}, that is, the
- * singleton list of [C].
+ * singleton list of {@code [C]}.
  * 
  * @author Yevgeny Kazakov
  *
@@ -30,25 +31,28 @@ import com.google.common.collect.Iterables;
  * @param <A>
  *            the type of axioms used by the original and binarized inferences
  */
-class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
+class BinarizedInferenceSetAdapter<C, A> implements
+		GenericInferenceSet<List<C>, JustifiedInference<List<C>, A>> {
 
-	private final InferenceSet<C, A> original_;
+	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> original_;
 
-	BinarizedInferenceSetAdapter(InferenceSet<C, A> original) {
+	BinarizedInferenceSetAdapter(
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> original) {
 		this.original_ = original;
 	}
 
 	@Override
-	public Iterable<Inference<List<C>, A>> getInferences(List<C> conclusion) {
+	public Collection<? extends JustifiedInference<List<C>, A>> getInferences(
+			final List<C> conclusion) {
 		switch (conclusion.size()) {
 		case 0:
 			return Collections.emptyList();
 		case 1:
 			C member = conclusion.get(0);
-			return Iterables.transform(original_.getInferences(member),
+			return Collections2.transform(original_.getInferences(member),
 					ToBinaryInference.<C, A> get());
 		default:
-			Inference<List<C>, A> inf = new BinaryListInference<C, A>(
+			JustifiedInference<List<C>, A> inf = new BinaryListInference<C, A>(
 					conclusion);
 			return Collections.singleton(inf);
 		}
@@ -63,10 +67,10 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 	 * @param <C>
 	 * @param <A>
 	 */
-	private static class BinaryListInference<C, A>
-			extends AbstractAdapter<List<C>> implements Inference<List<C>, A> {
+	private static class BinaryListInference<C, A> extends Delegator<List<C>>
+			implements JustifiedInference<List<C>, A> {
 
-		public BinaryListInference(List<C> conclusion) {
+		public BinaryListInference(final List<C> conclusion) {
 			super(conclusion);
 			if (conclusion.size() <= 1) {
 				throw new IllegalArgumentException();
@@ -75,14 +79,14 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 
 		@Override
 		public List<C> getConclusion() {
-			return adapted_;
+			return getDelegate();
 		}
 
 		@Override
-		public Collection<? extends List<C>> getPremises() {
+		public List<? extends List<C>> getPremises() {
 			List<List<C>> result = new ArrayList<List<C>>(2);
-			result.add(Collections.singletonList(adapted_.get(0)));
-			result.add(adapted_.subList(1, adapted_.size()));
+			result.add(Collections.singletonList(getDelegate().get(0)));
+			result.add(getDelegate().subList(1, getDelegate().size()));
 			return result;
 		}
 
@@ -96,47 +100,54 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 			return InferencePrinter.toString(this);
 		}
 
+		@Override
+		public String getName() {
+			return getClass().getSimpleName();
+		}
+
 	}
 
-	private static class ToBinaryInference<C, A>
-			implements Function<Inference<C, A>, Inference<List<C>, A>> {
+	private static class ToBinaryInference<C, A> implements
+			Function<JustifiedInference<C, A>, JustifiedInference<List<C>, A>> {
 
 		private static final ToBinaryInference<?, ?> INSTANCE_ = new ToBinaryInference<Object, Object>();
 
 		@Override
-		public Inference<List<C>, A> apply(Inference<C, A> input) {
+		public JustifiedInference<List<C>, A> apply(
+				JustifiedInference<C, A> input) {
 			return new BinaryInferenceAdapter<C, A>(input);
 		}
 
 		@SuppressWarnings("unchecked")
-		static <C, A> Function<Inference<C, A>, Inference<List<C>, A>> get() {
+		static <C, A> Function<JustifiedInference<C, A>, JustifiedInference<List<C>, A>> get() {
 			return (ToBinaryInference<C, A>) INSTANCE_;
 		}
 
 	}
 
-	private static class BinaryInferenceAdapter<C, A> extends
-			AbstractAdapter<Inference<C, A>> implements Inference<List<C>, A> {
+	private static class BinaryInferenceAdapter<C, A>
+			extends Delegator<JustifiedInference<C, A>>
+			implements JustifiedInference<List<C>, A> {
 
-		BinaryInferenceAdapter(Inference<C, A> original) {
+		BinaryInferenceAdapter(final JustifiedInference<C, A> original) {
 			super(original);
 		}
 
 		@Override
 		public List<C> getConclusion() {
-			return Collections.singletonList(adapted_.getConclusion());
+			return Collections.singletonList(getDelegate().getConclusion());
 		}
 
 		@Override
-		public Collection<? extends List<C>> getPremises() {
-			Collection<? extends C> originalPremises = adapted_.getPremises();
+		public List<? extends List<C>> getPremises() {
+			List<? extends C> originalPremises = getDelegate().getPremises();
 			int originalPremiseCount = originalPremises.size();
 			switch (originalPremiseCount) {
 			case 0:
 				return Collections.emptyList();
 			case 1:
-				return Collections.singleton(Collections
-						.<C> singletonList(originalPremises.iterator().next()));
+				return Collections.singletonList(
+						Collections.<C> singletonList(originalPremises.get(0)));
 			default:
 				List<C> firstPremise = null, secondPremise = new ArrayList<C>(
 						originalPremiseCount - 1);
@@ -158,12 +169,17 @@ class BinarizedInferenceSetAdapter<C, A> implements InferenceSet<List<C>, A> {
 
 		@Override
 		public Set<? extends A> getJustification() {
-			return adapted_.getJustification();
+			return getDelegate().getJustification();
 		}
 
 		@Override
 		public String toString() {
 			return InferencePrinter.toString(this);
+		}
+
+		@Override
+		public String getName() {
+			return getDelegate().getName();
 		}
 
 	}

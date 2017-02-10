@@ -1,7 +1,9 @@
 package org.semanticweb.elk.justifications;
 
-import org.semanticweb.elk.proofs.DelegatingInferenceSet;
-import org.semanticweb.elk.proofs.InferenceSet;
+import java.util.Collection;
+
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 
 /**
  * A skeleton implementation of {@link JustificationComputation}
@@ -13,16 +15,23 @@ import org.semanticweb.elk.proofs.InferenceSet;
  * @param <A>
  *            the type of axioms used by the inferences
  */
-abstract class AbstractJustificationComputation<C, A> extends
-		DelegatingInferenceSet<C, A> implements JustificationComputation<C, A> {
+abstract class AbstractJustificationComputation<C, A> implements JustificationComputation<C, A> {
 
-	public AbstractJustificationComputation(InferenceSet<C, A> inferences) {
-		super(inferences);
+	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet_;
+	
+	public AbstractJustificationComputation(
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet) {
+		this.inferenceSet_ = inferenceSet;
 	}
 
 	@Override
-	public InferenceSet<C, A> getInferenceSet() {
-		return getDelegate();
+	public GenericInferenceSet<C, ? extends JustifiedInference<C, A>> getInferenceSet() {
+		return inferenceSet_;
+	}
+
+	public Collection<? extends JustifiedInference<C, A>> getInferences(
+			final C conclusion) {
+		return inferenceSet_.getInferences(conclusion);
 	}
 
 	@Override

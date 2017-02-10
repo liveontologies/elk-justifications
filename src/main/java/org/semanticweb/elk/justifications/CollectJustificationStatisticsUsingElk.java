@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
@@ -22,13 +23,11 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapter;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,9 +135,8 @@ public class CollectJustificationStatisticsUsingElk {
 							final Conclusion expression = Utils
 									.getFirstDerivedConclusionForSubsumption(
 											reasoner, conclusion);
-							final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
-									new TracingInferenceSetInferenceSetAdapter(
-											reasoner.explainConclusion(expression));
+							final TracingInferenceSet inferenceSet =
+									reasoner.explainConclusion(expression);
 
 							final JustificationComputation<Conclusion, ElkAxiom> computation =
 									BottomUpJustificationComputation
@@ -154,9 +152,9 @@ public class CollectJustificationStatisticsUsingElk {
 							final List<Long> minProductSum = Arrays.asList(0l);
 							final List<Long> minSum = Arrays.asList(0l);
 							Utils.traverseProofs(expression, inferenceSet,
-									new Function<Inference<Conclusion, ElkAxiom>, Void>() {
+									new Function<JustifiedInference<Conclusion, ElkAxiom>, Void>() {
 										@Override
-										public Void apply(final Inference<Conclusion, ElkAxiom> inf) {
+										public Void apply(final JustifiedInference<Conclusion, ElkAxiom> inf) {
 											if (monitor.isCancelled()) {
 												return null;
 											}

@@ -8,8 +8,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +37,7 @@ public class StronglyConnectedComponentsComputation<C> {
 	/**
 	 * the inference set which induces the graph
 	 */
-	private InferenceSet<C, ?> inferences_;
+	private InferenceSet<C> inferences_;
 
 	/**
 	 * conclusions on the current path, assume to alternate with elements of
@@ -84,7 +84,7 @@ public class StronglyConnectedComponentsComputation<C> {
 	 */
 	private final Map<C, Integer> lowlink_ = new HashMap<C, Integer>();
 
-	public StronglyConnectedComponentsComputation(InferenceSet<C, ?> root,
+	public StronglyConnectedComponentsComputation(final InferenceSet<C> root,
 			C conclusion) {
 		this.inferences_ = root;
 		toDo(conclusion);
@@ -104,7 +104,7 @@ public class StronglyConnectedComponentsComputation<C> {
 	 *         premises of the inferences; root appears in the last component
 	 */
 	public static <C> StronglyConnectedComponents<C> computeComponents(
-			InferenceSet<C, ?> inferences, C root) {
+			final InferenceSet<C> inferences, C root) {
 		StronglyConnectedComponentsComputation<C> computation = new StronglyConnectedComponentsComputation<>(
 				inferences, root);
 		return new StronglyConnectedComponents<>(
@@ -120,7 +120,7 @@ public class StronglyConnectedComponentsComputation<C> {
 		LOGGER_.trace("{}: conclusion pushed", conclusion);
 	}
 
-	private void toDo(Inference<C, ?> inf) {
+	private void toDo(final Inference<C> inf) {
 		inferenceStack_.push(new InferenceRecord<>(inf));
 		LOGGER_.trace("{}: inference pushed", inf);
 	}
@@ -197,7 +197,7 @@ public class StronglyConnectedComponentsComputation<C> {
 
 		private final C conclusion_;
 
-		private final Iterator<? extends Inference<C, ?>> inferenceIterator_;
+		private final Iterator<? extends Inference<C>> inferenceIterator_;
 
 		ConclusionRecord(C conclusion,
 				StronglyConnectedComponentsComputation<C> computation) {
@@ -210,11 +210,11 @@ public class StronglyConnectedComponentsComputation<C> {
 
 	private static class InferenceRecord<C> {
 
-		Inference<C, ?> inference_;
+		private final Inference<C> inference_;
 
 		private final Iterator<? extends C> premiseIterator_;
 
-		InferenceRecord(Inference<C, ?> inference) {
+		InferenceRecord(final Inference<C> inference) {
 			this.inference_ = inference;
 			this.premiseIterator_ = inference.getPremises().iterator();
 		}

@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -15,8 +17,6 @@ import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapter;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
@@ -52,8 +52,8 @@ public class CsvQueryElkExperiment extends
 
 			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
 					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory().createReasoner(
-					loader);
+			final Reasoner reasoner = new ReasonerFactory()
+					.createReasoner(loader);
 
 			LOG.info("Classifying ...");
 			long start = System.currentTimeMillis();
@@ -108,13 +108,12 @@ public class CsvQueryElkExperiment extends
 	}
 
 	@Override
-	protected InferenceSet<Conclusion, ElkAxiom> newInferenceSet(
+	protected GenericInferenceSet<Conclusion, ? extends JustifiedInference<Conclusion, ElkAxiom>> newInferenceSet(
 			final Reasoner reasoner, final Conclusion goal)
-					throws ExperimentException {
+			throws ExperimentException {
 		try {
 
-			return new TracingInferenceSetInferenceSetAdapter(
-					reasoner.explainConclusion(goal));
+			return reasoner.explainConclusion(goal);
 
 		} catch (final ElkException e) {
 			throw new ExperimentException(e);

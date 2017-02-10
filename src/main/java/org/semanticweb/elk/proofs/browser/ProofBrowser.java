@@ -14,6 +14,8 @@ import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.tree.TreePath;
 
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.DummyMonitor;
@@ -26,13 +28,11 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.proofs.Inference;
-import org.semanticweb.elk.proofs.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.TracingInferenceSetInferenceSetAdapter;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,9 +79,8 @@ public class ProofBrowser {
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner,
 							conclusion);
-			final InferenceSet<Conclusion, ElkAxiom> inferenceSet =
-					new TracingInferenceSetInferenceSetAdapter(
-							reasoner.explainConclusion(expression));
+			final TracingInferenceSet inferenceSet =
+					reasoner.explainConclusion(expression);
 
 			final JustificationComputation<Conclusion, ElkAxiom> computation =
 					BottomUpJustificationComputation
@@ -105,8 +104,8 @@ public class ProofBrowser {
 							final Collection<? extends Set<ElkAxiom>> js =
 									computation.computeJustifications(c, sizeLimit);
 							return "[" + js.size() + "] ";
-						} else if (obj instanceof Inference) {
-							final Inference<?, ?> inf = (Inference<?, ?>) obj;
+						} else if (obj instanceof JustifiedInference) {
+							final JustifiedInference<?, ?> inf = (JustifiedInference<?, ?>) obj;
 							int product = 1;
 							for (final Object premise : inf.getPremises()) {
 								final Collection<? extends Set<ElkAxiom>> js =
@@ -131,10 +130,10 @@ public class ProofBrowser {
 						}
 						final Conclusion premise = (Conclusion) obj;
 						final Object o = path.getPathComponent(path.getPathCount() - 2);
-						if (!(o instanceof Inference)) {
+						if (!(o instanceof JustifiedInference)) {
 							return null;
 						}
-						final Inference<?, ?> inf = (Inference<?, ?>) o;
+						final JustifiedInference<?, ?> inf = (JustifiedInference<?, ?>) o;
 						final Object c = inf.getConclusion();
 						if (!(c instanceof Conclusion)) {
 							return null;
@@ -205,21 +204,23 @@ public class ProofBrowser {
 	}
 	
 	public static <C, A> void showProofBrowser(
-			final InferenceSet<C, A> inferenceSet, final C conclusion) {
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final C conclusion) {
 		showProofBrowser(inferenceSet, conclusion, null, null, null);
 	}
 	
 	public static <C, A> void showProofBrowser(
-			final InferenceSet<C, A> inferenceSet, final C conclusion,
-			final TreeNodeLabelProvider nodeDecorator,
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
 		showProofBrowser(inferenceSet, conclusion, null, nodeDecorator,
 				toolTipProvider);
 	}
 	
 	public static <C, A> void showProofBrowser(
-			final InferenceSet<C, A> inferenceSet, final C conclusion,
-			final String title, final TreeNodeLabelProvider nodeDecorator,
+			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final C conclusion, final String title,
+			final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
 		
 		final StringBuilder message = new StringBuilder("Change Look and Feel by adding one of the following properties:");
@@ -242,35 +243,6 @@ public class ProofBrowser {
 						new JScrollPane(new InferenceSetTreeComponent<C, A>(
 								inferenceSet, conclusion, nodeDecorator,
 								toolTipProvider));
-				frame.getContentPane().add(scrollPane);
-				
-				frame.pack();
-//				frame.setSize(500, 500);
-				frame.setVisible(true);
-			}
-		});
-		
-	}
-	
-	public static <C, A> void showProofGraphBrowser(
-			final InferenceSet<C, A> inferenceSet, final C conclusion,
-			final String title) {
-
-		final InferenceSetWrapper<C, A> root =
-				new InferenceSetWrapper<C, A>(inferenceSet, conclusion);
-		
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				final JFrame frame;
-				if (title == null) {
-					frame = new JFrame("Proof Browser - " + conclusion);
-				} else {
-					frame = new JFrame("Proof Browser - " + title);
-				}
-				
-				final JScrollPane scrollPane =
-						new JScrollPane(new TreeComponent(root));
 				frame.getContentPane().add(scrollPane);
 				
 				frame.pack();

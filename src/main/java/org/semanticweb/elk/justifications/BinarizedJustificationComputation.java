@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.semanticweb.elk.proofs.InferenceSet;
+import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.proofs.adapters.InferenceSets;
 
 /**
@@ -27,10 +28,11 @@ public class BinarizedJustificationComputation<C, A>
 
 	BinarizedJustificationComputation(
 			JustificationComputation.Factory<List<C>, A> mainFactory,
-			InferenceSet<C, A> inferences, final Monitor monitor) {
+			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			final Monitor monitor) {
 		super(inferences);
-		computaiton_ =
-				mainFactory.create(InferenceSets.binarize(inferences), monitor);
+		computaiton_ = mainFactory.create(InferenceSets.binarize(inferences),
+				monitor);
 	}
 
 	@Override
@@ -38,7 +40,7 @@ public class BinarizedJustificationComputation<C, A>
 		return computaiton_
 				.computeJustifications(Collections.singletonList(conclusion));
 	}
-	
+
 	@Override
 	public Collection<? extends Set<A>> computeJustifications(C conclusion,
 			int sizeLimit) {
@@ -50,12 +52,12 @@ public class BinarizedJustificationComputation<C, A>
 	public String[] getStatNames() {
 		return computaiton_.getStatNames();
 	}
-	
+
 	@Override
 	public Map<String, Object> getStatistics() {
 		return computaiton_.getStatistics();
 	}
-	
+
 	@Override
 	public void logStatistics() {
 		computaiton_.logStatistics();
@@ -82,7 +84,8 @@ public class BinarizedJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final InferenceSet<C, A> inferenceSet, final Monitor monitor) {
+				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final Monitor monitor) {
 			return new BinarizedJustificationComputation<C, A>(mainFactory_,
 					inferenceSet, monitor);
 		}
