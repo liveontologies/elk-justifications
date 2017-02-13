@@ -1,6 +1,8 @@
 package org.semanticweb.elk.justifications;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -15,7 +17,7 @@ import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.exceptions.ElkRuntimeException;
-import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
+import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.entailments.model.Entailment;
 import org.semanticweb.elk.reasoner.entailments.model.EntailmentInference;
@@ -58,6 +60,29 @@ public final class Utils {
 
 	public static String toFileName(final Object obj) {
 		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
+	}
+
+	public static void closeQuietly(final Closeable stream) {
+		if (stream != null) {
+			try {
+				stream.close();
+			} catch (final IOException e) {
+				// Ignore.
+			}
+		}
+	}
+
+	public static String dropExtension(final String fileName) {
+		final int index = fileName.lastIndexOf('.');
+		if (index < 0) {
+			return fileName;
+		} else {
+			return fileName.substring(0, index);
+		}
+	}
+
+	public static int digitCount(final int x) {
+		return (int) Math.floor(Math.log10(x) + 1);
 	}
 
 	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
@@ -228,7 +253,7 @@ public final class Utils {
 	}
 
 	public static Conclusion getFirstDerivedConclusionForSubsumption(
-			Reasoner reasoner, ElkSubClassOfAxiom axiom) throws ElkException {
+			Reasoner reasoner, final ElkAxiom axiom) throws ElkException {
 		final List<Conclusion> conclusions = new ArrayList<Conclusion>(1);
 
 		final EntailmentQueryResult result = reasoner.isEntailed(axiom);
