@@ -2,9 +2,7 @@ package org.semanticweb.elk.justifications;
 
 import java.io.File;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
@@ -16,17 +14,8 @@ public class SimpleOwlJustificationComputationTest
 
 	@Parameters
 	public static Collection<Object[]> parameters() throws URISyntaxException {
-
-		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
-		computations.add(BottomUpJustificationComputation.getFactory());
-		computations.add(BinarizedJustificationComputation
-				.getFactory(BottomUpJustificationComputation
-						.<List<Object>, Object> getFactory()));
-		computations.add(MinPremisesBottomUp.getFactory());
-		// computations.add(PruningJustificationComputation.getFactory());
-
-		return BaseJustificationComputationTest.getParameters(computations,
-				"test_input/simple");
+		return BaseJustificationComputationTest
+				.getParameters(getComputationFactories(), "test_input/simple");
 	}
 
 	public SimpleOwlJustificationComputationTest(

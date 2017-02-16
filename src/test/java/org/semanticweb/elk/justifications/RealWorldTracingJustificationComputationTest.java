@@ -3,7 +3,6 @@ package org.semanticweb.elk.justifications;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.AbstractCollection;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -21,13 +20,7 @@ public class RealWorldTracingJustificationComputationTest
 	@Parameters
 	public static Collection<Object[]> parameters() throws URISyntaxException {
 
-		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
-		computations.add(BottomUpJustificationComputation.getFactory());
-		computations.add(BinarizedJustificationComputation
-				.getFactory(BottomUpJustificationComputation
-						.<List<Object>, Object> getFactory()));
-		computations.add(MinPremisesBottomUp.getFactory());
-		// computations.add(PruningJustificationComputation.getFactory());
+		final List<JustificationComputation.Factory<?, ?>> computations = getComputationFactories();
 
 		final Collection<Object[]> galenParams = BaseJustificationComputationTest
 				.getParameters(computations, "test_input/full-galen_cel");

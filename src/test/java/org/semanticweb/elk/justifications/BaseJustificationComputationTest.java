@@ -21,6 +21,19 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public abstract class BaseJustificationComputationTest<C, A> {
 
+	public static List<JustificationComputation.Factory<?, ?>> getComputationFactories() {
+		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
+		computations.add(BottomUpJustificationComputation.getFactory());
+		computations.add(BinarizedJustificationComputation
+				.getFactory(BottomUpJustificationComputation
+						.<List<Object>, Object> getFactory()));
+		computations.add(MinPremisesBottomUp.getFactory());
+		// computations.add(PruningJustificationComputation.getFactory());
+		computations.add(
+				BottomUpOverAndOrGraphsForJustifications.getFactory());
+		return computations;
+	}
+
 	public static Collection<Object[]> getParameters(
 			final List<JustificationComputation.Factory<?, ?>> computationFactories,
 			final String testInputDir) throws URISyntaxException {
