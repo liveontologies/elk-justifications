@@ -7,12 +7,14 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -21,7 +23,7 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public abstract class BaseJustificationComputationTest<C, A> {
 
-	public static List<JustificationComputation.Factory<?, ?>> getComputationFactories() {
+	public static List<JustificationComputation.Factory<?, ?>> getJustificationComputationFactories() {
 		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
 		computations.add(BottomUpJustificationComputation.getFactory());
 		computations.add(BinarizedJustificationComputation
@@ -29,17 +31,25 @@ public abstract class BaseJustificationComputationTest<C, A> {
 						.<List<Object>, Object> getFactory()));
 		computations.add(MinPremisesBottomUp.getFactory());
 		// computations.add(PruningJustificationComputation.getFactory());
-		computations.add(
-				BottomUpOverAndOrGraphsForJustifications.getFactory());
+		computations.add(BottomUpOverAndOrGraphsForJustifications.getFactory());
+		return computations;
+	}
+
+	public static List<JustificationComputation.Factory<?, ?>> getRepairComputationFactories() {
+		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
+		computations.add(BottomUpOverAndOrGraphsForRepairs.getFactory());
 		return computations;
 	}
 
 	public static Collection<Object[]> getParameters(
 			final List<JustificationComputation.Factory<?, ?>> computationFactories,
-			final String testInputDir) throws URISyntaxException {
+			final String testInputDir,
+			final String expectedOutputForEntailmentDirName)
+			throws URISyntaxException {
 
 		final Collection<Object[]> inputFiles = collectJustificationTestInputFiles(
-				testInputDir, BaseJustificationComputationTest.class);
+				testInputDir, BaseJustificationComputationTest.class,
+				expectedOutputForEntailmentDirName);
 
 		final List<Object[]> result = new ArrayList<Object[]>();
 		for (final JustificationComputation.Factory<?, ?> c : computationFactories) {
@@ -101,6 +111,13 @@ public abstract class BaseJustificationComputationTest<C, A> {
 	@Test
 	public void test() throws Exception {
 
+		// @formatter:off
+		Assume.assumeFalse("No expected output.\n"
+				+ "computation: " + factory_.getClass() + "\n"
+				+ "ontology: " + ontoFile_,
+				entailFilesPerJustFile_.isEmpty());
+		// @formatter:on
+
 		for (final Map.Entry<File, File[]> entry : entailFilesPerJustFile_
 				.entrySet()) {
 
@@ -110,17 +127,28 @@ public abstract class BaseJustificationComputationTest<C, A> {
 			final Set<? extends Set<? extends A>> expected = getExpectedJustifications(
 					entry.getValue());
 
-			// @formatter:off
-			final String inputsMessage =
-					"computation: " + factory_.getClass() + "\n"
-					+ "ontology: " + ontoFile_ + "\n"
-					+ "entailment: " + entry.getKey() + "\n";
-			// @formatter:on
+			if (!expected.equals(justifications)) {
 
-			Assert.assertEquals(
-					"Wrong number of justifications!\n" + inputsMessage,
-					expected.size(), justifications.size());
-			Assert.assertEquals(inputsMessage, expected, justifications);
+				final HashSet<Set<? extends A>> expectedMinusActual = new HashSet<>(
+						expected);
+				expectedMinusActual.removeAll(justifications);
+
+				final HashSet<Set<? extends A>> actualMinusExpected = new HashSet<>(
+						justifications);
+				actualMinusExpected.removeAll(expected);
+
+				// @formatter:off
+				final String inputsMessage =
+						"computation: " + factory_.getClass() + "\n"
+						+ "ontology: " + ontoFile_ + "\n"
+						+ "entailment: " + entry.getKey() + "\n"
+						+ "expected \\ actual: " + expectedMinusActual + "\n"
+						+ "actual \\ expected: " + actualMinusExpected;
+				// @formatter:on
+
+				Assert.fail(inputsMessage);
+
+			}
 
 		}
 
@@ -133,11 +161,12 @@ public abstract class BaseJustificationComputationTest<C, A> {
 
 	public static final String OWL_EXTENSION = ".owl";
 	public static final String ENTAILMENT_EXTENSION = ".entailment";
-	public static final String JUSTIFICATION_EXTENSION = ".justification";
 	public static final String JUSTIFICATION_DIR_NAME = "justifications";
+	public static final String REPAIRS_DIR_NAME = "repairs";
 
 	public static Collection<Object[]> collectJustificationTestInputFiles(
-			final String testInputDir, final Class<?> srcClass)
+			final String testInputDir, final Class<?> srcClass,
+			final String expectedOutputForEntailmentDirName)
 			throws URISyntaxException {
 
 		final List<Object[]> result = new ArrayList<>();
@@ -193,7 +222,7 @@ public abstract class BaseJustificationComputationTest<C, A> {
 
 				// Collect justification files
 				final File justDir = new File(entailDir,
-						JUSTIFICATION_DIR_NAME);
+						expectedOutputForEntailmentDirName);
 				if (!justDir.exists()) {
 					// Ignore!
 					continue;

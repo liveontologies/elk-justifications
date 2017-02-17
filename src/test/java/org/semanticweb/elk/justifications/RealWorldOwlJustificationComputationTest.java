@@ -20,12 +20,14 @@ public class RealWorldOwlJustificationComputationTest
 	@Parameters
 	public static Collection<Object[]> parameters() throws URISyntaxException {
 
-		final List<JustificationComputation.Factory<?, ?>> computations = getComputationFactories();
+		final List<JustificationComputation.Factory<?, ?>> computations = getJustificationComputationFactories();
 
 		final Collection<Object[]> galenParams = BaseJustificationComputationTest
-				.getParameters(computations, "test_input/full-galen_cel");
+				.getParameters(computations, "test_input/full-galen_cel",
+						JUSTIFICATION_DIR_NAME);
 		final Collection<Object[]> goParams = BaseJustificationComputationTest
-				.getParameters(computations, "test_input/go_cel");
+				.getParameters(computations, "test_input/go_cel",
+						JUSTIFICATION_DIR_NAME);
 
 		return new AbstractCollection<Object[]>() {
 

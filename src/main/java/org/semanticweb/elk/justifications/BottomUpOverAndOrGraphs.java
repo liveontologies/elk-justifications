@@ -196,10 +196,25 @@ public class BottomUpOverAndOrGraphs<A>
 								node, Collections.singleton(initial));
 						produce(just);
 					} else if (!hasParent) {
-						// Tautology.
-						final Justification<Node<A>, A> just = createJustification(
-								node, Collections.<A> emptySet());
-						produce(just);
+						// Leaf (tautology).
+						node.accept(new Node.Visitor<A, Void>() {
+
+							@Override
+							public Void visit(final AndNode<A> node) {
+								// Empty conjunction; result is empty.
+								final Justification<Node<A>, A> just = createJustification(
+										node, Collections.<A> emptySet());
+								produce(just);
+								return null;
+							}
+
+							@Override
+							public Void visit(final OrNode<A> node) {
+								// Empty disjunction; there is no result.
+								return null;
+							}
+
+						});
 					}
 				} else {
 					// It has already been initialized.
