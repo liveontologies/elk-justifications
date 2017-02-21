@@ -20,6 +20,11 @@ public abstract class AssertedConclusionJustifiedInference<C, A> extends
 
 	protected abstract A conclusionToAxiom(C conclusion);
 
+	@Override
+	public String toString() {
+		return InferencePrinter.toString(this);
+	}
+
 	public static class Projection<C>
 			extends AssertedConclusionJustifiedInference<C, C> {
 
