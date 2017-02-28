@@ -1,19 +1,22 @@
 package org.semanticweb.elk.justifications;
 
 import java.util.AbstractSet;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.collections.ArrayListCollection2;
+import org.liveontologies.puli.collections.Collection2;
 
 import com.google.common.collect.Iterators;
 
@@ -43,17 +46,19 @@ public class TopDownJustificationComputation<C, A>
 	/**
 	 * newly computed jobs to be propagated
 	 */
-	private final Queue<Job> toDoJobs_ = new LinkedList<Job>();
+	private final Queue<Job> toDoJobs_ = new PriorityQueue<Job>();
 
 	/**
-	 * Jobs produced so far.
+	 * Used to minimize the jobs
 	 */
-	private final Collection<Job> doneJobs_ = new ArrayList<>();
+	private final Collection2<Set<Object>> minimalJobs_ = new ArrayListCollection2<>();
+
+	private final Collection2<Set<A>> minimalJustifications_ = new ArrayListCollection2<Set<A>>();
 
 	/**
-	 * Only for the constructor of {@link BloomSet}. TODO: generalize BloomSet!
+	 * used to select the conclusion to expand
 	 */
-	private C goal_ = null;
+	private Comparator<C> rank_;
 
 	private TopDownJustificationComputation(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
@@ -70,16 +75,24 @@ public class TopDownJustificationComputation<C, A>
 	@Override
 	public Collection<? extends Set<A>> computeJustifications(
 			final C conclusion, final int sizeLimit) {
-		goal_ = conclusion;
 		initialize(conclusion);
-		process();
-		final Collection<Set<A>> result = new ArrayList<>();
-		for (final Job doneJob : doneJobs_) {
-			if (doneJob.getConclusions().isEmpty()) {
-				result.add(doneJob.getAxioms());
+		final InferenceSet<C> inferences = getInferenceSet();
+		rank_ = new Comparator<C>() {
+			@Override
+			public int compare(C first, C second) {
+				int result = Integer.compare(
+						inferences.getInferences(first).size(),
+						inferences.getInferences(second).size());
+				if (result != 0) {
+					return result;
+				}
+				// else
+				return Integer.compare(first.hashCode(), second.hashCode());
 			}
-		}
-		return result;
+		};
+		process();
+//		ArrayListCollection2.printStatistics();
+		return minimalJustifications_;
 	}
 
 	private void initialize(final C goal) {
@@ -90,56 +103,54 @@ public class TopDownJustificationComputation<C, A>
 	private void process() {
 		Job job;
 		while ((job = toDoJobs_.poll()) != null) {
-
-			final C conclusion = chooseConclusion(job.getConclusions());
-			if (conclusion == null) {
-				// No more conclusions to expand.
-				continue;
+			if (!minimalJustifications_.subCollectionsOf(job.justification_)
+					.iterator().hasNext()
+					&& !minimalJobs_.subCollectionsOf(job).iterator()
+							.hasNext()) {
+				minimalJobs_.add(job);
+				if (job.premises_.isEmpty()) {
+					minimalJustifications_.add(job.justification_);
+				} else {
+					for (final JustifiedInference<C, A> inf : getInferences(
+							chooseConclusion(job.premises_))) {
+						final Job newJob = job.expand(inf);
+						produce(newJob);
+					}
+				}
 			}
-			// else
-
-			for (final JustifiedInference<C, A> inf : getInferences(
-					conclusion)) {
-				final Job newJob = job.expand(inf);
-				produce(newJob);
-			}
-
 		}
 	}
 
-	private C chooseConclusion(final Set<C> conclusions) {
-		if (conclusions.isEmpty()) {
-			return null;
+	private C chooseConclusion(final Collection<C> conclusions) {
+		// select the conclusion with the smallest rank
+		C result = null;
+		for (C c : conclusions) {
+			if (result == null || rank_.compare(c, result) < 0) {
+				result = c;
+			}
 		}
-		// else
-		return conclusions.iterator().next();
+		return result;
 	}
 
 	private void produce(final Job job) {
-		if (Utils.merge(job, doneJobs_)) {
-			// The set is so far minimal.
-			toDoJobs_.offer(job);
-		}
+		toDoJobs_.offer(job);
 	}
 
 	/**
-	 * A set of conclusions and axioms. If the conclusions are derived, the goal
-	 * conclusion can be derived from the axioms using the inferences from the
-	 * inference set.
-	 * <p>
-	 * TODO: This is not really a set, because it may contain the same object in
-	 * conclusions and in axioms !!! Needed for OWL API inference sets!
+	 * A set of premises and justification that can be used for deriving the
+	 * goal conclusion.
 	 * 
 	 * @author Peter Skocovsky
+	 * @author Yevgeny Kazakov
 	 */
-	private class Job extends AbstractSet<Object> {
+	private class Job extends AbstractSet<Object> implements Comparable<Job> {
 
-		private final Set<C> conclusions_;
-		private final Set<A> axioms_;
+		private final Set<C> premises_;
+		private final Set<A> justification_;
 
-		private Job(final Set<C> conclusions, final Set<A> axioms) {
-			this.conclusions_ = conclusions;
-			this.axioms_ = axioms;
+		private Job(final Set<C> premises, final Set<A> justification) {
+			this.premises_ = premises;
+			this.justification_ = justification;
 		}
 
 		public Job(final C goal) {
@@ -147,32 +158,25 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		public Job expand(final JustifiedInference<C, A> inference) {
-			final Set<C> newConclusions = new HashSet<>(conclusions_);
+			final Set<C> newConclusions = new HashSet<>(premises_);
 			newConclusions.remove(inference.getConclusion());
 			newConclusions.addAll(inference.getPremises());
-			final Set<A> newAxioms = new HashSet<>(axioms_);
-			newAxioms.addAll(inference.getJustification());
-			return new Job(new BloomSet<C, C>(goal_, newConclusions),
-					new BloomSet<C, A>(goal_, newAxioms));
-		}
-
-		public Set<C> getConclusions() {
-			return conclusions_;
-		}
-
-		public Set<A> getAxioms() {
-			return axioms_;
+			Set<A> newJustification = justification_;
+			Set<? extends A> toExpand = inference.getJustification();
+			if (newJustification.containsAll(toExpand)) {
+				newJustification = justification_;
+			} else {
+				newJustification = new HashSet<A>(justification_.size());
+				newJustification.addAll(justification_);
+				newJustification.addAll(toExpand);
+			}
+			return new Job(newConclusions, newJustification);
 		}
 
 		@Override
 		public Iterator<Object> iterator() {
-			return Iterators.concat(conclusions_.iterator(),
-					axioms_.iterator());
-		}
-
-		@Override
-		public boolean contains(final Object o) {
-			return conclusions_.contains(o) || axioms_.contains(o);
+			return Iterators.concat(premises_.iterator(),
+					justification_.iterator());
 		}
 
 		@Override
@@ -180,8 +184,8 @@ public class TopDownJustificationComputation<C, A>
 			if (c instanceof TopDownJustificationComputation.Job) {
 				@SuppressWarnings("unchecked")
 				final Job other = (Job) c;
-				return conclusions_.containsAll(other.getConclusions())
-						&& axioms_.containsAll(other.getAxioms());
+				return premises_.containsAll(other.premises_)
+						&& justification_.containsAll(other.justification_);
 			}
 			// else
 			return super.containsAll(c);
@@ -189,9 +193,18 @@ public class TopDownJustificationComputation<C, A>
 
 		@Override
 		public int size() {
-			return conclusions_.size() + axioms_.size();
+			return premises_.size() + justification_.size();
 		}
 
+		@Override
+		public int compareTo(Job o) {
+			int result = justification_.size() - o.justification_.size();
+			if (result != 0) {
+				return result;
+			}
+			result = premises_.size() - o.premises_.size();
+			return result;
+		}
 	}
 
 	@Override
