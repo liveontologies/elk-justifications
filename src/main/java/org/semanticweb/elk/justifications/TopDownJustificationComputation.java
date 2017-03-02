@@ -103,10 +103,8 @@ public class TopDownJustificationComputation<C, A>
 	private void process() {
 		Job job;
 		while ((job = toDoJobs_.poll()) != null) {
-			if (!minimalJustifications_.subCollectionsOf(job.justification_)
-					.iterator().hasNext()
-					&& !minimalJobs_.subCollectionsOf(job).iterator()
-							.hasNext()) {
+			if (minimalJustifications_.isMinimal(job.justification_)
+					&& minimalJobs_.isMinimal(job)) {
 				minimalJobs_.add(job);
 				if (job.premises_.isEmpty()) {
 					minimalJustifications_.add(job.justification_);
