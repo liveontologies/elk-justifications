@@ -3,8 +3,6 @@ package org.semanticweb.elk.justifications;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 import org.semanticweb.elk.statistics.ResetStats;
@@ -39,10 +37,6 @@ public class BloomSet<C, A> extends ForwardingSet<A>
 			.getLogger(BloomSet.class);
 
 	private static final boolean COLLECT_STATS_ = true;
-
-	public static final String STAT_NAME_CONTAINS_ALL_COUNT = "BloomHashSet.CONTAINS_ALL_COUNT";
-	public static final String STAT_NAME_CONTAINS_ALL_POSITIVE = "BloomHashSet.CONTAINS_ALL_POSITIVE";
-	public static final String STAT_NAME_CONTAINS_ALL_FILTERED = "BloomHashSet.CONTAINS_ALL_FILTERED";
 
 	private static long STATS_CONTAINS_ALL_COUNT_ = 0,
 			STATS_CONTAINS_ALL_POSITIVE_ = 0, STATS_CONTAINS_ALL_FILTERED_ = 0;
@@ -211,22 +205,6 @@ public class BloomSet<C, A> extends ForwardingSet<A>
 		// the same conclusions of the same size
 		// are processed consequently, if possible
 		return priority2_ - o.priority2_;
-	}
-
-	public static String[] getStatNames() {
-		return new String[] { STAT_NAME_CONTAINS_ALL_COUNT,
-				STAT_NAME_CONTAINS_ALL_POSITIVE,
-				STAT_NAME_CONTAINS_ALL_FILTERED, };
-	}
-
-	public static Map<String, Object> getStatistics() {
-		final Map<String, Object> stats = new HashMap<String, Object>();
-		stats.put(STAT_NAME_CONTAINS_ALL_COUNT, STATS_CONTAINS_ALL_COUNT_);
-		stats.put(STAT_NAME_CONTAINS_ALL_POSITIVE,
-				STATS_CONTAINS_ALL_POSITIVE_);
-		stats.put(STAT_NAME_CONTAINS_ALL_FILTERED,
-				STATS_CONTAINS_ALL_FILTERED_);
-		return stats;
 	}
 
 	public static void logStatistics() {

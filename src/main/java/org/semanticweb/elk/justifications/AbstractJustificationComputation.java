@@ -34,14 +34,4 @@ abstract class AbstractJustificationComputation<C, A> implements JustificationCo
 		return inferenceSet_.getInferences(conclusion);
 	}
 
-	@Override
-	public void logStatistics() {
-		// does nothing by default
-	}
-
-	@Override
-	public void resetStatistics() {
-		// does nothing by default
-	}
-
 }

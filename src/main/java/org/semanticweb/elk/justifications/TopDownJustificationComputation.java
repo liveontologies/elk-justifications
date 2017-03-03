@@ -1,13 +1,11 @@
 package org.semanticweb.elk.justifications;
 
 import java.util.AbstractSet;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -205,18 +203,6 @@ public class TopDownJustificationComputation<C, A>
 		}
 	}
 
-	@Override
-	public String[] getStatNames() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Map<String, Object> getStatistics() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 	/**
 	 * The factory for creating a {@link BottomUpJustificationComputation}
 	 * 
@@ -235,19 +221,6 @@ public class TopDownJustificationComputation<C, A>
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
 				final Monitor monitor) {
 			return new TopDownJustificationComputation<>(inferenceSet, monitor);
-		}
-
-		@Override
-		public String[] getStatNames() {
-			final String[] statNames = new String[] {
-					// TODO :-P
-			};
-			final String[] bloomStatNames = BloomSet.getStatNames();
-			final String[] ret = Arrays.copyOf(statNames,
-					statNames.length + bloomStatNames.length);
-			System.arraycopy(bloomStatNames, 0, ret, statNames.length,
-					bloomStatNames.length);
-			return ret;
 		}
 
 	}

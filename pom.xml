@@ -96,7 +96,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>org.semanticweb.elk.justifications.JustificationsFromProofs</mainClass>
+							<mainClass>org.semanticweb.elk.justifications.RunJustificationExperiments</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

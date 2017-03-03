@@ -20,7 +20,7 @@ import org.liveontologies.puli.JustifiedInference;
  * @param <A>
  *            the type of axioms used by the inferences
  */
-public interface JustificationComputation<C, A> extends HasStatistics {
+public interface JustificationComputation<C, A> {
 
 	/**
 	 * @return the inference set used by this computation
@@ -91,13 +91,6 @@ public interface JustificationComputation<C, A> extends HasStatistics {
 		JustificationComputation<C, A> create(
 				GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
 				Monitor monitor);
-
-		/**
-		 * @return the keys of the statistics map returned by the method
-		 *         {@link HasStatistics#getStatistics()} of the
-		 *         {@link JustificationComputation} created by this factory.
-		 */
-		String[] getStatNames();
 
 	}
 

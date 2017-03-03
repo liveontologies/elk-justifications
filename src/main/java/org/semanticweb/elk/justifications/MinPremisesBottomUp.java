@@ -1,14 +1,11 @@
 package org.semanticweb.elk.justifications;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -36,13 +33,6 @@ import com.google.common.collect.Multimap;
  */
 public class MinPremisesBottomUp<C, A>
 		extends CancellableJustificationComputation<C, A> {
-
-	public static final String STAT_NAME_JUSTIFICATIONS = "SimpleBottomUp.nJustificationsOfAllConclusions";
-	public static final String STAT_NAME_MAX_JUST_OF_CONCL = "SimpleBottomUp.maxNJustificationsOfAConclusion";
-	public static final String STAT_NAME_INFERENCES = "SimpleBottomUp.nProcessedInferences";
-	public static final String STAT_NAME_CONCLUSIONS = "SimpleBottomUp.nProcessedConclusions";
-	public static final String STAT_NAME_CANDIDATES = "SimpleBottomUp.nProcessedJustificationCandidates";
-	public static final String STAT_NAME_BLOCKED = "SimpleBottomUp.nBlockedJustifications";
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(MinPremisesBottomUp.class);
@@ -100,32 +90,6 @@ public class MinPremisesBottomUp<C, A>
 		return computeJustifications(conclusion, Integer.MAX_VALUE);
 	}
 
-	@Override
-	public String[] getStatNames() {
-		return getFactory().getStatNames();
-	}
-
-	@Override
-	public Map<String, Object> getStatistics() {
-		final Map<String, Object> stats = new HashMap<String, Object>(
-				BloomSet.getStatistics());
-		stats.put(STAT_NAME_JUSTIFICATIONS, justifications_.size());
-		stats.put(STAT_NAME_BLOCKED, countBlocked_);
-		int max = 0;
-		for (final C conclusion : justifications_.keySet()) {
-			final List<Justification<C, A>> justs = justifications_
-					.get(conclusion);
-			if (justs.size() > max) {
-				max = justs.size();
-			}
-		}
-		stats.put(STAT_NAME_MAX_JUST_OF_CONCL, max);
-		stats.put(STAT_NAME_INFERENCES, countInferences_);
-		stats.put(STAT_NAME_CONCLUSIONS, countConclusions_);
-		stats.put(STAT_NAME_CANDIDATES, countJustificationCandidates_);
-		return stats;
-	}
-
 	@Stat
 	public int nProcessedInferences() {
 		return countInferences_;
@@ -175,49 +139,6 @@ public class MinPremisesBottomUp<C, A>
 	@NestedStats
 	public static Class<?> getNestedStats() {
 		return BloomSet.class;
-	}
-
-	@Override
-	public void logStatistics() {
-		if (LOGGER_.isDebugEnabled()) {
-			LOGGER_.debug("{}: number of justifications of all conclusions",
-					justifications_.size());
-			int max = 0;
-			for (final C conclusion : justifications_.keySet()) {
-				final List<Justification<C, A>> justs = justifications_
-						.get(conclusion);
-				if (justs.size() > max) {
-					max = justs.size();
-				}
-			}
-			LOGGER_.debug("{}: number of justifications of the conclusion "
-					+ "with most justifications", max);
-			LOGGER_.debug("{}: processed inferences", countInferences_);
-			LOGGER_.debug("{}: processed conclusions", countConclusions_);
-			LOGGER_.debug("{}: computed justifications",
-					justifications_.size());
-			LOGGER_.debug("{}: blocked justifications", countBlocked_);
-			LOGGER_.debug("{}: produced justification candidates",
-					countJustificationCandidates_);
-			for (final C conclusion : justifications_.keySet()) {
-				final List<Justification<C, A>> justs = justifications_
-						.get(conclusion);
-				if (justs.size() > 1000) {
-					LOGGER_.debug("conclusion with {} justifications: {}",
-							justs.size(), conclusion);
-				}
-			}
-		}
-		BloomSet.logStatistics();
-	}
-
-	@Override
-	public void resetStatistics() {
-		countInferences_ = 0;
-		countConclusions_ = 0;
-		countJustificationCandidates_ = 0;
-		countBlocked_ = 0;
-		BloomSet.resetStatistics();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -488,20 +409,6 @@ public class MinPremisesBottomUp<C, A>
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
 				final Monitor monitor) {
 			return new MinPremisesBottomUp<>(inferenceSet, monitor);
-		}
-
-		@Override
-		public String[] getStatNames() {
-			final String[] statNames = new String[] { STAT_NAME_JUSTIFICATIONS,
-					STAT_NAME_MAX_JUST_OF_CONCL, STAT_NAME_BLOCKED,
-					STAT_NAME_INFERENCES, STAT_NAME_CONCLUSIONS,
-					STAT_NAME_CANDIDATES, };
-			final String[] bloomStatNames = BloomSet.getStatNames();
-			final String[] ret = Arrays.copyOf(statNames,
-					statNames.length + bloomStatNames.length);
-			System.arraycopy(bloomStatNames, 0, ret, statNames.length,
-					bloomStatNames.length);
-			return ret;
 		}
 
 	}

@@ -3,7 +3,6 @@ package org.semanticweb.elk.justifications;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
@@ -49,26 +48,6 @@ public class BinarizedJustificationComputation<C, A>
 				Collections.singletonList(conclusion), sizeLimit);
 	}
 
-	@Override
-	public String[] getStatNames() {
-		return computaiton_.getStatNames();
-	}
-
-	@Override
-	public Map<String, Object> getStatistics() {
-		return computaiton_.getStatistics();
-	}
-
-	@Override
-	public void logStatistics() {
-		computaiton_.logStatistics();
-	}
-
-	@Override
-	public void resetStatistics() {
-		computaiton_.resetStatistics();
-	}
-
 	@NestedStats
 	public JustificationComputation<List<C>, A> getDelegate() {
 		return computaiton_;
@@ -94,11 +73,6 @@ public class BinarizedJustificationComputation<C, A>
 				final Monitor monitor) {
 			return new BinarizedJustificationComputation<C, A>(mainFactory_,
 					inferenceSet, monitor);
-		}
-
-		@Override
-		public String[] getStatNames() {
-			return mainFactory_.getStatNames();
 		}
 
 	}

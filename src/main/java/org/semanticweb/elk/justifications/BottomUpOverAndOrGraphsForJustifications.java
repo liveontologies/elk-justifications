@@ -1,8 +1,6 @@
 package org.semanticweb.elk.justifications;
 
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
@@ -45,16 +43,6 @@ public class BottomUpOverAndOrGraphsForJustifications<C, A>
 		return computation_.computeJustifications(goal, sizeLimit);
 	}
 
-	@Override
-	public String[] getStatNames() {
-		return computation_.getStatNames();
-	}
-
-	@Override
-	public Map<String, Object> getStatistics() {
-		return computation_.getStatistics();
-	}
-
 	private static class Factory<C, A>
 			implements JustificationComputation.Factory<C, A> {
 
@@ -64,17 +52,6 @@ public class BottomUpOverAndOrGraphsForJustifications<C, A>
 				final Monitor monitor) {
 			return new BottomUpOverAndOrGraphsForJustifications<>(inferenceSet,
 					monitor);
-		}
-
-		@Override
-		public String[] getStatNames() {
-			final String[] statNames = new String[] {};
-			final String[] bloomStatNames = BloomSet.getStatNames();
-			final String[] ret = Arrays.copyOf(statNames,
-					statNames.length + bloomStatNames.length);
-			System.arraycopy(bloomStatNames, 0, ret, statNames.length,
-					bloomStatNames.length);
-			return ret;
 		}
 
 	}

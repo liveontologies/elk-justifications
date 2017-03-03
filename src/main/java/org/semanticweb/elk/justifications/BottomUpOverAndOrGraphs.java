@@ -334,28 +334,4 @@ public class BottomUpOverAndOrGraphs<A>
 
 	}
 
-	@Override
-	public String[] getStatNames() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Map<String, Object> getStatistics() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public void logStatistics() {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void resetStatistics() {
-		// TODO Auto-generated method stub
-
-	}
-
 }

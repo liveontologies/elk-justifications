@@ -1,10 +1,8 @@
 package org.semanticweb.elk.justifications;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
@@ -346,18 +344,6 @@ public class PruningJustificationComputation<C, A>
 		return reachable;
 	}
 
-	@Override
-	public String[] getStatNames() {
-		// TODO Auto-generated method stub
-		return new String[0];
-	}
-
-	@Override
-	public Map<String, Object> getStatistics() {
-		// TODO Auto-generated method stub
-		return Collections.emptyMap();
-	}
-
 	private static class Factory<C, A>
 			implements JustificationComputation.Factory<C, A> {
 
@@ -365,12 +351,6 @@ public class PruningJustificationComputation<C, A>
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet, final Monitor monitor) {
 			return new PruningJustificationComputation<>(inferenceSet, monitor);
-		}
-
-		@Override
-		public String[] getStatNames() {
-			// TODO Auto-generated method stub
-			return new String[0];
 		}
 
 	}
