@@ -10,6 +10,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
+import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.JustifiedInference;
@@ -19,13 +20,10 @@ import org.semanticweb.elk.statistics.NestedStats;
 import org.semanticweb.elk.statistics.ResetStats;
 import org.semanticweb.elk.statistics.Stat;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 
 /**
- * TODO: For OWL API inference sets it happens that some axioms are equal to
- * some conclusions (because they have the same type). That's why
- * {@link TopDownJustificationComputation#Job} is currently implemented not most
- * efficiently.
  * 
  * @author Peter Skocovsky
  *
@@ -218,7 +216,15 @@ public class TopDownJustificationComputation<C, A>
 		@Override
 		public Iterator<Object> iterator() {
 			return Iterators.concat(premises_.iterator(),
-					justification_.iterator());
+					Iterators.transform(justification_.iterator(),
+							new Function<A, Distinguisher>() {
+
+								@Override
+								public Distinguisher apply(final A axiom) {
+									return new Distinguisher(axiom);
+								}
+
+							}));
 		}
 
 		@Override
@@ -234,6 +240,28 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		@Override
+		public boolean contains(final Object o) {
+			if (o instanceof TopDownJustificationComputation.Distinguisher) {
+				@SuppressWarnings("unchecked")
+				final Distinguisher distinguisher = (Distinguisher) o;
+				return justification_.contains(distinguisher.getDelegate());
+			} else {
+				return premises_.contains(o);
+			}
+		}
+
+		@Override
+		public boolean remove(final Object o) {
+			if (o instanceof TopDownJustificationComputation.Distinguisher) {
+				@SuppressWarnings("unchecked")
+				final Distinguisher distinguisher = (Distinguisher) o;
+				return justification_.remove(distinguisher.getDelegate());
+			} else {
+				return premises_.remove(o);
+			}
+		}
+
+		@Override
 		public int size() {
 			return premises_.size() + justification_.size();
 		}
@@ -246,6 +274,14 @@ public class TopDownJustificationComputation<C, A>
 			}
 			result = premises_.size() - o.premises_.size();
 			return result;
+		}
+
+	}
+
+	private class Distinguisher extends Delegator<A> {
+
+		public Distinguisher(final A delegate) {
+			super(delegate);
 		}
 
 	}
