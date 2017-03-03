@@ -9,6 +9,7 @@ import java.util.Set;
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.proofs.adapters.InferenceSets;
+import org.semanticweb.elk.statistics.NestedStats;
 
 /**
  * The {@link BottomUpJustificationComputation} applied to the binarization of
@@ -66,6 +67,11 @@ public class BinarizedJustificationComputation<C, A>
 	@Override
 	public void resetStatistics() {
 		computaiton_.resetStatistics();
+	}
+
+	@NestedStats
+	public JustificationComputation<List<C>, A> getDelegate() {
+		return computaiton_;
 	}
 
 	public static <C, A> JustificationComputation.Factory<C, A> getFactory(

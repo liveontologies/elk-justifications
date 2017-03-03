@@ -14,6 +14,9 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.semanticweb.elk.statistics.NestedStats;
+import org.semanticweb.elk.statistics.ResetStats;
+import org.semanticweb.elk.statistics.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,6 +121,56 @@ public class BottomUpJustificationComputation<C, A>
 		stats.put(STAT_NAME_CONCLUSIONS, countConclusions_);
 		stats.put(STAT_NAME_CANDIDATES, countJustificationCandidates_);
 		return stats;
+	}
+
+	@Stat
+	public int nProcessedInferences() {
+		return countInferences_;
+	}
+
+	@Stat
+	public int nProcessedConclusions() {
+		return countConclusions_;
+	}
+
+	@Stat
+	public int nProcessedJustificationCandidates() {
+		return countJustificationCandidates_;
+	}
+
+	@Stat
+	public int nJustificationsOfAllConclusions() {
+		return justifications_.size();
+	}
+
+	@Stat
+	public int nBlockedJustifications() {
+		return blockedJustifications_.size();
+	}
+
+	@Stat
+	public int maxNJustificationsOfAConclusion() {
+		int max = 0;
+		for (final C conclusion : justifications_.keySet()) {
+			final List<Justification<C, A>> justs = justifications_
+					.get(conclusion);
+			if (justs.size() > max) {
+				max = justs.size();
+			}
+		}
+		return max;
+	}
+
+	@ResetStats
+	public void resetStats() {
+		countInferences_ = 0;
+		countConclusions_ = 0;
+		countJustificationCandidates_ = 0;
+	}
+
+	@NestedStats
+	public static Class<?> getNestedStats() {
+		return BloomSet.class;
 	}
 
 	@Override

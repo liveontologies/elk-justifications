@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.semanticweb.elk.statistics.ResetStats;
+import org.semanticweb.elk.statistics.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +32,7 @@ import com.google.common.collect.Sets;
  * @param <A>
  *            the type of axioms in the justification
  */
-class BloomSet<C, A> extends ForwardingSet<A>
+public class BloomSet<C, A> extends ForwardingSet<A>
 		implements Justification<C, A>, Comparable<BloomSet<C, A>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
@@ -44,6 +46,21 @@ class BloomSet<C, A> extends ForwardingSet<A>
 
 	private static long STATS_CONTAINS_ALL_COUNT_ = 0,
 			STATS_CONTAINS_ALL_POSITIVE_ = 0, STATS_CONTAINS_ALL_FILTERED_ = 0;
+
+	@Stat
+	public static long containsAllCount() {
+		return STATS_CONTAINS_ALL_COUNT_;
+	}
+
+	@Stat
+	public static long containsAllPositive() {
+		return STATS_CONTAINS_ALL_POSITIVE_;
+	}
+
+	@Stat
+	public static long containsAllFiltered() {
+		return STATS_CONTAINS_ALL_FILTERED_;
+	}
 
 	private static final short SHIFT_ = 6; // 2^6 = 64 bits is good enough
 
@@ -234,6 +251,7 @@ class BloomSet<C, A> extends ForwardingSet<A>
 		}
 	}
 
+	@ResetStats
 	public static void resetStatistics() {
 		STATS_CONTAINS_ALL_COUNT_ = 0;
 		STATS_CONTAINS_ALL_FILTERED_ = 0;
