@@ -15,6 +15,9 @@ import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.JustifiedInference;
 import org.liveontologies.puli.collections.ArrayListCollection2;
 import org.liveontologies.puli.collections.Collection2;
+import org.semanticweb.elk.statistics.NestedStats;
+import org.semanticweb.elk.statistics.ResetStats;
+import org.semanticweb.elk.statistics.Stat;
 
 import com.google.common.collect.Iterators;
 
@@ -58,6 +61,10 @@ public class TopDownJustificationComputation<C, A>
 	 */
 	private Comparator<C> rank_;
 
+	// Statistics
+	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
+			expansionCount_ = 0, expandedInferencesCount_ = 0;
+
 	private TopDownJustificationComputation(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			final Monitor monitor) {
@@ -89,7 +96,7 @@ public class TopDownJustificationComputation<C, A>
 			}
 		};
 		process();
-//		ArrayListCollection2.printStatistics();
+		// ArrayListCollection2.printStatistics();
 		return minimalJustifications_;
 	}
 
@@ -101,19 +108,29 @@ public class TopDownJustificationComputation<C, A>
 	private void process() {
 		Job job;
 		while ((job = toDoJobs_.poll()) != null) {
+
 			if (minimalJustifications_.isMinimal(job.justification_)
 					&& minimalJobs_.isMinimal(job)) {
 				minimalJobs_.add(job);
 				if (job.premises_.isEmpty()) {
 					minimalJustifications_.add(job.justification_);
 				} else {
+					expansionCount_++;
 					for (final JustifiedInference<C, A> inf : getInferences(
 							chooseConclusion(job.premises_))) {
+						expandedInferencesCount_++;
 						final Job newJob = job.expand(inf);
 						produce(newJob);
 					}
 				}
+			} else {
+				nonMinimalJobsCount_++;
 			}
+
+			if (monitor_.isCancelled()) {
+				break;
+			}
+
 		}
 	}
 
@@ -129,7 +146,36 @@ public class TopDownJustificationComputation<C, A>
 	}
 
 	private void produce(final Job job) {
+		producedJobsCount_++;
 		toDoJobs_.offer(job);
+	}
+
+	@Stat
+	public int nProducedJobs() {
+		return producedJobsCount_;
+	}
+
+	@Stat
+	public int nNonMinimalJobs() {
+		return nonMinimalJobsCount_;
+	}
+
+	@Stat
+	public double ratioInferencesPerExpansion() {
+		return ((double) expandedInferencesCount_) / expansionCount_;
+	}
+
+	@ResetStats
+	public void resetStats() {
+		producedJobsCount_ = 0;
+		nonMinimalJobsCount_ = 0;
+		expansionCount_ = 0;
+		expandedInferencesCount_ = 0;
+	}
+
+	@NestedStats
+	public static Class<?> getNestedStats() {
+		return ArrayListCollection2.class;
 	}
 
 	/**
@@ -154,9 +200,9 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		public Job expand(final JustifiedInference<C, A> inference) {
-			final Set<C> newConclusions = new HashSet<>(premises_);
-			newConclusions.remove(inference.getConclusion());
-			newConclusions.addAll(inference.getPremises());
+			final Set<C> newPremises = new HashSet<>(premises_);
+			newPremises.remove(inference.getConclusion());
+			newPremises.addAll(inference.getPremises());
 			Set<A> newJustification = justification_;
 			Set<? extends A> toExpand = inference.getJustification();
 			if (newJustification.containsAll(toExpand)) {
@@ -166,7 +212,7 @@ public class TopDownJustificationComputation<C, A>
 				newJustification.addAll(justification_);
 				newJustification.addAll(toExpand);
 			}
-			return new Job(newConclusions, newJustification);
+			return new Job(newPremises, newJustification);
 		}
 
 		@Override
@@ -201,6 +247,7 @@ public class TopDownJustificationComputation<C, A>
 			result = premises_.size() - o.premises_.size();
 			return result;
 		}
+
 	}
 
 	/**
