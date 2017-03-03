@@ -14,7 +14,7 @@ import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.JustifiedInference;
-import org.liveontologies.puli.collections.ArrayListCollection2;
+import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.semanticweb.elk.statistics.NestedStats;
 import org.semanticweb.elk.statistics.ResetStats;
@@ -50,9 +50,9 @@ public class TopDownJustificationComputation<C, A>
 	/**
 	 * Used to minimize the jobs
 	 */
-	private final Collection2<Set<Object>> minimalJobs_ = new ArrayListCollection2<>();
+	private final Collection2<Set<Object>> minimalJobs_ = new BloomTrieCollection2<>();
 
-	private final Collection2<Set<A>> minimalJustifications_ = new ArrayListCollection2<Set<A>>();
+	private final Collection2<Set<A>> minimalJustifications_ = new BloomTrieCollection2<>();
 
 	/**
 	 * used to select the conclusion to expand
@@ -173,7 +173,7 @@ public class TopDownJustificationComputation<C, A>
 
 	@NestedStats
 	public static Class<?> getNestedStats() {
-		return ArrayListCollection2.class;
+		return BloomTrieCollection2.class;
 	}
 
 	/**
