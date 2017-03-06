@@ -138,16 +138,16 @@ public class CollectJustificationStatisticsUsingElk {
 							final TracingInferenceSet inferenceSet =
 									reasoner.explainConclusion(expression);
 
-							final JustificationComputation<Conclusion, ElkAxiom> computation =
-									BottomUpJustificationComputation
-									.<Conclusion, ElkAxiom> getFactory()
-									.create(inferenceSet, DummyMonitor.INSTANCE);
+							final JustificationCollector<Conclusion, ElkAxiom> collector =
+									new JustificationCollector<Conclusion, ElkAxiom>(
+											BottomUpJustificationComputation
+											.<Conclusion, ElkAxiom> getFactory(),
+											inferenceSet);
 							
 							final int sizeLimit = justificationSizeLimit <= 0
 									? Integer.MAX_VALUE
 									: justificationSizeLimit;
 							
-							computation.computeJustifications(expression, sizeLimit);
 							final List<Long> productSum = Arrays.asList(0l);
 							final List<Long> minProductSum = Arrays.asList(0l);
 							final List<Long> minSum = Arrays.asList(0l);
@@ -160,7 +160,7 @@ public class CollectJustificationStatisticsUsingElk {
 											}
 											
 											final Collection<? extends Set<ElkAxiom>> conclJs =
-													computation.computeJustifications(inf.getConclusion(), sizeLimit);
+													collector.collectJustifications(inf.getConclusion(), sizeLimit);
 											
 											long product = 1;
 											long minProduct = 1;
@@ -168,7 +168,7 @@ public class CollectJustificationStatisticsUsingElk {
 											for (final Conclusion premise : inf.getPremises()) {
 												
 												final Collection<? extends Set<ElkAxiom>> js =
-														computation.computeJustifications(premise, sizeLimit);
+														collector.collectJustifications(premise, sizeLimit);
 												
 												product *= js.size();
 												

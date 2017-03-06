@@ -12,8 +12,8 @@ import java.util.Set;
 
 import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Util;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.semanticweb.elk.statistics.NestedStats;
@@ -37,6 +37,8 @@ public class TopDownJustificationComputation<C, A>
 
 	private static final TopDownJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
+	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
+
 	@SuppressWarnings("unchecked")
 	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
 		return (Factory<C, A>) FACTORY_;
@@ -45,7 +47,7 @@ public class TopDownJustificationComputation<C, A>
 	/**
 	 * newly computed jobs to be propagated
 	 */
-	private final Queue<Job> toDoJobs_ = new PriorityQueue<Job>();
+	private Queue<Job> toDoJobs_ = new PriorityQueue<Job>();
 
 	/**
 	 * Used to minimize the jobs
@@ -57,7 +59,9 @@ public class TopDownJustificationComputation<C, A>
 	/**
 	 * used to select the conclusion to expand
 	 */
-	private Comparator<C> rank_;
+	final private Comparator<C> rank_;
+
+	private JustificationVisitor<A> visitor_ = null;
 
 	// Statistics
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
@@ -67,22 +71,9 @@ public class TopDownJustificationComputation<C, A>
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			final Monitor monitor) {
 		super(inferences, monitor);
-	}
-
-	@Override
-	public Collection<? extends Set<A>> computeJustifications(
-			final C conclusion) {
-		return computeJustifications(conclusion, Integer.MAX_VALUE);
-	}
-
-	@Override
-	public Collection<? extends Set<A>> computeJustifications(
-			final C conclusion, final int sizeLimit) {
-		initialize(conclusion);
-		final InferenceSet<C> inferences = getInferenceSet();
-		rank_ = new Comparator<C>() {
+		this.rank_ = new Comparator<C>() {
 			@Override
-			public int compare(C first, C second) {
+			public int compare(final C first, final C second) {
 				int result = Integer.compare(
 						inferences.getInferences(first).size(),
 						inferences.getInferences(second).size());
@@ -93,9 +84,24 @@ public class TopDownJustificationComputation<C, A>
 				return Integer.compare(first.hashCode(), second.hashCode());
 			}
 		};
+	}
+
+	@Override
+	public void enumerateJustifications(final C conclusion,
+			final Comparator<? super Set<A>> order,
+			final JustificationVisitor<A> visitor) {
+		Util.checkNotNull(visitor);
+
+		this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
+				extendToJobOrder(order));
+		this.minimalJobs_.clear();
+		this.minimalJustifications_.clear();
+		this.visitor_ = visitor;
+
+		initialize(conclusion);
 		process();
-		// ArrayListCollection2.printStatistics();
-		return minimalJustifications_;
+
+		this.visitor_ = null;
 	}
 
 	private void initialize(final C goal) {
@@ -112,6 +118,9 @@ public class TopDownJustificationComputation<C, A>
 				minimalJobs_.add(job);
 				if (job.premises_.isEmpty()) {
 					minimalJustifications_.add(job.justification_);
+					if (visitor_ != null) {
+						visitor_.visit(job.justification_);
+					}
 				} else {
 					expansionCount_++;
 					for (final JustifiedInference<C, A> inf : getInferences(
@@ -284,6 +293,32 @@ public class TopDownJustificationComputation<C, A>
 			super(delegate);
 		}
 
+	}
+
+	private Comparator<Job> extendToJobOrder(
+			final Comparator<? super Set<A>> order) {
+
+		final Comparator<? super Set<A>> justOrder;
+		if (order == null) {
+			justOrder = DEFAULT_ORDER;
+		} else {
+			justOrder = order;
+		}
+
+		return new Comparator<Job>() {
+
+			@Override
+			public int compare(final Job job1, final Job job2) {
+				final int result = justOrder.compare(job1.justification_,
+						job2.justification_);
+				if (result != 0) {
+					return result;
+				}
+				return Integer.compare(job1.premises_.size(),
+						job2.premises_.size());
+			}
+
+		};
 	}
 
 	/**

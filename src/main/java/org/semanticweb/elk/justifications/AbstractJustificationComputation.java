@@ -24,7 +24,6 @@ abstract class AbstractJustificationComputation<C, A> implements JustificationCo
 		this.inferenceSet_ = inferenceSet;
 	}
 
-	@Override
 	public GenericInferenceSet<C, ? extends JustifiedInference<C, A>> getInferenceSet() {
 		return inferenceSet_;
 	}

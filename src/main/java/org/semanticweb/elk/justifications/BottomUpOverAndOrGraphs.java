@@ -3,6 +3,7 @@ package org.semanticweb.elk.justifications;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -12,8 +13,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Util;
 import org.semanticweb.elk.justifications.andorgraph.AndNode;
 import org.semanticweb.elk.justifications.andorgraph.Node;
 import org.semanticweb.elk.justifications.andorgraph.OrNode;
@@ -30,6 +30,8 @@ public class BottomUpOverAndOrGraphs<A>
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpOverAndOrGraphs.class);
+
+	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
 
 	private final Monitor monitor_;
 
@@ -54,7 +56,9 @@ public class BottomUpOverAndOrGraphs<A>
 	/**
 	 * Newly computed justifications to be propagated.
 	 */
-	private final Queue<Justification<Node<A>, A>> toDoJustifications_ = new PriorityQueue<Justification<Node<A>, A>>();
+	private PriorityQueue<Justification<Node<A>, A>> toDoJustifications_;
+
+	private JustificationVisitor<A> visitor_ = null;
 
 	/**
 	 * A map from relevant nodes to their children.
@@ -68,25 +72,58 @@ public class BottomUpOverAndOrGraphs<A>
 
 	public BottomUpOverAndOrGraphs(final Monitor monitor) {
 		this.monitor_ = monitor;
+		initQueue(null);
+	}
+
+	private void reset() {
+		initialized_.clear();
+		justifications_.clear();
+		blockedJustifications_.clear();
+		sizeLimits_.clear();
+		toDoJustifications_ = null;
+	}
+
+	private void initQueue(final Comparator<? super Set<A>> order) {
+		this.toDoJustifications_ = new PriorityQueue<Justification<Node<A>, A>>(
+				INITIAL_QUEUE_CAPACITY_, new Order(order));
 	}
 
 	@Override
-	public GenericInferenceSet<Node<A>, ? extends JustifiedInference<Node<A>, A>> getInferenceSet() {
-		// TODO .: This should be removed from the interface!
-		return null;
-	}
+	public void enumerateJustifications(final Node<A> conclusion,
+			final Comparator<? super Set<A>> order,
+			final JustificationVisitor<A> visitor) {
+		Util.checkNotNull(visitor);
+		this.visitor_ = visitor;
 
-	@Override
-	public Collection<? extends Set<A>> computeJustifications(
-			final Node<A> conclusion) {
-		return computeJustifications(conclusion, Integer.MAX_VALUE);
-	}
+		boolean doNotReset = true;
+		if (toDoJustifications_ != null) {
+			final Comparator<? super Justification<Node<A>, A>> comparator = toDoJustifications_
+					.comparator();
+			if (comparator != null
+					&& (comparator instanceof BottomUpOverAndOrGraphs.Order)) {
+				@SuppressWarnings("unchecked")
+				final Order oldOrder = (Order) comparator;
+				doNotReset = order == null ? oldOrder.originalOrder == null
+						: order.equals(oldOrder.originalOrder);
+			}
+		}
 
-	@Override
-	public Collection<? extends Set<A>> computeJustifications(
-			final Node<A> conclusion, final int sizeLimit) {
-		BloomSet.resetStatistics();
-		return new JustificationEnumerator(conclusion, sizeLimit).getResult();
+		if (doNotReset) {
+			// Visit already computed justifications. They should be in the
+			// correct order.
+			for (final Justification<Node<A>, A> just : justifications_
+					.get(conclusion)) {
+				visitor.visit(just);
+			}
+		} else {
+			// Reset everything.
+			reset();
+		}
+
+		initQueue(order);
+
+		new JustificationEnumerator(conclusion, Integer.MAX_VALUE).process();
+
 	}
 
 	private int countInitializedNodes_ = 0, countJustificationCandidates_ = 0;
@@ -262,6 +299,9 @@ public class BottomUpOverAndOrGraphs<A>
 				}
 				// else, just is minimal in node justifications
 				LOGGER_.trace("new {}", just);
+				if (goal_.equals(node) && visitor_ != null) {
+					visitor_.visit(just);
+				}
 
 				if (just.isEmpty()) {
 					/*
@@ -330,6 +370,34 @@ public class BottomUpOverAndOrGraphs<A>
 			// else
 			countJustificationCandidates_++;
 			toDoJustifications_.add(just);
+		}
+
+	}
+
+	private class Order implements Comparator<Justification<Node<A>, A>> {
+
+		public final Comparator<? super Set<A>> originalOrder;
+
+		private final Comparator<? super Set<A>> setOrder_;
+
+		public Order(final Comparator<? super Set<A>> innerOrder) {
+			this.originalOrder = innerOrder;
+			if (innerOrder == null) {
+				setOrder_ = DEFAULT_ORDER;
+			} else {
+				setOrder_ = innerOrder;
+			}
+		}
+
+		@Override
+		public int compare(final Justification<Node<A>, A> just1,
+				final Justification<Node<A>, A> just2) {
+			final int result = setOrder_.compare(just1, just2);
+			if (result != 0) {
+				return result;
+			}
+			return Integer.compare(just1.getConclusion().hashCode(),
+					just2.getConclusion().hashCode());
 		}
 
 	}

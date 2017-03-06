@@ -1,6 +1,6 @@
 package org.semanticweb.elk.justifications;
 
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
@@ -28,19 +28,12 @@ public class BottomUpOverAndOrGraphsForJustifications<C, A>
 	}
 
 	@Override
-	public Collection<? extends Set<A>> computeJustifications(
-			final C conclusion) {
+	public void enumerateJustifications(final C conclusion,
+			final Comparator<? super Set<A>> order,
+			final JustificationVisitor<A> visitor) {
 		final Node<A> goal = AndOrGraphs
 				.getAndOrGraphForJustifications(conclusion, getInferenceSet());
-		return computation_.computeJustifications(goal);
-	}
-
-	@Override
-	public Collection<? extends Set<A>> computeJustifications(
-			final C conclusion, final int sizeLimit) {
-		final Node<A> goal = AndOrGraphs
-				.getAndOrGraphForJustifications(conclusion, getInferenceSet());
-		return computation_.computeJustifications(goal, sizeLimit);
+		computation_.enumerateJustifications(goal, order, visitor);
 	}
 
 	private static class Factory<C, A>

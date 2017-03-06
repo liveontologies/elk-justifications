@@ -2,7 +2,6 @@ package org.semanticweb.elk.justifications.experiments;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
@@ -19,6 +18,8 @@ public abstract class BaseJustificationExperiment<C, A>
 	private final JustificationComputation.Factory<C, A> factory_;
 
 	private volatile JustificationComputation<C, A> computation_ = null;
+
+	private final JustificationCounter justificationCounter_ = new JustificationCounter();
 
 	public BaseJustificationExperiment(final String[] args)
 			throws ExperimentException {
@@ -58,7 +59,7 @@ public abstract class BaseJustificationExperiment<C, A>
 
 	@Override
 	public void init() {
-		super.init();
+		justificationCounter_.reset();
 		if (computation_ != null) {
 			Stats.resetStats(computation_);
 		}
@@ -72,11 +73,8 @@ public abstract class BaseJustificationExperiment<C, A>
 		final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet = newInferenceSet(
 				goal);
 		computation_ = factory_.create(inferenceSet, monitor);
-		// TODO: enumerate !!!
-		final Collection<? extends Set<A>> justifications = computation_
-				.computeJustifications(goal);
+		computation_.enumerateJustifications(goal, null, justificationCounter_);
 
-		justCount = justifications.size();
 	}
 
 	protected abstract C decodeQuery(String query) throws ExperimentException;
@@ -84,9 +82,34 @@ public abstract class BaseJustificationExperiment<C, A>
 	protected abstract GenericInferenceSet<C, ? extends JustifiedInference<C, A>> newInferenceSet(
 			C query) throws ExperimentException;
 
+	@Override
+	public int getJustificationCount() {
+		return justificationCounter_.getCount();
+	}
+
 	@NestedStats
 	public JustificationComputation<C, A> getJustificationComputation() {
 		return computation_;
+	}
+
+	private class JustificationCounter
+			implements JustificationComputation.JustificationVisitor<A> {
+
+		private volatile int count_ = 0;
+
+		@Override
+		public void visit(final Set<A> justification) {
+			count_++;
+		}
+
+		public int getCount() {
+			return count_;
+		}
+
+		public void reset() {
+			count_ = 0;
+		}
+
 	}
 
 }

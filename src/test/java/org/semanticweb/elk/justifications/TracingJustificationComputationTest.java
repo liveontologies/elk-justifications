@@ -39,11 +39,10 @@ public abstract class TracingJustificationComputationTest
 
 		final Conclusion conclusion = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner_, entailment);
-		final JustificationComputation<Conclusion, ElkAxiom> computation = getFactory()
-				.create(reasoner_.explainConclusion(conclusion),
-						DummyMonitor.INSTANCE);
+		final JustificationCollector<Conclusion, ElkAxiom> collector = new JustificationCollector<>(
+				getFactory(), reasoner_.explainConclusion(conclusion));
 
-		return new HashSet<>(computation.computeJustifications(conclusion));
+		return new HashSet<>(collector.collectJustifications(conclusion));
 	}
 
 	@Override

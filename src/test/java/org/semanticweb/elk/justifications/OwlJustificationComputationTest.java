@@ -50,10 +50,10 @@ public abstract class OwlJustificationComputationTest
 				.justifyAsserted(prover_.getProof(entailment),
 						prover_.getRootOntology().getAxioms(Imports.EXCLUDED));
 
-		final JustificationComputation<OWLAxiom, OWLAxiom> computation = getFactory()
-				.create(inferenceSet, DummyMonitor.INSTANCE);
+		final JustificationCollector<OWLAxiom, OWLAxiom> collector = new JustificationCollector<>(
+				getFactory(), inferenceSet);
 
-		return new HashSet<>(computation.computeJustifications(entailment));
+		return new HashSet<>(collector.collectJustifications(entailment));
 	}
 
 	@Override

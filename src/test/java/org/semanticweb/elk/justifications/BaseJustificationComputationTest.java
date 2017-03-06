@@ -30,7 +30,6 @@ public abstract class BaseJustificationComputationTest<C, A> {
 				.getFactory(BottomUpJustificationComputation
 						.<List<Object>, Object> getFactory()));
 		computations.add(MinPremisesBottomUp.getFactory());
-		// computations.add(PruningJustificationComputation.getFactory());
 		computations.add(BottomUpOverAndOrGraphsForJustifications.getFactory());
 		computations.add(TopDownJustificationComputation.getFactory());
 		return computations;

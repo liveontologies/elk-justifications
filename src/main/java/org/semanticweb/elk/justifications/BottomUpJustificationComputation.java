@@ -2,6 +2,7 @@ package org.semanticweb.elk.justifications;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -13,6 +14,7 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Util;
 import org.semanticweb.elk.statistics.NestedStats;
 import org.semanticweb.elk.statistics.ResetStats;
 import org.semanticweb.elk.statistics.Stat;
@@ -29,6 +31,8 @@ public class BottomUpJustificationComputation<C, A>
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
+
+	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
 
 	private static final BottomUpJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
@@ -64,7 +68,9 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * newly computed justifications to be propagated
 	 */
-	private final Queue<Justification<C, A>> toDoJustifications_ = new PriorityQueue<Justification<C, A>>();
+	private PriorityQueue<Justification<C, A>> toDoJustifications_;
+
+	private JustificationVisitor<A> visitor_ = null;
 
 	// Statistics
 
@@ -75,18 +81,58 @@ public class BottomUpJustificationComputation<C, A>
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 			final Monitor monitor) {
 		super(inferences, monitor);
+		initQueue(null);
+	}
+
+	private void reset() {
+		initialized_.clear();
+		justifications_.clear();
+		blockedJustifications_.clear();
+		sizeLimits_.clear();
+		toDoJustifications_ = null;
+	}
+
+	private void initQueue(final Comparator<? super Set<A>> order) {
+		this.toDoJustifications_ = new PriorityQueue<Justification<C, A>>(
+				INITIAL_QUEUE_CAPACITY_, new Order(order));
 	}
 
 	@Override
-	public Collection<? extends Set<A>> computeJustifications(C conclusion,
-			int sizeLimit) {
-		BloomSet.resetStatistics();
-		return new JustificationEnumerator(conclusion, sizeLimit).getResult();
-	}
+	public void enumerateJustifications(final C conclusion,
+			final Comparator<? super Set<A>> order,
+			final JustificationVisitor<A> visitor) {
+		Util.checkNotNull(visitor);
+		this.visitor_ = visitor;
 
-	@Override
-	public Collection<? extends Set<A>> computeJustifications(C conclusion) {
-		return computeJustifications(conclusion, Integer.MAX_VALUE);
+		boolean doNotReset = true;
+		if (toDoJustifications_ != null) {
+			final Comparator<? super Justification<C, A>> comparator = toDoJustifications_
+					.comparator();
+			if (comparator != null
+					&& (comparator instanceof BottomUpJustificationComputation.Order)) {
+				@SuppressWarnings("unchecked")
+				final Order oldOrder = (Order) comparator;
+				doNotReset = order == null ? oldOrder.originalOrder == null
+						: order.equals(oldOrder.originalOrder);
+			}
+		}
+
+		if (doNotReset) {
+			// Visit already computed justifications. They should be in the
+			// correct order.
+			for (final Justification<C, A> just : justifications_
+					.get(conclusion)) {
+				visitor.visit(just);
+			}
+		} else {
+			// Reset everything.
+			reset();
+		}
+
+		initQueue(order);
+
+		new JustificationEnumerator(conclusion, Integer.MAX_VALUE).process();
+
 	}
 
 	@Stat
@@ -325,6 +371,9 @@ public class BottomUpJustificationComputation<C, A>
 				// else
 				justs.add(just);
 				LOGGER_.trace("new {}", just);
+				if (conclusion_.equals(conclusion) && visitor_ != null) {
+					visitor_.visit(just);
+				}
 
 				if (just.isEmpty()) {
 					// all justifications are computed,
@@ -364,6 +413,34 @@ public class BottomUpJustificationComputation<C, A>
 
 			}
 
+		}
+
+	}
+
+	private class Order implements Comparator<Justification<C, A>> {
+
+		public final Comparator<? super Set<A>> originalOrder;
+
+		private final Comparator<? super Set<A>> setOrder_;
+
+		public Order(final Comparator<? super Set<A>> innerOrder) {
+			this.originalOrder = innerOrder;
+			if (innerOrder == null) {
+				setOrder_ = DEFAULT_ORDER;
+			} else {
+				setOrder_ = innerOrder;
+			}
+		}
+
+		@Override
+		public int compare(final Justification<C, A> just1,
+				final Justification<C, A> just2) {
+			final int result = setOrder_.compare(just1, just2);
+			if (result != 0) {
+				return result;
+			}
+			return Integer.compare(just1.getConclusion().hashCode(),
+					just2.getConclusion().hashCode());
 		}
 
 	}

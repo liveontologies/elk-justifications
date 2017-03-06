@@ -1,6 +1,6 @@
 package org.semanticweb.elk.justifications;
 
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
@@ -23,52 +23,44 @@ import org.liveontologies.puli.JustifiedInference;
 public interface JustificationComputation<C, A> {
 
 	/**
-	 * @return the inference set used by this computation
-	 */
-	GenericInferenceSet<C, ? extends JustifiedInference<C, A>> getInferenceSet();
-
-	/**
-	 * Computes all justifications for the given conclusion. This method can be
-	 * called several times for different conclusions.
-	 * 
-	 * @see JustifiedInference#getJustification()
-	 * 
-	 * @param conclusion
-	 *            the conclusion for which to compute the justification
-	 * @return the set consisting of all justifications for the given conclusion
-	 */
-	Collection<? extends Set<A>> computeJustifications(C conclusion);
-
-	/**
-	 * Computes all justifications up to the given size for the given
-	 * conclusion. This method can be called several times for different
-	 * conclusions.
-	 * 
-	 * @see JustifiedInference#getJustification()
-	 * 
-	 * @param conclusion
-	 *            the conclusion for which to compute the justification
-	 * @param sizeLimit
-	 *            the maximal size of the justifications returned
-	 * @return the set consisting of all justifications up to the give size
-	 *         limit for the given conclusion
-	 */
-	Collection<? extends Set<A>> computeJustifications(C conclusion,
-			int sizeLimit);
-
-	/**
 	 * Starts computation of justifications and visits every justification using
-	 * the provided visitor as soon as it is computed. The visitor is called
-	 * exactly once for every justification. When the method returns, all
-	 * justifications must be visited.
+	 * the provided visitor as soon as it is computed. The justifications are
+	 * visited in the order defined by the provided {@link Comparator} The
+	 * visitor is called exactly once for every justification. When the method
+	 * returns, all justifications must be visited.
 	 * 
 	 * @param conclusion
 	 *            the conclusion for which to compute the justification
+	 * @param order
+	 *            the comparator that defines the order in which the
+	 *            justifications are visited
 	 * @param visitor
 	 *            the visitor using which to process justifications
 	 */
-//	void enumerateJustifications(C conclusion,
-//			Justification.Visitor<C, A, ?> visitor);
+	void enumerateJustifications(C conclusion, Comparator<? super Set<A>> order,
+			JustificationVisitor<A> visitor);
+
+	public static interface JustificationVisitor<A> {
+
+		void visit(Set<A> justification);
+
+		public static JustificationVisitor<?> DUMMY = new JustificationVisitor<Object>() {
+
+			@Override
+			public void visit(final Set<Object> justification) {
+				// Empty.
+			}
+
+		};
+
+	}
+
+	public static Comparator<? super Set<?>> DEFAULT_ORDER = new Comparator<Set<?>>() {
+		@Override
+		public int compare(final Set<?> just1, final Set<?> just2) {
+			return Integer.compare(just1.size(), just2.size());
+		}
+	};
 
 	/**
 	 * Factory for creating computations
