@@ -67,7 +67,7 @@ public class MinPremisesBottomUp<C, A>
 	 */
 	private PriorityQueue<Justification<C, A>> toDoJustifications_ = new PriorityQueue<Justification<C, A>>();
 
-	private JustificationVisitor<A> visitor_ = null;
+	private Listener<A> listener_ = null;
 
 	// Statistics
 
@@ -87,7 +87,7 @@ public class MinPremisesBottomUp<C, A>
 		premiseJustifications_.clear();
 		toDoJustifications_ = null;
 	}
-	
+
 	private void initQueue(final Comparator<? super Set<A>> order) {
 		this.toDoJustifications_ = new PriorityQueue<Justification<C, A>>(
 				INITIAL_QUEUE_CAPACITY_, new Order(order));
@@ -96,9 +96,9 @@ public class MinPremisesBottomUp<C, A>
 	@Override
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
-			final JustificationVisitor<A> visitor) {
-		Util.checkNotNull(visitor);
-		this.visitor_ = visitor;
+			final Listener<A> listener) {
+		Util.checkNotNull(listener);
+		this.listener_ = listener;
 
 		boolean doNotReset = true;
 		if (toDoJustifications_ != null) {
@@ -118,7 +118,7 @@ public class MinPremisesBottomUp<C, A>
 			// correct order.
 			for (final Justification<C, A> just : justifications_
 					.get(conclusion)) {
-				visitor.visit(just);
+				listener.newJustification(just);
 			}
 		} else {
 			// Reset everything.
@@ -332,8 +332,8 @@ public class MinPremisesBottomUp<C, A>
 				// else
 				justs.add(just);
 				LOGGER_.trace("new {}", just);
-				if (conclusion_.equals(conclusion) && visitor_ != null) {
-					visitor_.visit(just);
+				if (conclusion_.equals(conclusion) && listener_ != null) {
+					listener_.newJustification(just);
 				}
 
 				if (just.isEmpty()) {

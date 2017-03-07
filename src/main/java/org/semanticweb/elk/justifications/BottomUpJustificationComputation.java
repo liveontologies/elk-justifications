@@ -70,7 +70,7 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private PriorityQueue<Justification<C, A>> toDoJustifications_;
 
-	private JustificationVisitor<A> visitor_ = null;
+	private Listener<A> listener_ = null;
 
 	// Statistics
 
@@ -100,9 +100,9 @@ public class BottomUpJustificationComputation<C, A>
 	@Override
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
-			final JustificationVisitor<A> visitor) {
-		Util.checkNotNull(visitor);
-		this.visitor_ = visitor;
+			final Listener<A> listener) {
+		Util.checkNotNull(listener);
+		this.listener_ = listener;
 
 		boolean doNotReset = true;
 		if (toDoJustifications_ != null) {
@@ -122,7 +122,7 @@ public class BottomUpJustificationComputation<C, A>
 			// correct order.
 			for (final Justification<C, A> just : justifications_
 					.get(conclusion)) {
-				visitor.visit(just);
+				listener.newJustification(just);
 			}
 		} else {
 			// Reset everything.
@@ -371,8 +371,8 @@ public class BottomUpJustificationComputation<C, A>
 				// else
 				justs.add(just);
 				LOGGER_.trace("new {}", just);
-				if (conclusion_.equals(conclusion) && visitor_ != null) {
-					visitor_.visit(just);
+				if (conclusion_.equals(conclusion) && listener_ != null) {
+					listener_.newJustification(just);
 				}
 
 				if (just.isEmpty()) {

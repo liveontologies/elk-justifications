@@ -61,7 +61,7 @@ public class TopDownJustificationComputation<C, A>
 	 */
 	final private Comparator<C> rank_;
 
-	private JustificationVisitor<A> visitor_ = null;
+	private Listener<A> listener_ = null;
 
 	// Statistics
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
@@ -89,19 +89,19 @@ public class TopDownJustificationComputation<C, A>
 	@Override
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
-			final JustificationVisitor<A> visitor) {
-		Util.checkNotNull(visitor);
+			final Listener<A> listener) {
+		Util.checkNotNull(listener);
 
 		this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
 				extendToJobOrder(order));
 		this.minimalJobs_.clear();
 		this.minimalJustifications_.clear();
-		this.visitor_ = visitor;
+		this.listener_ = listener;
 
 		initialize(conclusion);
 		process();
 
-		this.visitor_ = null;
+		this.listener_ = null;
 	}
 
 	private void initialize(final C goal) {
@@ -118,8 +118,8 @@ public class TopDownJustificationComputation<C, A>
 				minimalJobs_.add(job);
 				if (job.premises_.isEmpty()) {
 					minimalJustifications_.add(job.justification_);
-					if (visitor_ != null) {
-						visitor_.visit(job.justification_);
+					if (listener_ != null) {
+						listener_.newJustification(job.justification_);
 					}
 				} else {
 					expansionCount_++;

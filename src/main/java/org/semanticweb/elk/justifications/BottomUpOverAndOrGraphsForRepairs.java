@@ -30,10 +30,10 @@ public class BottomUpOverAndOrGraphsForRepairs<C, A>
 	@Override
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
-			final JustificationVisitor<A> visitor) {
+			final Listener<A> listener) {
 		final Node<A> goal = AndOrGraphs.getDual(AndOrGraphs
 				.getAndOrGraphForJustifications(conclusion, getInferenceSet()));
-		computation_.enumerateJustifications(goal, order, visitor);
+		computation_.enumerateJustifications(goal, order, listener);
 	}
 
 	private static class Factory<C, A>

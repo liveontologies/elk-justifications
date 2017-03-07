@@ -58,7 +58,7 @@ public class BottomUpOverAndOrGraphs<A>
 	 */
 	private PriorityQueue<Justification<Node<A>, A>> toDoJustifications_;
 
-	private JustificationVisitor<A> visitor_ = null;
+	private Listener<A> listener_ = null;
 
 	/**
 	 * A map from relevant nodes to their children.
@@ -91,9 +91,9 @@ public class BottomUpOverAndOrGraphs<A>
 	@Override
 	public void enumerateJustifications(final Node<A> conclusion,
 			final Comparator<? super Set<A>> order,
-			final JustificationVisitor<A> visitor) {
-		Util.checkNotNull(visitor);
-		this.visitor_ = visitor;
+			final Listener<A> listener) {
+		Util.checkNotNull(listener);
+		this.listener_ = listener;
 
 		boolean doNotReset = true;
 		if (toDoJustifications_ != null) {
@@ -113,7 +113,7 @@ public class BottomUpOverAndOrGraphs<A>
 			// correct order.
 			for (final Justification<Node<A>, A> just : justifications_
 					.get(conclusion)) {
-				visitor.visit(just);
+				listener.newJustification(just);
 			}
 		} else {
 			// Reset everything.
@@ -299,8 +299,8 @@ public class BottomUpOverAndOrGraphs<A>
 				}
 				// else, just is minimal in node justifications
 				LOGGER_.trace("new {}", just);
-				if (goal_.equals(node) && visitor_ != null) {
-					visitor_.visit(just);
+				if (goal_.equals(node) && listener_ != null) {
+					listener_.newJustification(just);
 				}
 
 				if (just.isEmpty()) {

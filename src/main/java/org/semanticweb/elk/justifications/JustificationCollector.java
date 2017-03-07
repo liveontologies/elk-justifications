@@ -27,10 +27,10 @@ public class JustificationCollector<C, A> {
 
 		final List<Set<A>> justifications = new ArrayList<>();
 
-		final JustificationComputation.JustificationVisitor<A> visitor = new JustificationComputation.JustificationVisitor<A>() {
+		final JustificationComputation.Listener<A> listener = new JustificationComputation.Listener<A>() {
 
 			@Override
-			public void visit(final Set<A> justification) {
+			public void newJustification(final Set<A> justification) {
 				if (justification.size() <= limit) {
 					justifications.add(justification);
 				} else {
@@ -40,7 +40,7 @@ public class JustificationCollector<C, A> {
 
 		};
 
-		computation_.enumerateJustifications(query, SIZE_ORDER_, visitor);
+		computation_.enumerateJustifications(query, SIZE_ORDER_, listener);
 
 		return justifications;
 	}

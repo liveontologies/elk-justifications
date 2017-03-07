@@ -23,31 +23,32 @@ import org.liveontologies.puli.JustifiedInference;
 public interface JustificationComputation<C, A> {
 
 	/**
-	 * Starts computation of justifications and visits every justification using
-	 * the provided visitor as soon as it is computed. The justifications are
-	 * visited in the order defined by the provided {@link Comparator} The
-	 * visitor is called exactly once for every justification. When the method
-	 * returns, all justifications must be visited.
+	 * Starts computation of justifications and notifies the provided listener
+	 * about each new justification as soon as it is computed. The listener is
+	 * notified about justifications in the order defined by the provided
+	 * {@link Comparator}. The listener is notified exactly once for every
+	 * justification. When the method returns, the listener must be notified
+	 * about all the justifications.
 	 * 
 	 * @param conclusion
 	 *            the conclusion for which to compute the justification
 	 * @param order
-	 *            the comparator that defines the order in which the
-	 *            justifications are visited
-	 * @param visitor
-	 *            the visitor using which to process justifications
+	 *            The comparator that defines the order of justifications. The
+	 *            listener is notified about new justifications in this order.
+	 * @param listener
+	 *            The listener that is notified about new justifications.
 	 */
 	void enumerateJustifications(C conclusion, Comparator<? super Set<A>> order,
-			JustificationVisitor<A> visitor);
+			Listener<A> listener);
 
-	public static interface JustificationVisitor<A> {
+	public static interface Listener<A> {
 
-		void visit(Set<A> justification);
+		void newJustification(Set<A> justification);
 
-		public static JustificationVisitor<?> DUMMY = new JustificationVisitor<Object>() {
+		public static Listener<?> DUMMY = new Listener<Object>() {
 
 			@Override
-			public void visit(final Set<Object> justification) {
+			public void newJustification(final Set<Object> justification) {
 				// Empty.
 			}
 

@@ -93,12 +93,12 @@ public abstract class BaseJustificationExperiment<C, A>
 	}
 
 	private class JustificationCounter
-			implements JustificationComputation.JustificationVisitor<A> {
+			implements JustificationComputation.Listener<A> {
 
 		private volatile int count_ = 0;
 
 		@Override
-		public void visit(final Set<A> justification) {
+		public void newJustification(final Set<A> justification) {
 			count_++;
 		}
 

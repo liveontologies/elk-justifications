@@ -38,9 +38,9 @@ public class BinarizedJustificationComputation<C, A>
 	@Override
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
-			final JustificationVisitor<A> visitor) {
+			final Listener<A> listener) {
 		computaiton_.enumerateJustifications(
-				Collections.singletonList(conclusion), order, visitor);
+				Collections.singletonList(conclusion), order, listener);
 	}
 
 	@NestedStats
