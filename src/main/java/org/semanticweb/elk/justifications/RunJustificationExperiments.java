@@ -212,8 +212,8 @@ public class RunJustificationExperiments {
 				didSomeExperimentRun = true;
 				killIfAlive(worker);
 
-				final boolean didTimeOut = (startTimeNanos + runTimeNanos)
-						/ NANOS_IN_MILLIS > stopTimeMillis;
+				final boolean didTimeOut = localStartTimeMillis
+						+ (runTimeNanos / NANOS_IN_MILLIS) > stopTimeMillis;
 				record.put("didTimeOut", didTimeOut);
 				record.put("time", runTimeNanos / NANOS_IN_MILLIS);
 				record.put("nJust", nJust);
