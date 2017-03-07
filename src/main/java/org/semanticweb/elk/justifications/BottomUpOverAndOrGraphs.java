@@ -4,11 +4,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -65,11 +63,6 @@ public class BottomUpOverAndOrGraphs<A>
 	 */
 	private final Multimap<Node<A>, Node<A>> children_ = HashMultimap.create();
 
-	/**
-	 * The maximal sizes of justifications for conclusions computed so far.
-	 */
-	private final Map<Node<A>, Integer> sizeLimits_ = new HashMap<Node<A>, Integer>();
-
 	public BottomUpOverAndOrGraphs(final Monitor monitor) {
 		this.monitor_ = monitor;
 		initQueue(null);
@@ -79,7 +72,6 @@ public class BottomUpOverAndOrGraphs<A>
 		initialized_.clear();
 		justifications_.clear();
 		blockedJustifications_.clear();
-		sizeLimits_.clear();
 		toDoJustifications_ = null;
 	}
 
@@ -122,20 +114,11 @@ public class BottomUpOverAndOrGraphs<A>
 
 		initQueue(order);
 
-		new JustificationEnumerator(conclusion, Integer.MAX_VALUE).process();
+		new JustificationEnumerator(conclusion).process();
 
 	}
 
 	private int countInitializedNodes_ = 0, countJustificationCandidates_ = 0;
-
-	private int getSizeLimit(final Node<A> conclusion) {
-		final Integer result = sizeLimits_.get(conclusion);
-		if (result == null) {
-			return 0;
-		}
-		// else
-		return result;
-	}
 
 	private Collection<? extends Node<A>> getParents(final Node<A> node) {
 		return node.getParents();
@@ -156,8 +139,6 @@ public class BottomUpOverAndOrGraphs<A>
 
 		private final Node<A> goal_;
 
-		private final int sizeLimit_;
-
 		/**
 		 * The nodes that are relevant for the computation, i.e., those that are
 		 * reachable from {@link #goal_}.
@@ -171,29 +152,11 @@ public class BottomUpOverAndOrGraphs<A>
 
 		private final List<? extends Set<A>> result_;
 
-		public JustificationEnumerator(final Node<A> goal,
-				final int sizeLimit) {
+		public JustificationEnumerator(final Node<A> goal) {
 			this.goal_ = goal;
-			this.sizeLimit_ = sizeLimit;
 			this.result_ = justifications_.get(goal);
 			toDo(goal);
 			initialize();
-		}
-
-		private Collection<? extends Set<A>> getResult() {
-			process();
-			if (sizeLimit_ > getSizeLimit(goal_)) {
-				sizeLimits_.put(goal_, sizeLimit_);
-			}
-			if (result_.isEmpty()) {
-				return result_;
-			}
-			// else filter out oversized justifications
-			int index = result_.size() - 1;
-			while (result_.get(index).size() > sizeLimit_) {
-				index--;
-			}
-			return result_.subList(0, index + 1);
 		}
 
 		private void toDo(final Node<A> node) {
@@ -211,10 +174,6 @@ public class BottomUpOverAndOrGraphs<A>
 
 			Node<A> node;
 			while ((node = toDo_.poll()) != null) {
-				if (getSizeLimit(node) >= sizeLimit_) {
-					// Relevant justifications already computed.
-					continue;
-				}
 				boolean hasParent = false;
 				for (final Node<A> parent : getParents(node)) {
 					hasParent = true;
@@ -272,25 +231,9 @@ public class BottomUpOverAndOrGraphs<A>
 		 */
 		private void process() {
 			Justification<Node<A>, A> just;
-			int currentSize = 0;
 			while ((just = toDoJustifications_.poll()) != null) {
 				if (monitor_.isCancelled()) {
 					return;
-				}
-
-				final int size = just.size();
-				if (size != currentSize) {
-					currentSize = size;
-					if (currentSize > sizeLimit_) {
-						// stop
-						LOGGER_.trace(
-								"there are justifications of size larger than {}",
-								sizeLimit_);
-						toDoJustifications_.add(just);
-						return;
-					}
-					LOGGER_.debug("enumerating justifications of size {}...",
-							currentSize);
 				}
 
 				final Node<A> node = just.getConclusion();

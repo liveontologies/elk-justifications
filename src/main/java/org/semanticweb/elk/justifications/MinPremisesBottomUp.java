@@ -127,7 +127,7 @@ public class MinPremisesBottomUp<C, A>
 
 		initQueue(order);
 
-		new JustificationEnumerator(conclusion, Integer.MAX_VALUE).process();
+		new JustificationEnumerator(conclusion).process();
 
 	}
 
@@ -203,8 +203,6 @@ public class MinPremisesBottomUp<C, A>
 
 		private final C conclusion_;
 
-		private final int sizeLimit_;
-
 		/**
 		 * the conclusions that are relevant for the computation of the
 		 * justifications, i.e., those from which the conclusion for which the
@@ -223,25 +221,11 @@ public class MinPremisesBottomUp<C, A>
 		 */
 		private final List<? extends Set<A>> result_;
 
-		JustificationEnumerator(C conclusion, int sizeLimit) {
+		JustificationEnumerator(C conclusion) {
 			this.conclusion_ = conclusion;
-			this.sizeLimit_ = sizeLimit;
 			this.result_ = justifications_.get(conclusion);
 			toInitialize(conclusion);
 			initialize();
-		}
-
-		private Collection<? extends Set<A>> getResult() {
-			process();
-			if (result_.isEmpty()) {
-				return result_;
-			}
-			// else filter out oversized justifications
-			int index = result_.size() - 1;
-			while (result_.get(index).size() > sizeLimit_) {
-				index--;
-			}
-			return result_.subList(0, index + 1);
 		}
 
 		/**
@@ -292,25 +276,9 @@ public class MinPremisesBottomUp<C, A>
 		 */
 		private void process() {
 			Justification<C, A> just;
-			int currentSize_ = 0; //
 			while ((just = toDoJustifications_.poll()) != null) {
 				if (monitor_.isCancelled()) {
 					return;
-				}
-
-				int size = just.size();
-				if (size != currentSize_) {
-					currentSize_ = size;
-					if (currentSize_ > sizeLimit_) {
-						// stop
-						LOGGER_.trace(
-								"there are justifications of size larger than {}",
-								sizeLimit_);
-						toDoJustifications_.add(just);
-						return;
-					}
-					LOGGER_.debug("enumerating justifications of size {}...",
-							currentSize_);
 				}
 
 				C conclusion = just.getConclusion();

@@ -3,11 +3,9 @@ package org.semanticweb.elk.justifications;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -25,7 +23,6 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
-// TODO: enumerate justifications (e.g., using a visitor), make priority used in the queue explicit
 public class BottomUpJustificationComputation<C, A>
 		extends CancellableJustificationComputation<C, A> {
 
@@ -53,11 +50,6 @@ public class BottomUpJustificationComputation<C, A>
 	 */
 	private final ListMultimap<C, Justification<C, A>> blockedJustifications_ = ArrayListMultimap
 			.create();
-
-	/**
-	 * the maximal sizes of justifications for conclusions computed so far
-	 */
-	private final Map<C, Integer> sizeLimits_ = new HashMap<C, Integer>();
 
 	/**
 	 * a map from premises to inferences for relevant conclusions
@@ -88,7 +80,6 @@ public class BottomUpJustificationComputation<C, A>
 		initialized_.clear();
 		justifications_.clear();
 		blockedJustifications_.clear();
-		sizeLimits_.clear();
 		toDoJustifications_ = null;
 	}
 
@@ -131,7 +122,7 @@ public class BottomUpJustificationComputation<C, A>
 
 		initQueue(order);
 
-		new JustificationEnumerator(conclusion, Integer.MAX_VALUE).process();
+		new JustificationEnumerator(conclusion).process();
 
 	}
 
@@ -190,15 +181,6 @@ public class BottomUpJustificationComputation<C, A>
 		return (Factory<C, A>) FACTORY_;
 	}
 
-	int getSizeLimit(C conclusion) {
-		Integer result = sizeLimits_.get(conclusion);
-		if (result == null) {
-			return 0;
-		}
-		// else
-		return result;
-	}
-
 	@SafeVarargs
 	private static <C, A> Justification<C, A> createJustification(C conclusion,
 			Collection<? extends A>... collections) {
@@ -214,8 +196,6 @@ public class BottomUpJustificationComputation<C, A>
 	private class JustificationEnumerator {
 
 		private final C conclusion_;
-
-		private final int sizeLimit_;
 
 		/**
 		 * the conclusions that are relevant for the computation of the
@@ -235,28 +215,11 @@ public class BottomUpJustificationComputation<C, A>
 		 */
 		private final List<? extends Set<A>> result_;
 
-		JustificationEnumerator(C conclusion, int sizeLimit) {
+		JustificationEnumerator(C conclusion) {
 			this.conclusion_ = conclusion;
-			this.sizeLimit_ = sizeLimit;
 			this.result_ = justifications_.get(conclusion);
 			toDo(conclusion);
 			initialize();
-		}
-
-		private Collection<? extends Set<A>> getResult() {
-			process();
-			if (sizeLimit_ > getSizeLimit(conclusion_)) {
-				sizeLimits_.put(conclusion_, sizeLimit_);
-			}
-			if (result_.isEmpty()) {
-				return result_;
-			}
-			// else filter out oversized justifications
-			int index = result_.size() - 1;
-			while (result_.get(index).size() > sizeLimit_) {
-				index--;
-			}
-			return result_.subList(0, index + 1);
 		}
 
 		/**
@@ -268,60 +231,58 @@ public class BottomUpJustificationComputation<C, A>
 
 			C conclusion;
 			while ((conclusion = toDo_.poll()) != null) {
-				if (getSizeLimit(conclusion) >= sizeLimit_) {
-					// relevant justifications already computed
-					continue;
+
+				final Collection<? extends JustifiedInference<C, A>> infs = getInferences(
+						conclusion);
+				if (infs.isEmpty()) {
+					LOGGER_.warn("{}: lemma not derived!", conclusion);
 				}
-				boolean initialized = initialized_.add(conclusion);
-				if (initialized) {
-					countConclusions_++;
+
+				for (final JustifiedInference<C, A> inf : infs) {
+					LOGGER_.trace("{}: new inference", inf);
+					countInferences_++;
+					for (final C premise : inf.getPremises()) {
+						inferencesByPremises_.put(premise, inf);
+						toDo(premise);
+					}
+				}
+
+				if (initialized_.add(conclusion)) {
 					LOGGER_.trace(
 							"{}: computation of justifiations initialized",
 							conclusion);
+					// propagate existing justifications for premises
+					for (final JustifiedInference<C, A> inf : infs) {
+						List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
+						conclusionJusts.add(createJustification(
+								inf.getConclusion(), inf.getJustification()));
+						for (final C premise : inf.getPremises()) {
+							conclusionJusts = Utils.join(conclusionJusts,
+									justifications_.get(premise));
+						}
+						for (final Justification<C, A> just : conclusionJusts) {
+							produce(just);
+						}
+					}
 				} else {
-					List<Justification<C, A>> blocked = blockedJustifications_
+					// conclusion has already been initialized.
+					final List<Justification<C, A>> blocked = blockedJustifications_
 							.get(conclusion);
-					for (Justification<C, A> just : blocked) {
+					for (final Justification<C, A> just : blocked) {
 						LOGGER_.trace("unblocked {}", just);
+						// Don't produce, blocked justs were already produced.
 						toDoJustifications_.add(just);
 					}
 					blocked.clear();
 				}
-				boolean derived = false;
-				for (JustifiedInference<C, A> inf : getInferences(conclusion)) {
-					LOGGER_.trace("{}: new inference", inf);
-					derived = true;
-					countInferences_++;
-					for (C premise : inf.getPremises()) {
-						inferencesByPremises_.put(premise, inf);
-						toDo(premise);
-					}
-					if (initialized) {
-						// propagate existing justifications for premises
-						List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
-						conclusionJusts.add(createJustification(
-								inf.getConclusion(), inf.getJustification()));
-						for (C premise : inf.getPremises()) {
-							conclusionJusts = Utils.join(conclusionJusts,
-									justifications_.get(premise));
-						}
-						for (Justification<C, A> just : conclusionJusts) {
-							toDoJustifications_.add(just);
-							countJustificationCandidates_++;
-						}
-					}
-				}
-				if (!derived) {
-					LOGGER_.warn("{}: lemma not derived!", conclusion);
-				}
+
 			}
 
 		}
 
 		private void toDo(C conclusion) {
-			if (!relevant_.contains(conclusion)) {
+			if (relevant_.add(conclusion)) {
 				countConclusions_++;
-				relevant_.add(conclusion);
 				toDo_.add(conclusion);
 			}
 		}
@@ -331,25 +292,9 @@ public class BottomUpJustificationComputation<C, A>
 		 */
 		private void process() {
 			Justification<C, A> just;
-			int currentSize_ = 0; //
 			while ((just = toDoJustifications_.poll()) != null) {
 				if (monitor_.isCancelled()) {
 					return;
-				}
-
-				int size = just.size();
-				if (size != currentSize_) {
-					currentSize_ = size;
-					if (currentSize_ > sizeLimit_) {
-						// stop
-						LOGGER_.trace(
-								"there are justifications of size larger than {}",
-								sizeLimit_);
-						toDoJustifications_.add(just);
-						return;
-					}
-					LOGGER_.debug("enumerating justifications of size {}...",
-							currentSize_);
 				}
 
 				C conclusion = just.getConclusion();
@@ -405,14 +350,18 @@ public class BottomUpJustificationComputation<C, A>
 					}
 
 					for (Justification<C, A> conclJust : conclusionJusts) {
-						toDoJustifications_.add(conclJust);
-						countJustificationCandidates_++;
+						produce(conclJust);
 					}
 
 				}
 
 			}
 
+		}
+
+		private void produce(final Justification<C, A> justification) {
+			countJustificationCandidates_++;
+			toDoJustifications_.offer(justification);
 		}
 
 	}
