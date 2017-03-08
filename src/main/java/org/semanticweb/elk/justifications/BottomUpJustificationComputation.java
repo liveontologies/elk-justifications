@@ -361,7 +361,7 @@ public class BottomUpJustificationComputation<C, A>
 
 		private void produce(final Justification<C, A> justification) {
 			countJustificationCandidates_++;
-			toDoJustifications_.offer(justification);
+			toDoJustifications_.add(justification);
 		}
 
 	}

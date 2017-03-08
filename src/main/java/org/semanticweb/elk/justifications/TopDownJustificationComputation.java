@@ -154,7 +154,7 @@ public class TopDownJustificationComputation<C, A>
 
 	private void produce(final Job job) {
 		producedJobsCount_++;
-		toDoJobs_.offer(job);
+		toDoJobs_.add(job);
 	}
 
 	@Stat
