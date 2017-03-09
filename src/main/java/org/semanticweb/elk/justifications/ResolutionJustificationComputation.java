@@ -75,7 +75,7 @@ public class ResolutionJustificationComputation<C, A>
 	jobsBySelectedConclusions_ = ArrayListMultimap.create(),
 			// jobs whose premise is selected, indexed by this premise
 			jobsBySelectedPremises_ = ArrayListMultimap.create();
-	private final SelectionFunction<C, A> selection_ = getGreedySelection();
+	private final SelectionFunction<C, A> selection_ = getThresholdSelection();
 	// getBottomUpSelection();
 	// getTopDownSelection();
 
@@ -178,6 +178,10 @@ public class ResolutionJustificationComputation<C, A>
 	}
 
 	private void produce(final Job<C, A> job) {
+		if (job.premises_.contains(job.conclusion_)) {
+			// skip tautologies
+			return;
+		}
 		producedJobsCount_++;
 		toDoJobs_.add(job);
 	}
@@ -429,15 +433,15 @@ public class ResolutionJustificationComputation<C, A>
 
 			@Override
 			public C selectResolvent(Job<C, A> job) {
-				// select the premise the results in least resolutions, if there
-				// is one
+				// select the premise that is derived by the fewest inferences;
+				// if there are no premises, select the conclusion
 				C result = null;
-				int minResolutions = Integer.MAX_VALUE;
+				int minInferenceCount = Integer.MAX_VALUE;
 				for (C c : job.premises_) {
-					int resolutions = jobsBySelectedConclusions_.get(c).size();
-					if (resolutions < minResolutions) {
+					int inferenceCount = getInferences(c).size();
+					if (inferenceCount < minInferenceCount) {
 						result = c;
-						minResolutions = resolutions;
+						minInferenceCount = inferenceCount;
 					}
 				}
 				return result;
@@ -451,17 +455,17 @@ public class ResolutionJustificationComputation<C, A>
 
 			@Override
 			public C selectResolvent(Job<C, A> job) {
-				// select the conclusion, unless it is a goal conclusion,
-				// in which case works as getBottomUpSelection
+				// select the conclusion, unless it is a goal conclusion and
+				// there are premises, in which case select the premise derived
+				// by the fewest inferences
 				C result = null;
 				if (goal_.equals(job.conclusion_)) {
-					int minResolutions = Integer.MAX_VALUE;
+					int minInferenceCount = Integer.MAX_VALUE;
 					for (C c : job.premises_) {
-						int resolutions = jobsBySelectedConclusions_.get(c)
-								.size();
-						if (resolutions < minResolutions) {
+						int inferenceCount = getInferences(c).size();
+						if (inferenceCount < minInferenceCount) {
 							result = c;
-							minResolutions = resolutions;
+							minInferenceCount = inferenceCount;
 						}
 					}
 				}
@@ -470,22 +474,32 @@ public class ResolutionJustificationComputation<C, A>
 		};
 	}
 
-	SelectionFunction<C, A> getGreedySelection() {
+	SelectionFunction<C, A> getThresholdSelection() {
+		return getThresholdSelection(2);
+	}
+
+	SelectionFunction<C, A> getThresholdSelection(final int threshold) {
 		return new SelectionFunction<C, A>() {
 
 			@Override
 			public C selectResolvent(Job<C, A> job) {
-				// select the conclusion that results in least resolutions
+				// select the premise derived by the fewest inferences
+				// unless the number of such inferences is larger than the
+				// give threshold and the conclusion is not goal;
+				// in this case select the conclusion
+				int minInferenceCount = Integer.MAX_VALUE;
 				C result = null;
-				int minResolutions = goal_.equals(job.conclusion_)
-						? Integer.MAX_VALUE
-						: jobsBySelectedPremises_.get(job.conclusion_).size();
 				for (C c : job.premises_) {
-					int resolutions = jobsBySelectedConclusions_.get(c).size();
-					if (resolutions < minResolutions) {
+					int inferenceCount = getInferences(c).size();
+					if (inferenceCount < minInferenceCount) {
 						result = c;
-						minResolutions = resolutions;
+						minInferenceCount = inferenceCount;
 					}
+				}
+				if (minInferenceCount > threshold
+						&& !goal_.equals(job.conclusion_)) {
+					// resolve on the conclusion
+					result = null;
 				}
 				return result;
 			}
