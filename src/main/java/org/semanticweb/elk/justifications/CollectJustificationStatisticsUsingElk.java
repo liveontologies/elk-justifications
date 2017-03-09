@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.liveontologies.puli.JustifiedInference;
 import org.semanticweb.elk.exceptions.ElkException;
+import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
 import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
@@ -107,17 +108,21 @@ public class CollectJustificationStatisticsUsingElk {
 								break;
 							}
 							
-							final String[] columns = line.split(",");
-							if (columns.length < 2) {
-								return;
-							}
-							
-							final String subIri = strip(columns[0]);
-							final String supIri = strip(columns[1]);
-							
-							final ElkSubClassOfAxiom conclusion = factory.getSubClassOfAxiom(
-									factory.getClass(new ElkFullIri(subIri)),
-									factory.getClass(new ElkFullIri(supIri)));
+							final ElkSubClassOfAxiom conclusion = CsvQueryDecoder.decode(
+									line,
+									new CsvQueryDecoder.Factory<ElkSubClassOfAxiom>() {
+
+										@Override
+										public ElkSubClassOfAxiom createQuery(
+												final String subIri, final String supIri) {
+											return factory.getSubClassOfAxiom(
+													factory.getClass(
+															new ElkFullIri(subIri)),
+													factory.getClass(
+															new ElkFullIri(supIri)));
+										}
+
+									});
 							
 							System.gc();
 							
@@ -268,19 +273,6 @@ public class CollectJustificationStatisticsUsingElk {
 		
 	}
 	
-	private static String strip(final String s) {
-		final String trimmed = s.trim();
-		int start = 0;
-		if (trimmed.charAt(0) == '"') {
-			start = 1;
-		}
-		int end = trimmed.length();
-		if (trimmed.charAt(trimmed.length() - 1) == '"') {
-			end = trimmed.length() - 1;
-		}
-		return trimmed.substring(start, end);
-	}
-
 	private static class TimeOutMonitor implements Monitor {
 		
 		public volatile boolean cancelled = false;

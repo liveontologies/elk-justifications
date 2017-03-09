@@ -108,11 +108,10 @@ public class ExtractSubsumptions {
 			start = System.currentTimeMillis();
 			output = new PrintWriter(outputFile);
 			for (final OWLSubClassOfAxiom subsumption : subsumptions) {
-				output.print("\"");
 				output.print(subsumption.getSubClass().asOWLClass().getIRI());
-				output.print("\",\"");
+				output.print(" ");
 				output.print(subsumption.getSuperClass().asOWLClass().getIRI());
-				output.println("\"");
+				output.println();
 			}
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start)/1000.0);
