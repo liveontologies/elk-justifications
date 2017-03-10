@@ -75,9 +75,7 @@ public class ResolutionJustificationComputation<C, A>
 	jobsBySelectedConclusions_ = ArrayListMultimap.create(),
 			// jobs whose premise is selected, indexed by this premise
 			jobsBySelectedPremises_ = ArrayListMultimap.create();
-	private final SelectionFunction<C, A> selection_ = getThresholdSelection();
-	// getBottomUpSelection();
-	// getTopDownSelection();
+	private final SelectionFunction<C, A> selection_;
 
 	private C goal_;
 
@@ -87,10 +85,11 @@ public class ResolutionJustificationComputation<C, A>
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
 			expansionCount_ = 0, expandedInferencesCount_ = 0;
 
-	private ResolutionJustificationComputation(
+	public ResolutionJustificationComputation(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
-			final Monitor monitor) {
+			final Monitor monitor, final SelectionFunction<C, A> selection) {
 		super(inferences, monitor);
+		this.selection_ = selection;
 	}
 
 	@Override
@@ -148,7 +147,8 @@ public class ResolutionJustificationComputation<C, A>
 						listener_.newJustification(job.justification_);
 					}
 				} else {
-					C selected = selection_.selectResolvent(job);
+					C selected = selection_.selectResolvent(job,
+							getInferenceSet(), goal_);
 					if (selected == null) {
 						// resolve on the conclusions
 						selected = job.conclusion_;
@@ -221,7 +221,7 @@ public class ResolutionJustificationComputation<C, A>
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	private static class Job<C, A> extends AbstractSet<JobMember<C, A>> {
+	public static class Job<C, A> extends AbstractSet<JobMember<C, A>> {
 
 		private final C conclusion_;
 		private final Set<C> premises_;
@@ -237,6 +237,18 @@ public class ResolutionJustificationComputation<C, A>
 			this(inference.getConclusion(),
 					ImmutableSet.copyOf(inference.getPremises()),
 					ImmutableSet.copyOf(inference.getJustification()));
+		}
+
+		public C getConclusion() {
+			return conclusion_;
+		}
+
+		public Set<C> getPremises() {
+			return premises_;
+		}
+
+		public Set<A> getJustification() {
+			return justification_;
 		}
 
 		public Job<C, A> resolve(Job<C, A> other) {
@@ -404,7 +416,7 @@ public class ResolutionJustificationComputation<C, A>
 
 	}
 
-	interface SelectionFunction<C, A> {
+	public static interface SelectionFunction<C, A> {
 
 		/**
 		 * Selects the conclusion or one of the premises of the job
@@ -413,86 +425,10 @@ public class ResolutionJustificationComputation<C, A>
 		 * @return {@code null} if the conclusion is selected or the selected
 		 *         premise
 		 */
-		C selectResolvent(Job<C, A> job);
+		C selectResolvent(Job<C, A> job,
+				GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+				C goal);
 
-	}
-
-	SelectionFunction<C, A> getBottomUpSelection() {
-		return new SelectionFunction<C, A>() {
-
-			@Override
-			public C selectResolvent(Job<C, A> job) {
-				// select the premise that is derived by the fewest inferences;
-				// if there are no premises, select the conclusion
-				C result = null;
-				int minInferenceCount = Integer.MAX_VALUE;
-				for (C c : job.premises_) {
-					int inferenceCount = getInferences(c).size();
-					if (inferenceCount < minInferenceCount) {
-						result = c;
-						minInferenceCount = inferenceCount;
-					}
-				}
-				return result;
-			}
-		};
-
-	}
-
-	SelectionFunction<C, A> getTopDownSelection() {
-		return new SelectionFunction<C, A>() {
-
-			@Override
-			public C selectResolvent(Job<C, A> job) {
-				// select the conclusion, unless it is the goal conclusion and
-				// there are premises, in which case select the premise derived
-				// by the fewest inferences
-				C result = null;
-				if (goal_.equals(job.conclusion_)) {
-					int minInferenceCount = Integer.MAX_VALUE;
-					for (C c : job.premises_) {
-						int inferenceCount = getInferences(c).size();
-						if (inferenceCount < minInferenceCount) {
-							result = c;
-							minInferenceCount = inferenceCount;
-						}
-					}
-				}
-				return result;
-			}
-		};
-	}
-
-	SelectionFunction<C, A> getThresholdSelection() {
-		return getThresholdSelection(2);
-	}
-
-	SelectionFunction<C, A> getThresholdSelection(final int threshold) {
-		return new SelectionFunction<C, A>() {
-
-			@Override
-			public C selectResolvent(Job<C, A> job) {
-				// select the premise derived by the fewest inferences
-				// unless the number of such inferences is larger than the
-				// given threshold and the conclusion is not the goal;
-				// in this case select the conclusion
-				int minInferenceCount = Integer.MAX_VALUE;
-				C result = null;
-				for (C c : job.premises_) {
-					int inferenceCount = getInferences(c).size();
-					if (inferenceCount < minInferenceCount) {
-						result = c;
-						minInferenceCount = inferenceCount;
-					}
-				}
-				if (minInferenceCount > threshold
-						&& !goal_.equals(job.conclusion_)) {
-					// resolve on the conclusion
-					result = null;
-				}
-				return result;
-			}
-		};
 	}
 
 	private Comparator<Job<C, A>> extendToJobOrder(
@@ -538,8 +474,12 @@ public class ResolutionJustificationComputation<C, A>
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
 				final Monitor monitor) {
+//			return new ResolutionJustificationComputation<>(inferenceSet,
+//					monitor, new BottomUpSelection<C, A>());
+//			return new ResolutionJustificationComputation<>(inferenceSet,
+//					monitor, new TopDownSelection<C, A>());
 			return new ResolutionJustificationComputation<>(inferenceSet,
-					monitor);
+					monitor, new ThresholdSelection<C, A>());
 		}
 
 	}
