@@ -221,8 +221,7 @@ public class ResolutionJustificationComputation<C, A>
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	private static class Job<C, A> extends AbstractSet<JobMember<C, A>>
-			implements Comparable<Job<C, A>> {
+	private static class Job<C, A> extends AbstractSet<JobMember<C, A>> {
 
 		private final C conclusion_;
 		private final Set<C> premises_;
@@ -341,16 +340,6 @@ public class ResolutionJustificationComputation<C, A>
 		}
 
 		@Override
-		public int compareTo(Job<C, A> o) {
-			int result = justification_.size() - o.justification_.size();
-			if (result != 0) {
-				return result;
-			}
-			result = premises_.size() - o.premises_.size();
-			return result;
-		}
-
-		@Override
 		public String toString() {
 			return conclusion_.toString() + " -| " + premises_.toString() + ": "
 					+ justification_.toString();
@@ -455,7 +444,7 @@ public class ResolutionJustificationComputation<C, A>
 
 			@Override
 			public C selectResolvent(Job<C, A> job) {
-				// select the conclusion, unless it is a goal conclusion and
+				// select the conclusion, unless it is the goal conclusion and
 				// there are premises, in which case select the premise derived
 				// by the fewest inferences
 				C result = null;
@@ -485,7 +474,7 @@ public class ResolutionJustificationComputation<C, A>
 			public C selectResolvent(Job<C, A> job) {
 				// select the premise derived by the fewest inferences
 				// unless the number of such inferences is larger than the
-				// give threshold and the conclusion is not goal;
+				// given threshold and the conclusion is not the goal;
 				// in this case select the conclusion
 				int minInferenceCount = Integer.MAX_VALUE;
 				C result = null;
