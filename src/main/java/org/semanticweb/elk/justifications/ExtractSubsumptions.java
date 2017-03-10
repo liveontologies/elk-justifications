@@ -152,7 +152,7 @@ public class ExtractSubsumptions {
 				final ArrayList<OWLClass> entities =
 						new ArrayList<OWLClass>(node.getEntities());
 				for (int i = 0; i < entities.size() - 1; i++) {
-					for (int j = 1; j < entities.size(); j++) {
+					for (int j = i + 1; j < entities.size(); j++) {
 						final OWLClass first = entities.get(i);
 						final OWLClass second = entities.get(j);
 						
