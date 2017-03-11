@@ -23,6 +23,7 @@ import org.semanticweb.elk.statistics.Stat;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ForwardingSet;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -63,15 +64,15 @@ public class ResolutionJustificationComputation<C, A>
 	/**
 	 * Used to minimize the jobs
 	 */
-	private final Collection2<Job<C, A>> minimalJobs_ = new BloomTrieCollection2<>();
+	private final Collection2<DerivedInference<C, A>> minimalJobs_ = new BloomTrieCollection2<>();
 
 	/**
 	 * Used to collect the result
 	 */
 	private final Collection2<Set<A>> minimalJustifications_ = new BloomTrieCollection2<>();
 
-	private final ListMultimap<C, Job<C, A>>
-	// jobs whose conclusions are selected, indexed by these conclusion
+	private final ListMultimap<C, DerivedInference<C, A>>
+	// jobs whose conclusions are selected, indexed by this conclusion
 	jobsBySelectedConclusions_ = ArrayListMultimap.create(),
 			// jobs whose premise is selected, indexed by this premise
 			jobsBySelectedPremises_ = ArrayListMultimap.create();
@@ -125,7 +126,7 @@ public class ResolutionJustificationComputation<C, A>
 				return;
 			}
 			for (JustifiedInference<C, A> inf : getInferences(next)) {
-				produce(new Job<C, A>(inf));
+				produce(new DerivedInference<C, A>(inf));
 				for (C premise : inf.getPremises()) {
 					if (done.add(premise)) {
 						todo.add(premise);
@@ -136,34 +137,41 @@ public class ResolutionJustificationComputation<C, A>
 	}
 
 	private void process() {
-		Job<C, A> job;
-		while ((job = toDoJobs_.poll()) != null) {
+
+		for (;;) {
+			Job<C, A> next = toDoJobs_.poll();
+			if (next == null) {
+				break;
+			}
+			DerivedInference<C, A> job = next.getInference();
 			if (minimalJustifications_.isMinimal(job.justification_)
 					&& minimalJobs_.isMinimal(job)) {
-				minimalJobs_.add(job);
 				if (job.premises_.isEmpty() && goal_.equals(job.conclusion_)) {
 					minimalJustifications_.add(job.justification_);
 					if (listener_ != null) {
 						listener_.newJustification(job.justification_);
 					}
 				} else {
-					C selected = selection_.selectResolvent(job,
+					C selected = selection_.getResolvingAtom(job,
 							getInferenceSet(), goal_);
 					if (selected == null) {
 						// resolve on the conclusions
 						selected = job.conclusion_;
 						jobsBySelectedConclusions_.put(selected, job);
-						for (Job<C, A> other : jobsBySelectedPremises_
+						for (DerivedInference<C, A> other : jobsBySelectedPremises_
 								.get(selected)) {
-							produce(job.resolve(other));
+							produce(new Resolvent<C, A>(job, other));
 						}
 					} else {
 						// resolve on the selected premise
 						jobsBySelectedPremises_.put(selected, job);
-						for (Job<C, A> other : jobsBySelectedConclusions_
+						for (DerivedInference<C, A> other : jobsBySelectedConclusions_
 								.get(selected)) {
-							produce(other.resolve(job));
+							produce(new Resolvent<C, A>(other, job));
 						}
+					}
+					if (next.shouldCache(this)) {
+						minimalJobs_.add(job);
 					}
 				}
 			} else {
@@ -177,18 +185,23 @@ public class ResolutionJustificationComputation<C, A>
 		}
 	}
 
-	private void produce(final Job<C, A> job) {
-		if (job.premises_.contains(job.conclusion_)) {
+	private void produce(final Job<C, A> resolvent) {
+		if (resolvent.isATautology()) {
 			// skip tautologies
 			return;
 		}
 		producedJobsCount_++;
-		toDoJobs_.add(job);
+		toDoJobs_.add(resolvent);
 	}
 
 	@Stat
 	public int nProducedJobs() {
 		return producedJobsCount_;
+	}
+
+	@Stat
+	public int nMinimalJobs() {
+		return minimalJobs_.size();
 	}
 
 	@Stat
@@ -214,6 +227,42 @@ public class ResolutionJustificationComputation<C, A>
 		return BloomTrieCollection2.class;
 	}
 
+	interface Job<C, A> {
+
+		/**
+		 * @return the inference represented by this job
+		 */
+		DerivedInference<C, A> getInference();
+
+		/**
+		 * @return the justification for the result of {@link #getInference()}
+		 *         (without need to compute the letter)
+		 * 
+		 */
+		Set<A> getJustification();
+
+		/**
+		 * @return the number of premises of for the result of
+		 *         {@link #getInference()} (without need to compute the letter)
+		 */
+		int getPremisesSize();
+
+		/**
+		 * @return {@code true} if {@link #getInference()} returns a
+		 *         tautological inference, i.e. its conclusion is one of the
+		 *         premises.
+		 */
+		boolean isATautology();
+
+		/**
+		 * @param computation
+		 * @return {@code true} if this job should be used to check minimality
+		 *         of other jobs (and, in particular, cycles)
+		 */
+		boolean shouldCache(
+				ResolutionJustificationComputation<C, A> computation);
+	}
+
 	/**
 	 * A derived inference obtained from either original inferences or
 	 * resolution between inferences on conclusions and premises.
@@ -221,19 +270,21 @@ public class ResolutionJustificationComputation<C, A>
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	public static class Job<C, A> extends AbstractSet<JobMember<C, A>> {
+	public static class DerivedInference<C, A> extends
+			AbstractSet<DerivedInferenceMember<C, A>> implements Job<C, A> {
 
 		private final C conclusion_;
 		private final Set<C> premises_;
 		private final Set<A> justification_;
 
-		private Job(C conclusion, Set<C> premises, Set<A> justification) {
+		private DerivedInference(C conclusion, Set<C> premises,
+				Set<A> justification) {
 			this.conclusion_ = conclusion;
 			this.premises_ = premises;
 			this.justification_ = justification;
 		}
 
-		public Job(JustifiedInference<C, A> inference) {
+		public DerivedInference(JustifiedInference<C, A> inference) {
 			this(inference.getConclusion(),
 					ImmutableSet.copyOf(inference.getPremises()),
 					ImmutableSet.copyOf(inference.getJustification()));
@@ -247,11 +298,34 @@ public class ResolutionJustificationComputation<C, A>
 			return premises_;
 		}
 
+		@Override
 		public Set<A> getJustification() {
 			return justification_;
 		}
 
-		public Job<C, A> resolve(Job<C, A> other) {
+		@Override
+		public int getPremisesSize() {
+			return premises_.size();
+		}
+
+		@Override
+		public boolean isATautology() {
+			return premises_.contains(conclusion_);
+		}
+
+		@Override
+		public boolean shouldCache(
+				ResolutionJustificationComputation<C, A> computation) {
+			return true;
+		}
+
+		@Override
+		public DerivedInference<C, A> getInference() {
+			return this;
+		}
+
+		public DerivedInference<C, A> resolveWith(
+				DerivedInference<C, A> other) {
 			Set<C> newPremises;
 			if (other.premises_.size() == 1) {
 				newPremises = premises_;
@@ -260,7 +334,7 @@ public class ResolutionJustificationComputation<C, A>
 						Sets.difference(other.premises_,
 								Collections.singleton(conclusion_))));
 			}
-			return new Job<C, A>(other.conclusion_, newPremises,
+			return new DerivedInference<C, A>(other.conclusion_, newPremises,
 					union(justification_, other.justification_));
 		}
 
@@ -279,8 +353,8 @@ public class ResolutionJustificationComputation<C, A>
 		}
 
 		@Override
-		public Iterator<JobMember<C, A>> iterator() {
-			return Iterators.<JobMember<C, A>> concat(
+		public Iterator<DerivedInferenceMember<C, A>> iterator() {
+			return Iterators.<DerivedInferenceMember<C, A>> concat(
 					Iterators.singletonIterator(
 							new Conclusion<C, A>(conclusion_)),
 					Iterators.transform(premises_.iterator(),
@@ -305,8 +379,8 @@ public class ResolutionJustificationComputation<C, A>
 
 		@Override
 		public boolean containsAll(final Collection<?> c) {
-			if (c instanceof Job<?, ?>) {
-				final Job<?, ?> other = (Job<?, ?>) c;
+			if (c instanceof DerivedInference<?, ?>) {
+				final DerivedInference<?, ?> other = (DerivedInference<?, ?>) c;
 				return conclusion_.equals(other.conclusion_)
 						&& premises_.containsAll(other.premises_)
 						&& justification_.containsAll(other.justification_);
@@ -315,32 +389,33 @@ public class ResolutionJustificationComputation<C, A>
 			return super.containsAll(c);
 		}
 
-		<CC, AA> boolean contains(JobMember<CC, AA> other) {
-			return other.accept(new JobMember.Visitor<CC, AA, Boolean>() {
+		<CC, AA> boolean contains(DerivedInferenceMember<CC, AA> other) {
+			return other.accept(
+					new DerivedInferenceMember.Visitor<CC, AA, Boolean>() {
 
-				@Override
-				public Boolean visit(Axiom<CC, AA> axiom) {
-					return justification_.contains(axiom.getDelegate());
-				}
+						@Override
+						public Boolean visit(Axiom<CC, AA> axiom) {
+							return justification_.contains(axiom.getDelegate());
+						}
 
-				@Override
-				public Boolean visit(Conclusion<CC, AA> conclusion) {
-					return conclusion_.equals(conclusion.getDelegate());
-				}
+						@Override
+						public Boolean visit(Conclusion<CC, AA> conclusion) {
+							return conclusion_.equals(conclusion.getDelegate());
+						}
 
-				@Override
-				public Boolean visit(Premise<CC, AA> premise) {
-					return premises_.contains(premise.getDelegate());
-				}
+						@Override
+						public Boolean visit(Premise<CC, AA> premise) {
+							return premises_.contains(premise.getDelegate());
+						}
 
-			});
+					});
 
 		}
 
 		@Override
 		public boolean contains(final Object o) {
-			if (o instanceof JobMember<?, ?>) {
-				return contains((JobMember<?, ?>) o);
+			if (o instanceof DerivedInferenceMember<?, ?>) {
+				return contains((DerivedInferenceMember<?, ?>) o);
 			}
 			// else
 			return false;
@@ -359,7 +434,7 @@ public class ResolutionJustificationComputation<C, A>
 
 	}
 
-	private interface JobMember<C, A> {
+	private interface DerivedInferenceMember<C, A> {
 
 		<O> O accept(Visitor<C, A, O> visitor);
 
@@ -375,43 +450,124 @@ public class ResolutionJustificationComputation<C, A>
 	}
 
 	private static final class Axiom<C, A> extends Delegator<A>
-			implements JobMember<C, A> {
+			implements DerivedInferenceMember<C, A> {
 
 		public Axiom(A delegate) {
 			super(delegate);
 		}
 
 		@Override
-		public <O> O accept(JobMember.Visitor<C, A, O> visitor) {
+		public <O> O accept(DerivedInferenceMember.Visitor<C, A, O> visitor) {
 			return visitor.visit(this);
 		}
 
 	}
 
 	private static final class Conclusion<C, A> extends Delegator<C>
-			implements JobMember<C, A> {
+			implements DerivedInferenceMember<C, A> {
 
 		public Conclusion(final C delegate) {
 			super(delegate);
 		}
 
 		@Override
-		public <O> O accept(JobMember.Visitor<C, A, O> visitor) {
+		public <O> O accept(DerivedInferenceMember.Visitor<C, A, O> visitor) {
 			return visitor.visit(this);
 		}
 
 	}
 
 	private static final class Premise<C, A> extends Delegator<C>
-			implements JobMember<C, A> {
+			implements DerivedInferenceMember<C, A> {
 
 		public Premise(final C delegate) {
 			super(delegate);
 		}
 
 		@Override
-		public <O> O accept(JobMember.Visitor<C, A, O> visitor) {
+		public <O> O accept(DerivedInferenceMember.Visitor<C, A, O> visitor) {
 			return visitor.visit(this);
+		}
+
+	}
+
+	/**
+	 * The result of resolution applied to two {@link DerivedInference}s. The
+	 * resulting inference returned by {@link #getInference()} is computed on
+	 * demand to prevent unnecessary memory consumption when this object is
+	 * stored in the job queue.
+	 * 
+	 * @author Yevgeny Kazakov
+	 *
+	 * @param <C>
+	 * @param <A>
+	 */
+	static class Resolvent<C, A> extends ForwardingSet<A> implements Job<C, A> {
+
+		private final DerivedInference<C, A> firstJob_, secondJob_;
+
+		private final Set<A> justification_; // lazy
+
+		/**
+		 * cached size of {@link #justification_}
+		 */
+		private final int justificationSize_;
+
+		private final int premisesSize_;
+
+		Resolvent(DerivedInference<C, A> firstJob,
+				DerivedInference<C, A> secondJob) {
+			if (firstJob.isATautology() || secondJob.isATautology()) {
+				throw new IllegalArgumentException();
+			}
+			this.firstJob_ = firstJob;
+			this.secondJob_ = secondJob;
+			this.justification_ = Sets.union(firstJob.justification_,
+					secondJob.justification_);
+			this.justificationSize_ = justification_.size();
+			// since the firstJob is not a tautology
+			this.premisesSize_ = Sets
+					.union(firstJob_.premises_, secondJob_.premises_).size()
+					- 1;
+		}
+
+		@Override
+		public DerivedInference<C, A> getInference() {
+			return firstJob_.resolveWith(secondJob_);
+		}
+
+		@Override
+		public Set<A> getJustification() {
+			return this;
+		}
+
+		@Override
+		public int getPremisesSize() {
+			return premisesSize_;
+		}
+
+		@Override
+		public boolean isATautology() {
+			// since secondJob is not a tautologies
+			return firstJob_.premises_.contains(secondJob_.conclusion_);
+		}
+
+		@Override
+		public boolean shouldCache(
+				ResolutionJustificationComputation<C, A> computation) {
+			// resolution on atoms produced by just one rule not needed to be
+			// cached: such atoms cannot be involved in an inference cycle
+			return computation.getInferences(firstJob_.conclusion_).size() > 1;
+		}
+
+		@Override
+		public int size() {
+			return justificationSize_;
+		}
+
+		@Override
+		protected Set<A> delegate() {
+			return justification_;
 		}
 
 	}
@@ -419,13 +575,14 @@ public class ResolutionJustificationComputation<C, A>
 	public static interface SelectionFunction<C, A> {
 
 		/**
-		 * Selects the conclusion or one of the premises of the job
+		 * Selects the conclusion or one of the premises of the inference; only
+		 * this atom is used in the resolution rule
 		 * 
-		 * @param job
+		 * @param inference
 		 * @return {@code null} if the conclusion is selected or the selected
 		 *         premise
 		 */
-		C selectResolvent(Job<C, A> job,
+		C getResolvingAtom(DerivedInference<C, A> inference,
 				GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
 				C goal);
 
@@ -444,14 +601,16 @@ public class ResolutionJustificationComputation<C, A>
 		return new Comparator<Job<C, A>>() {
 
 			@Override
-			public int compare(final Job<C, A> job1, final Job<C, A> job2) {
-				final int result = justOrder.compare(job1.justification_,
-						job2.justification_);
+			public int compare(final Job<C, A> first, final Job<C, A> second) {
+				int result = justOrder.compare(first.getJustification(),
+						second.getJustification());
 				if (result != 0) {
 					return result;
 				}
-				return Integer.compare(job1.premises_.size(),
-						job2.premises_.size());
+				// else
+				result = Integer.compare(first.getPremisesSize(),
+						second.getPremisesSize());
+				return result;
 			}
 
 		};
