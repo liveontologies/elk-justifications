@@ -5,8 +5,10 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
@@ -64,7 +66,7 @@ public class ResolutionJustificationComputation<C, A>
 	/**
 	 * Used to minimize the jobs
 	 */
-	private final Collection2<DerivedInference<C, A>> minimalJobs_ = new BloomTrieCollection2<>();
+	private final Map<C, Collection2<DerivedInference<C, A>>> minimalJobsByConclusions_ = new HashMap<>();
 
 	/**
 	 * Used to collect the result
@@ -83,7 +85,7 @@ public class ResolutionJustificationComputation<C, A>
 	private Listener<A> listener_ = null;
 
 	// Statistics
-	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
+	private int producedJobsCount_ = 0, minimalJobsCount_ = 0,
 			expansionCount_ = 0, expandedInferencesCount_ = 0;
 
 	public ResolutionJustificationComputation(
@@ -91,6 +93,16 @@ public class ResolutionJustificationComputation<C, A>
 			final Monitor monitor, final SelectionFunction<C, A> selection) {
 		super(inferences, monitor);
 		this.selection_ = selection;
+	}
+
+	Collection2<DerivedInference<C, A>> getMinimalJobs(C conclusion) {
+		Collection2<DerivedInference<C, A>> result = minimalJobsByConclusions_
+				.get(conclusion);
+		if (result == null) {
+			result = new BloomTrieCollection2<>();
+			minimalJobsByConclusions_.put(conclusion, result);
+		}
+		return result;
 	}
 
 	@Override
@@ -101,7 +113,7 @@ public class ResolutionJustificationComputation<C, A>
 
 		this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
 				extendToJobOrder(order));
-		this.minimalJobs_.clear();
+		this.minimalJobsByConclusions_.clear();
 		this.minimalJustifications_.clear();
 		this.jobsBySelectedConclusions_.clear();
 		this.jobsBySelectedPremises_.clear();
@@ -139,50 +151,56 @@ public class ResolutionJustificationComputation<C, A>
 	private void process() {
 
 		for (;;) {
+			if (monitor_.isCancelled()) {
+				break;
+			}
 			Job<C, A> next = toDoJobs_.poll();
 			if (next == null) {
 				break;
 			}
 			DerivedInference<C, A> job = next.getInference();
-			if (minimalJustifications_.isMinimal(job.justification_)
-					&& minimalJobs_.isMinimal(job)) {
-				if (job.premises_.isEmpty() && goal_.equals(job.conclusion_)) {
-					minimalJustifications_.add(job.justification_);
-					if (listener_ != null) {
-						listener_.newJustification(job.justification_);
-					}
-				} else {
-					C selected = selection_.getResolvingAtom(job,
-							getInferenceSet(), goal_);
-					if (selected == null) {
-						// resolve on the conclusions
-						selected = job.conclusion_;
-						jobsBySelectedConclusions_.put(selected, job);
-						for (DerivedInference<C, A> other : jobsBySelectedPremises_
-								.get(selected)) {
-							produce(new Resolvent<C, A>(job, other));
-						}
-					} else {
-						// resolve on the selected premise
-						jobsBySelectedPremises_.put(selected, job);
-						for (DerivedInference<C, A> other : jobsBySelectedConclusions_
-								.get(selected)) {
-							produce(new Resolvent<C, A>(other, job));
-						}
-					}
-					if (next.shouldCache(this)) {
-						minimalJobs_.add(job);
-					}
+			if (!minimalJustifications_.isMinimal(job.justification_)) {
+				continue;
+			}
+			// else
+			if (job.premises_.isEmpty() && goal_.equals(job.conclusion_)) {
+				minimalJustifications_.add(job.justification_);
+				if (listener_ != null) {
+					listener_.newJustification(job.justification_);
+				}
+				continue;
+			}
+			// else
+			Collection2<DerivedInference<C, A>> minimalJobs = getMinimalJobs(
+					job.conclusion_);
+			if (!minimalJobs.isMinimal(job)) {
+				continue;
+			}
+			// else
+			minimalJobsCount_++;
+			C selected = selection_.getResolvingAtom(job, getInferenceSet(),
+					goal_);
+			if (selected == null) {
+				// resolve on the conclusions
+				selected = job.conclusion_;
+				jobsBySelectedConclusions_.put(selected, job);
+				for (DerivedInference<C, A> other : jobsBySelectedPremises_
+						.get(selected)) {
+					produce(new Resolvent<C, A>(job, other));
 				}
 			} else {
-				nonMinimalJobsCount_++;
+				// resolve on the selected premise
+				jobsBySelectedPremises_.put(selected, job);
+				for (DerivedInference<C, A> other : jobsBySelectedConclusions_
+						.get(selected)) {
+					produce(new Resolvent<C, A>(other, job));
+				}
 			}
-
-			if (monitor_.isCancelled()) {
-				break;
+			if (next.shouldCache(this)) {
+				minimalJobs.add(job);
 			}
-
 		}
+
 	}
 
 	private void produce(final Job<C, A> resolvent) {
@@ -201,12 +219,7 @@ public class ResolutionJustificationComputation<C, A>
 
 	@Stat
 	public int nMinimalJobs() {
-		return minimalJobs_.size();
-	}
-
-	@Stat
-	public int nNonMinimalJobs() {
-		return nonMinimalJobsCount_;
+		return minimalJobsCount_;
 	}
 
 	@Stat
@@ -217,7 +230,7 @@ public class ResolutionJustificationComputation<C, A>
 	@ResetStats
 	public void resetStats() {
 		producedJobsCount_ = 0;
-		nonMinimalJobsCount_ = 0;
+		minimalJobsCount_ = 0;
 		expansionCount_ = 0;
 		expandedInferencesCount_ = 0;
 	}
@@ -230,7 +243,7 @@ public class ResolutionJustificationComputation<C, A>
 	interface Job<C, A> {
 
 		/**
-		 * @return the inference represented by this job
+		 * @return the inference represented by this job, computed on demand
 		 */
 		DerivedInference<C, A> getInference();
 
@@ -506,7 +519,7 @@ public class ResolutionJustificationComputation<C, A>
 
 		private final DerivedInference<C, A> firstJob_, secondJob_;
 
-		private final Set<A> justification_; // lazy
+		private final Set<A> justification_; // lazy representation
 
 		/**
 		 * cached size of {@link #justification_}
@@ -525,7 +538,7 @@ public class ResolutionJustificationComputation<C, A>
 			this.justification_ = Sets.union(firstJob.justification_,
 					secondJob.justification_);
 			this.justificationSize_ = justification_.size();
-			// since the firstJob is not a tautology
+			// since firstJob is not a tautology
 			this.premisesSize_ = Sets
 					.union(firstJob_.premises_, secondJob_.premises_).size()
 					- 1;
