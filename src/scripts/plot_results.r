@@ -1,6 +1,10 @@
 #!/usr/bin/env Rscript
 
 
+#library(tikzDevice)
+#tikz(file="plot-results.tex", width=5, height=5)
+
+
 column <- "time"
 xlim <- c(0,100)
 ylim <- c(0.001,100)
@@ -28,7 +32,7 @@ timeOrder <- order(X[[column]])
 step <- 100 / length(X[[column]])
 xvalues <- seq(step, 100, step)
 
-plot(xvalues, X[[column]][timeOrder] / 1000, type="l", col=colorIndex, lty=colorIndex, log="y", main=title, xlab="% of queries", ylab="time in seconds", xlim=xlim, ylim=ylim)
+plot(xvalues, X[[column]][timeOrder] / 1000, type="l", col=colorIndex, lty=colorIndex, log="y", main=title, xlab="\\% of queries", ylab="time in seconds", xlim=xlim, ylim=ylim)
 
 while (index + 1 < length(args)) {
 	index <- index + 1
@@ -48,4 +52,7 @@ while (index + 1 < length(args)) {
 
 
 legend(xlim[1], ylim[2], legend, col=legendStyle, lty=legendStyle)
+
+
+dev.off()
 
