@@ -51,7 +51,7 @@ public class ResolutionJustificationComputation<C, A>
 
 	private static final ResolutionJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
-	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
+	private static final int INITIAL_QUEUE_CAPACITY_ = 256;
 
 	@SuppressWarnings("unchecked")
 	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
@@ -59,34 +59,38 @@ public class ResolutionJustificationComputation<C, A>
 	}
 
 	/**
-	 * newly computed jobs to be propagated
+	 * Conclusions for which computation of justifications has been initialized
 	 */
-	private Queue<Job<C, A>> toDoJobs_ = new PriorityQueue<Job<C, A>>();
+	private final Set<C> initialized_ = new HashSet<>();
 
 	/**
-	 * Used to minimize the jobs
+	 * a structure used to check inferences for minimality; an inference is
+	 * minimal if there was no other inference with the same conclusion, subset
+	 * of premises and subset of justirication produced
 	 */
-	private final Map<C, Collection2<DerivedInference<C, A>>> minimalJobsByConclusions_ = new HashMap<>();
-
-	/**
-	 * Used to collect the result
-	 */
-	private final Collection2<Set<A>> minimalJustifications_ = new BloomTrieCollection2<>();
+	private final Map<C, Collection2<DerivedInference<C, A>>> minimalInferencesByConclusions_ = new HashMap<>();
 
 	private final ListMultimap<C, DerivedInference<C, A>>
-	// jobs whose conclusions are selected, indexed by this conclusion
-	jobsBySelectedConclusions_ = ArrayListMultimap.create(),
-			// jobs whose premise is selected, indexed by this premise
-			jobsBySelectedPremises_ = ArrayListMultimap.create();
+	// inferences whose conclusions are selected, indexed by this conclusion
+	inferencesBySelectedConclusions_ = ArrayListMultimap.create(),
+			// inferences whose premise is selected, indexed by this premise
+			inferencesBySelectedPremises_ = ArrayListMultimap.create();
+
+	/**
+	 * inferences that are not necessary for computing the justifications for
+	 * the current goal; these are (possibly minimal) inferences whose
+	 * justification is a superset of a justification for the goal
+	 */
+	private Queue<DerivedInference<C, A>> blockedInferences_ = new ArrayDeque<>();
+
+	/**
+	 * a function used for selecting conclusions in inferences on which to
+	 * resolve
+	 */
 	private final SelectionFunction<C, A> selection_;
 
-	private C goal_;
-
-	private Listener<A> listener_ = null;
-
 	// Statistics
-	private int producedJobsCount_ = 0, minimalJobsCount_ = 0,
-			expansionCount_ = 0, expandedInferencesCount_ = 0;
+	private int producedInferenceCount_ = 0, minimalInferenceCount_ = 0;
 
 	public ResolutionJustificationComputation(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
@@ -95,12 +99,12 @@ public class ResolutionJustificationComputation<C, A>
 		this.selection_ = selection;
 	}
 
-	Collection2<DerivedInference<C, A>> getMinimalJobs(C conclusion) {
-		Collection2<DerivedInference<C, A>> result = minimalJobsByConclusions_
+	Collection2<DerivedInference<C, A>> getMinimalInferences(C conclusion) {
+		Collection2<DerivedInference<C, A>> result = minimalInferencesByConclusions_
 				.get(conclusion);
 		if (result == null) {
 			result = new BloomTrieCollection2<>();
-			minimalJobsByConclusions_.put(conclusion, result);
+			minimalInferencesByConclusions_.put(conclusion, result);
 		}
 		return result;
 	}
@@ -109,130 +113,23 @@ public class ResolutionJustificationComputation<C, A>
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
 			final Listener<A> listener) {
-		Util.checkNotNull(listener);
-
-		this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
-				extendToJobOrder(order));
-		this.minimalJobsByConclusions_.clear();
-		this.minimalJustifications_.clear();
-		this.jobsBySelectedConclusions_.clear();
-		this.jobsBySelectedPremises_.clear();
-		this.listener_ = listener;
-
-		initialize(conclusion);
-		process();
-
-		this.listener_ = null;
-	}
-
-	private void initialize(final C goal) {
-		this.goal_ = goal;
-		// produce jobs for all inferences that can be used to derive the goal
-		Set<C> done = new HashSet<>();
-		Queue<C> todo = new ArrayDeque<>();
-		done.add(goal);
-		todo.add(goal);
-		for (;;) {
-			C next = todo.poll();
-			if (next == null) {
-				return;
-			}
-			for (JustifiedInference<C, A> inf : getInferences(next)) {
-				produce(new DerivedInference<C, A>(inf));
-				for (C premise : inf.getPremises()) {
-					if (done.add(premise)) {
-						todo.add(premise);
-					}
-				}
-			}
-		}
-	}
-
-	private void process() {
-
-		for (;;) {
-			if (monitor_.isCancelled()) {
-				break;
-			}
-			Job<C, A> next = toDoJobs_.poll();
-			if (next == null) {
-				break;
-			}
-			DerivedInference<C, A> job = next.getInference();
-			if (!minimalJustifications_.isMinimal(job.justification_)) {
-				continue;
-			}
-			// else
-			if (job.premises_.isEmpty() && goal_.equals(job.conclusion_)) {
-				minimalJustifications_.add(job.justification_);
-				if (listener_ != null) {
-					listener_.newJustification(job.justification_);
-				}
-				continue;
-			}
-			// else
-			Collection2<DerivedInference<C, A>> minimalJobs = getMinimalJobs(
-					job.conclusion_);
-			if (!minimalJobs.isMinimal(job)) {
-				continue;
-			}
-			// else
-			minimalJobsCount_++;
-			C selected = selection_.getResolvingAtom(job, getInferenceSet(),
-					goal_);
-			if (selected == null) {
-				// resolve on the conclusions
-				selected = job.conclusion_;
-				jobsBySelectedConclusions_.put(selected, job);
-				for (DerivedInference<C, A> other : jobsBySelectedPremises_
-						.get(selected)) {
-					produce(new Resolvent<C, A>(job, other));
-				}
-			} else {
-				// resolve on the selected premise
-				jobsBySelectedPremises_.put(selected, job);
-				for (DerivedInference<C, A> other : jobsBySelectedConclusions_
-						.get(selected)) {
-					produce(new Resolvent<C, A>(other, job));
-				}
-			}
-			if (next.shouldCache(this)) {
-				minimalJobs.add(job);
-			}
-		}
-
-	}
-
-	private void produce(final Job<C, A> resolvent) {
-		if (resolvent.isATautology()) {
-			// skip tautologies
-			return;
-		}
-		producedJobsCount_++;
-		toDoJobs_.add(resolvent);
+		new JustificationEnumerator(conclusion, order, listener).process();
 	}
 
 	@Stat
-	public int nProducedJobs() {
-		return producedJobsCount_;
+	public int nProducedInferences() {
+		return producedInferenceCount_;
 	}
 
 	@Stat
-	public int nMinimalJobs() {
-		return minimalJobsCount_;
-	}
-
-	@Stat
-	public double ratioInferencesPerExpansion() {
-		return ((double) expandedInferencesCount_) / expansionCount_;
+	public int nMinimalInferences() {
+		return minimalInferenceCount_;
 	}
 
 	@ResetStats
 	public void resetStats() {
-		producedJobsCount_ = 0;
-		minimalJobsCount_ = 0;
-		expansionCount_ = 0;
-		expandedInferencesCount_ = 0;
+		producedInferenceCount_ = 0;
+		minimalInferenceCount_ = 0;
 	}
 
 	@NestedStats
@@ -240,10 +137,10 @@ public class ResolutionJustificationComputation<C, A>
 		return BloomTrieCollection2.class;
 	}
 
-	interface Job<C, A> {
+	interface InferenceHolder<C, A> {
 
 		/**
-		 * @return the inference represented by this job, computed on demand
+		 * @return the inference represented by this object
 		 */
 		DerivedInference<C, A> getInference();
 
@@ -256,9 +153,9 @@ public class ResolutionJustificationComputation<C, A>
 
 		/**
 		 * @return the number of premises of for the result of
-		 *         {@link #getInference()} (without need to compute the letter)
+		 *         {@link #getInference()} (without computing the letter)
 		 */
-		int getPremisesSize();
+		int getPremiseCount();
 
 		/**
 		 * @return {@code true} if {@link #getInference()} returns a
@@ -267,28 +164,26 @@ public class ResolutionJustificationComputation<C, A>
 		 */
 		boolean isATautology();
 
-		/**
-		 * @param computation
-		 * @return {@code true} if this job should be used to check minimality
-		 *         of other jobs (and, in particular, cycles)
-		 */
-		boolean shouldCache(
-				ResolutionJustificationComputation<C, A> computation);
 	}
 
 	/**
 	 * A derived inference obtained from either original inferences or
-	 * resolution between inferences on conclusions and premises.
+	 * resolution between two inferences on the conclusion and a premise.
 	 * 
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	public static class DerivedInference<C, A> extends
-			AbstractSet<DerivedInferenceMember<C, A>> implements Job<C, A> {
+	public static class DerivedInference<C, A>
+			extends AbstractSet<DerivedInferenceMember<C, A>>
+			implements InferenceHolder<C, A> {
 
 		private final C conclusion_;
 		private final Set<C> premises_;
 		private final Set<A> justification_;
+		/**
+		 * {@code true} if the inference was checked for minimality
+		 */
+		private boolean isMinimal_ = false;
 
 		private DerivedInference(C conclusion, Set<C> premises,
 				Set<A> justification) {
@@ -317,19 +212,13 @@ public class ResolutionJustificationComputation<C, A>
 		}
 
 		@Override
-		public int getPremisesSize() {
+		public int getPremiseCount() {
 			return premises_.size();
 		}
 
 		@Override
 		public boolean isATautology() {
 			return premises_.contains(conclusion_);
-		}
-
-		@Override
-		public boolean shouldCache(
-				ResolutionJustificationComputation<C, A> computation) {
-			return true;
 		}
 
 		@Override
@@ -508,16 +397,17 @@ public class ResolutionJustificationComputation<C, A>
 	 * The result of resolution applied to two {@link DerivedInference}s. The
 	 * resulting inference returned by {@link #getInference()} is computed on
 	 * demand to prevent unnecessary memory consumption when this object is
-	 * stored in the job queue.
+	 * stored in the produced inference queue.
 	 * 
 	 * @author Yevgeny Kazakov
 	 *
 	 * @param <C>
 	 * @param <A>
 	 */
-	static class Resolvent<C, A> extends ForwardingSet<A> implements Job<C, A> {
+	static class Resolvent<C, A> extends ForwardingSet<A>
+			implements InferenceHolder<C, A> {
 
-		private final DerivedInference<C, A> firstJob_, secondJob_;
+		private final DerivedInference<C, A> firstInference_, secondInference_;
 
 		private final Set<A> justification_; // lazy representation
 
@@ -526,27 +416,28 @@ public class ResolutionJustificationComputation<C, A>
 		 */
 		private final int justificationSize_;
 
-		private final int premisesSize_;
+		private final int premiseCount_;
 
-		Resolvent(DerivedInference<C, A> firstJob,
-				DerivedInference<C, A> secondJob) {
-			if (firstJob.isATautology() || secondJob.isATautology()) {
-				throw new IllegalArgumentException();
+		Resolvent(DerivedInference<C, A> firstInference,
+				DerivedInference<C, A> secondInference) {
+			if (firstInference.isATautology()
+					|| secondInference.isATautology()) {
+				throw new IllegalArgumentException(
+						"Cannot resolve on tautologies!");
 			}
-			this.firstJob_ = firstJob;
-			this.secondJob_ = secondJob;
-			this.justification_ = Sets.union(firstJob.justification_,
-					secondJob.justification_);
+			this.firstInference_ = firstInference;
+			this.secondInference_ = secondInference;
+			this.justification_ = Sets.union(firstInference.justification_,
+					secondInference.justification_);
 			this.justificationSize_ = justification_.size();
-			// since firstJob is not a tautology
-			this.premisesSize_ = Sets
-					.union(firstJob_.premises_, secondJob_.premises_).size()
-					- 1;
+			// correct when the first resolving inference is not a tautology
+			this.premiseCount_ = Sets.union(firstInference_.premises_,
+					secondInference_.premises_).size() - 1;
 		}
 
 		@Override
 		public DerivedInference<C, A> getInference() {
-			return firstJob_.resolveWith(secondJob_);
+			return firstInference_.resolveWith(secondInference_);
 		}
 
 		@Override
@@ -555,22 +446,15 @@ public class ResolutionJustificationComputation<C, A>
 		}
 
 		@Override
-		public int getPremisesSize() {
-			return premisesSize_;
+		public int getPremiseCount() {
+			return premiseCount_;
 		}
 
 		@Override
 		public boolean isATautology() {
-			// since secondJob is not a tautologies
-			return firstJob_.premises_.contains(secondJob_.conclusion_);
-		}
-
-		@Override
-		public boolean shouldCache(
-				ResolutionJustificationComputation<C, A> computation) {
-			// resolution on atoms produced by just one rule not needed to be
-			// cached: such atoms cannot be involved in an inference cycle
-			return computation.getInferences(firstJob_.conclusion_).size() > 1;
+			// correct when the second inference is not a tautology
+			return firstInference_.premises_
+					.contains(secondInference_.conclusion_);
 		}
 
 		@Override
@@ -581,6 +465,161 @@ public class ResolutionJustificationComputation<C, A>
 		@Override
 		protected Set<A> delegate() {
 			return justification_;
+		}
+
+	}
+
+	private class JustificationEnumerator {
+
+		/**
+		 * the conclusion for which to enumerate justifications
+		 */
+		private final C goal_;
+
+		/**
+		 * the listener through which to report the justifications
+		 */
+		private final Listener<A> listener_;
+
+		/**
+		 * newly computed inferences to be resolved upon
+		 */
+		private final Queue<InferenceHolder<C, A>> producedInferences_;
+
+		/**
+		 * to check minimality of justifications
+		 */
+		private final Collection2<Set<A>> minimalJustifications_ = new BloomTrieCollection2<>();
+
+		/**
+		 * a temporary queue used to initialize computation of justifications
+		 * for conclusions that are not yet {@link #initialized_}
+		 */
+		private final Queue<C> toInitialize_ = new ArrayDeque<>();
+
+		JustificationEnumerator(C goal, Comparator<? super Set<A>> order,
+				Listener<A> listener) {
+			Util.checkNotNull(listener);
+			this.goal_ = goal;
+			this.listener_ = listener;
+			this.producedInferences_ = new PriorityQueue<>(
+					INITIAL_QUEUE_CAPACITY_, getOrderExtension(order));
+			initialize();
+			unblockJobs();
+			changeSelection();
+		}
+
+		void initialize() {
+			toInitialize(goal_);
+			for (;;) {
+				C next = toInitialize_.poll();
+				if (next == null) {
+					return;
+				}
+				for (JustifiedInference<C, A> inf : getInferences(next)) {
+					produce(new DerivedInference<C, A>(inf));
+					for (C premise : inf.getPremises()) {
+						toInitialize(premise);
+					}
+				}
+			}
+		}
+
+		void toInitialize(C conclusion) {
+			if (initialized_.add(conclusion)) {
+				toInitialize_.add(conclusion);
+			}
+		}
+
+		void unblockJobs() {
+			for (;;) {
+				DerivedInference<C, A> inf = blockedInferences_.poll();
+				if (inf == null) {
+					return;
+				}
+				// else
+				produce(inf);
+			}
+		}
+
+		void changeSelection() {
+			// selection for inferences with selected goal must change
+			for (DerivedInference<C, A> inf : inferencesBySelectedConclusions_
+					.removeAll(goal_)) {
+				produce(inf);
+			}
+		}
+
+		void block(DerivedInference<C, A> inf) {
+			blockedInferences_.add(inf);
+		}
+
+		private void process() {
+			for (;;) {
+				if (monitor_.isCancelled()) {
+					break;
+				}
+				InferenceHolder<C, A> next = producedInferences_.poll();
+				if (next == null) {
+					break;
+				}
+				DerivedInference<C, A> inf = next.getInference();
+				if (!minimalJustifications_.isMinimal(inf.justification_)) {
+					block(inf);
+					continue;
+				}
+				// else
+				if (inf.premises_.isEmpty() && goal_.equals(inf.conclusion_)) {
+					minimalJustifications_.add(inf.justification_);
+					listener_.newJustification(inf.justification_);
+					block(inf);
+					continue;
+				}
+				// else
+				if (!inf.isMinimal_) {
+					Collection2<DerivedInference<C, A>> minimalInferences = getMinimalInferences(
+							inf.conclusion_);
+					if (!minimalInferences.isMinimal(inf)) {
+						continue;
+					}
+					// else
+					inf.isMinimal_ = true;
+					minimalInferences.add(inf);
+					minimalInferenceCount_++;
+				}
+				C selected = selection_.getResolvingAtom(inf, getInferenceSet(),
+						goal_);
+				if (selected == null) {
+					// resolve on the conclusions
+					selected = inf.conclusion_;
+					if (goal_.equals(selected)) {
+						throw new RuntimeException(
+								"Goal conclusion cannot be selected if the inference has premises!");
+					}
+					inferencesBySelectedConclusions_.put(selected, inf);
+					for (DerivedInference<C, A> other : inferencesBySelectedPremises_
+							.get(selected)) {
+						produce(new Resolvent<C, A>(inf, other));
+					}
+				} else {
+					// resolve on the selected premise
+					inferencesBySelectedPremises_.put(selected, inf);
+					for (DerivedInference<C, A> other : inferencesBySelectedConclusions_
+							.get(selected)) {
+						produce(new Resolvent<C, A>(other, inf));
+					}
+				}
+			}
+
+		}
+
+		private void produce(InferenceHolder<C, A> resolvent) {
+			if (resolvent.isATautology()) {
+				// skip tautologies
+				return;
+			}
+			producedInferenceCount_++;
+			producedInferences_.add(resolvent);
 		}
 
 	}
@@ -601,7 +640,7 @@ public class ResolutionJustificationComputation<C, A>
 
 	}
 
-	private Comparator<Job<C, A>> extendToJobOrder(
+	private Comparator<InferenceHolder<C, A>> getOrderExtension(
 			final Comparator<? super Set<A>> order) {
 
 		final Comparator<? super Set<A>> justOrder;
@@ -611,18 +650,19 @@ public class ResolutionJustificationComputation<C, A>
 			justOrder = order;
 		}
 
-		return new Comparator<Job<C, A>>() {
+		return new Comparator<InferenceHolder<C, A>>() {
 
 			@Override
-			public int compare(final Job<C, A> first, final Job<C, A> second) {
+			public int compare(final InferenceHolder<C, A> first,
+					final InferenceHolder<C, A> second) {
 				int result = justOrder.compare(first.getJustification(),
 						second.getJustification());
 				if (result != 0) {
 					return result;
 				}
 				// else
-				result = Integer.compare(first.getPremisesSize(),
-						second.getPremisesSize());
+				result = Integer.compare(first.getPremiseCount(),
+						second.getPremiseCount());
 				return result;
 			}
 
@@ -646,10 +686,10 @@ public class ResolutionJustificationComputation<C, A>
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
 				final Monitor monitor) {
-//			return new ResolutionJustificationComputation<>(inferenceSet,
-//					monitor, new BottomUpSelection<C, A>());
-//			return new ResolutionJustificationComputation<>(inferenceSet,
-//					monitor, new TopDownSelection<C, A>());
+			// return new ResolutionJustificationComputation<>(inferenceSet,
+			// monitor, new BottomUpSelection<C, A>());
+			// return new ResolutionJustificationComputation<>(inferenceSet,
+			// monitor, new TopDownSelection<C, A>());
 			return new ResolutionJustificationComputation<>(inferenceSet,
 					monitor, new ThresholdSelection<C, A>());
 		}
