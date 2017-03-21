@@ -32,6 +32,7 @@ public abstract class BaseJustificationComputationTest<C, A> {
 		computations.add(MinPremisesBottomUp.getFactory());
 		computations.add(BottomUpOverAndOrGraphsForJustifications.getFactory());
 		computations.add(TopDownJustificationComputation.getFactory());
+		computations.add(ResolutionJustificationComputation.getFactory());
 		return computations;
 	}
 
