@@ -15,7 +15,7 @@ import org.semanticweb.elk.statistics.Stats;
 public abstract class ResolutionJustificationExperiment<C, A>
 		extends JustificationExperiment {
 
-	private final ResolutionJustificationComputation.SelectionFunction<C, A> selection_;
+	private final ResolutionJustificationComputation.SelectionFactory<C, A> selectionFactory_;
 
 	private volatile JustificationComputation<C, A> computation_ = null;
 
@@ -40,8 +40,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 					.getConstructor();
 			final Object object = constructor.newInstance();
 			@SuppressWarnings("unchecked")
-			final ResolutionJustificationComputation.SelectionFunction<C, A> selection = (ResolutionJustificationComputation.SelectionFunction<C, A>) object;
-			this.selection_ = selection;
+			final ResolutionJustificationComputation.SelectionFactory<C, A> selectionFactory = (ResolutionJustificationComputation.SelectionFactory<C, A>) object;
+			this.selectionFactory_ = selectionFactory;
 		} catch (final ClassNotFoundException e) {
 			throw new ExperimentException(e);
 		} catch (final NoSuchMethodException e) {
@@ -75,8 +75,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		final C goal = decodeQuery(query);
 		final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet = newInferenceSet(
 				goal);
-		computation_ = new ResolutionJustificationComputation<>(inferenceSet,
-				monitor, selection_);
+		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
+				.create(inferenceSet, monitor, selectionFactory_);
 		computation_.enumerateJustifications(goal, null, justificationCounter_);
 
 	}
