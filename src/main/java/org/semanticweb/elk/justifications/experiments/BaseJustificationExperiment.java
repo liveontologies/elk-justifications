@@ -6,11 +6,11 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
-import org.semanticweb.elk.justifications.JustificationComputation;
-import org.semanticweb.elk.justifications.JustificationComputation.Factory;
-import org.semanticweb.elk.justifications.Monitor;
-import org.semanticweb.elk.statistics.NestedStats;
-import org.semanticweb.elk.statistics.Stats;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation.Factory;
+import org.liveontologies.puli.statistics.NestedStats;
+import org.liveontologies.puli.statistics.Stats;
 
 public abstract class BaseJustificationExperiment<C, A>
 		extends JustificationExperiment {
@@ -66,7 +66,7 @@ public abstract class BaseJustificationExperiment<C, A>
 	}
 
 	@Override
-	public void run(final String query, final Monitor monitor)
+	public void run(final String query, final InterruptMonitor monitor)
 			throws ExperimentException {
 
 		final C goal = decodeQuery(query);

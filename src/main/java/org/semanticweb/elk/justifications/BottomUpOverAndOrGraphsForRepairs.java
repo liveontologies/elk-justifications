@@ -5,11 +5,14 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.justifications.AbstractJustificationComputation;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.semanticweb.elk.justifications.andorgraph.AndOrGraphs;
 import org.semanticweb.elk.justifications.andorgraph.Node;
 
 public class BottomUpOverAndOrGraphsForRepairs<C, A>
-		extends CancellableJustificationComputation<C, A> {
+		extends AbstractJustificationComputation<C, A> {
 
 	private static final BottomUpOverAndOrGraphsForRepairs.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
@@ -22,7 +25,7 @@ public class BottomUpOverAndOrGraphsForRepairs<C, A>
 
 	public BottomUpOverAndOrGraphsForRepairs(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
-			final Monitor monitor) {
+			final InterruptMonitor monitor) {
 		super(inferenceSet, monitor);
 		this.computation_ = new BottomUpOverAndOrGraphs<>(monitor);
 	}
@@ -42,7 +45,7 @@ public class BottomUpOverAndOrGraphsForRepairs<C, A>
 		@Override
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
-				final Monitor monitor) {
+				final InterruptMonitor monitor) {
 			return new BottomUpOverAndOrGraphsForRepairs<>(inferenceSet,
 					monitor);
 		}

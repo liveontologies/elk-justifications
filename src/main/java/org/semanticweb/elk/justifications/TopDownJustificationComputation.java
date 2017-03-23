@@ -16,9 +16,12 @@ import org.liveontologies.puli.JustifiedInference;
 import org.liveontologies.puli.Util;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
-import org.semanticweb.elk.statistics.NestedStats;
-import org.semanticweb.elk.statistics.ResetStats;
-import org.semanticweb.elk.statistics.Stat;
+import org.liveontologies.puli.justifications.AbstractJustificationComputation;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.statistics.NestedStats;
+import org.liveontologies.puli.statistics.ResetStats;
+import org.liveontologies.puli.statistics.Stat;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
@@ -33,7 +36,7 @@ import com.google.common.collect.Iterators;
  *            the type of axioms used by the inferences
  */
 public class TopDownJustificationComputation<C, A>
-		extends CancellableJustificationComputation<C, A> {
+		extends AbstractJustificationComputation<C, A> {
 
 	private static final TopDownJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
@@ -69,7 +72,7 @@ public class TopDownJustificationComputation<C, A>
 
 	private TopDownJustificationComputation(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
-			final Monitor monitor) {
+			final InterruptMonitor monitor) {
 		super(inferences, monitor);
 		this.rank_ = new Comparator<C>() {
 			@Override
@@ -134,7 +137,7 @@ public class TopDownJustificationComputation<C, A>
 				nonMinimalJobsCount_++;
 			}
 
-			if (monitor_.isCancelled()) {
+			if (isInterrupted()) {
 				break;
 			}
 
@@ -337,7 +340,7 @@ public class TopDownJustificationComputation<C, A>
 		@Override
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
-				final Monitor monitor) {
+				final InterruptMonitor monitor) {
 			return new TopDownJustificationComputation<>(inferenceSet, monitor);
 		}
 

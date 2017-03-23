@@ -7,8 +7,11 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.justifications.AbstractJustificationComputation;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.statistics.NestedStats;
 import org.semanticweb.elk.proofs.adapters.InferenceSets;
-import org.semanticweb.elk.statistics.NestedStats;
 
 /**
  * The {@link BottomUpJustificationComputation} applied to the binarization of
@@ -29,8 +32,8 @@ public class BinarizedJustificationComputation<C, A>
 	BinarizedJustificationComputation(
 			JustificationComputation.Factory<List<C>, A> mainFactory,
 			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
-			final Monitor monitor) {
-		super(inferences);
+			final InterruptMonitor monitor) {
+		super(inferences, monitor);
 		computaiton_ = mainFactory.create(InferenceSets.binarize(inferences),
 				monitor);
 	}
@@ -65,7 +68,7 @@ public class BinarizedJustificationComputation<C, A>
 		@Override
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
-				final Monitor monitor) {
+				final InterruptMonitor monitor) {
 			return new BinarizedJustificationComputation<C, A>(mainFactory_,
 					inferenceSet, monitor);
 		}

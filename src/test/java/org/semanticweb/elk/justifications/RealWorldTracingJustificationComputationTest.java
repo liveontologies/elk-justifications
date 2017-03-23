@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 

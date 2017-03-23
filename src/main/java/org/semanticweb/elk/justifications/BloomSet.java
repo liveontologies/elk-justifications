@@ -5,8 +5,8 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Set;
 
-import org.semanticweb.elk.statistics.ResetStats;
-import org.semanticweb.elk.statistics.Stat;
+import org.liveontologies.puli.statistics.ResetStats;
+import org.liveontologies.puli.statistics.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

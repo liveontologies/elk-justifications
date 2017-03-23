@@ -12,6 +12,8 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.liveontologies.puli.Util;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.semanticweb.elk.justifications.andorgraph.AndNode;
 import org.semanticweb.elk.justifications.andorgraph.Node;
 import org.semanticweb.elk.justifications.andorgraph.OrNode;
@@ -31,7 +33,7 @@ public class BottomUpOverAndOrGraphs<A>
 
 	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
 
-	private final Monitor monitor_;
+	private final InterruptMonitor monitor_;
 
 	/**
 	 * A map from nodes to their justifications.
@@ -63,7 +65,7 @@ public class BottomUpOverAndOrGraphs<A>
 	 */
 	private final Multimap<Node<A>, Node<A>> children_ = HashMultimap.create();
 
-	public BottomUpOverAndOrGraphs(final Monitor monitor) {
+	public BottomUpOverAndOrGraphs(final InterruptMonitor monitor) {
 		this.monitor_ = monitor;
 		initQueue(null);
 	}
@@ -78,6 +80,13 @@ public class BottomUpOverAndOrGraphs<A>
 	private void initQueue(final Comparator<? super Set<A>> order) {
 		this.toDoJustifications_ = new PriorityQueue<Justification<Node<A>, A>>(
 				INITIAL_QUEUE_CAPACITY_, new Order(order));
+	}
+
+	@Override
+	public void enumerateJustifications(final Node<A> conclusion,
+			final JustificationComputation.Listener<A> listener) {
+		enumerateJustifications(conclusion,
+				JustificationComputation.DEFAULT_ORDER, listener);
 	}
 
 	@Override
@@ -232,7 +241,7 @@ public class BottomUpOverAndOrGraphs<A>
 		private void process() {
 			Justification<Node<A>, A> just;
 			while ((just = toDoJustifications_.poll()) != null) {
-				if (monitor_.isCancelled()) {
+				if (monitor_.isInterrupted()) {
 					return;
 				}
 

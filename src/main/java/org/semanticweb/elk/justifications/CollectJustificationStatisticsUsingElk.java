@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -160,7 +161,7 @@ public class CollectJustificationStatisticsUsingElk {
 									new Function<JustifiedInference<Conclusion, ElkAxiom>, Void>() {
 										@Override
 										public Void apply(final JustifiedInference<Conclusion, ElkAxiom> inf) {
-											if (monitor.isCancelled()) {
+											if (monitor.isInterrupted()) {
 												return null;
 											}
 											
@@ -273,13 +274,13 @@ public class CollectJustificationStatisticsUsingElk {
 		
 	}
 	
-	private static class TimeOutMonitor implements Monitor {
+	private static class TimeOutMonitor implements InterruptMonitor {
 		
 		public volatile boolean cancelled = false;
 		public final AtomicLong startTime = new AtomicLong();
 
 		@Override
-		public boolean isCancelled() {
+		public boolean isInterrupted() {
 			return cancelled;
 		}
 		

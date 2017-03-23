@@ -1,11 +1,13 @@
 package org.semanticweb.elk.justifications;
 
-public class DummyMonitor implements Monitor {
+import org.liveontologies.puli.justifications.InterruptMonitor;
+
+public class DummyMonitor implements InterruptMonitor {
 
 	public static final DummyMonitor INSTANCE = new DummyMonitor();
 	
 	@Override
-	public boolean isCancelled() {
+	public boolean isInterrupted() {
 		return false;
 	}
 

@@ -13,9 +13,12 @@ import java.util.Set;
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
 import org.liveontologies.puli.Util;
-import org.semanticweb.elk.statistics.NestedStats;
-import org.semanticweb.elk.statistics.ResetStats;
-import org.semanticweb.elk.statistics.Stat;
+import org.liveontologies.puli.justifications.AbstractJustificationComputation;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.statistics.NestedStats;
+import org.liveontologies.puli.statistics.ResetStats;
+import org.liveontologies.puli.statistics.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +27,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
 public class BottomUpJustificationComputation<C, A>
-		extends CancellableJustificationComputation<C, A> {
+		extends AbstractJustificationComputation<C, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
@@ -71,7 +74,7 @@ public class BottomUpJustificationComputation<C, A>
 
 	private BottomUpJustificationComputation(
 			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
-			final Monitor monitor) {
+			final InterruptMonitor monitor) {
 		super(inferences, monitor);
 		initQueue(null);
 	}
@@ -293,7 +296,7 @@ public class BottomUpJustificationComputation<C, A>
 		private void process() {
 			Justification<C, A> just;
 			while ((just = toDoJustifications_.poll()) != null) {
-				if (monitor_.isCancelled()) {
+				if (isInterrupted()) {
 					return;
 				}
 
@@ -410,7 +413,7 @@ public class BottomUpJustificationComputation<C, A>
 		@Override
 		public JustificationComputation<C, A> create(
 				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
-				final Monitor monitor) {
+				final InterruptMonitor monitor) {
 			return new BottomUpJustificationComputation<>(inferenceSet,
 					monitor);
 		}

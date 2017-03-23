@@ -8,6 +8,8 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.InterruptMonitor;
 
 public class JustificationCollector<C, A> {
 
@@ -49,12 +51,12 @@ public class JustificationCollector<C, A> {
 		return collectJustifications(query, Integer.MAX_VALUE);
 	}
 
-	private static class CancellableMonitor implements Monitor {
+	private static class CancellableMonitor implements InterruptMonitor {
 
 		private volatile boolean cancelled_ = false;
 
 		@Override
-		public boolean isCancelled() {
+		public boolean isInterrupted() {
 			return cancelled_;
 		}
 

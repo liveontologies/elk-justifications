@@ -10,6 +10,7 @@ import java.util.Set;
 import org.liveontologies.owlapi.proof.OWLProver;
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.elk.proofs.adapters.InferenceSets;
 import org.semanticweb.owlapi.apibinding.OWLManager;

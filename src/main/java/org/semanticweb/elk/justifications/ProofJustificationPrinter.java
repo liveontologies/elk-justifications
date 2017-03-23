@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.proofs.ProofPrinter;
 
 /**

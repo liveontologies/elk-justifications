@@ -19,9 +19,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.statistics.Stats;
 import org.semanticweb.elk.justifications.experiments.ExperimentException;
 import org.semanticweb.elk.justifications.experiments.JustificationExperiment;
-import org.semanticweb.elk.statistics.Stats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -342,7 +343,7 @@ public class RunJustificationExperiments {
 	 * 
 	 * @author Peter Skocovsky
 	 */
-	private static class TimeOutMonitor implements Monitor {
+	private static class TimeOutMonitor implements InterruptMonitor {
 
 		private final long stopTimeMillis_;
 
@@ -353,7 +354,7 @@ public class RunJustificationExperiments {
 		}
 
 		@Override
-		public boolean isCancelled() {
+		public boolean isInterrupted() {
 			if (stopTimeMillis_ < System.currentTimeMillis()) {
 				cancelled = true;
 			}
