@@ -1,12 +1,13 @@
 package org.semanticweb.elk.justifications.experiments;
 
 import java.io.File;
+import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.InferenceSets;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
-import org.semanticweb.elk.proofs.adapters.InferenceSets;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -95,10 +96,17 @@ public class OwlJustificationExperiment
 	}
 
 	@Override
-	protected GenericInferenceSet<OWLAxiom, ? extends JustifiedInference<OWLAxiom, OWLAxiom>> newInferenceSet(
-			final OWLAxiom query) throws ExperimentException {
-		return InferenceSets.justifyAsserted(getReasoner().getProof(query),
+	protected InferenceSet<OWLAxiom> newInferenceSet(final OWLAxiom query)
+			throws ExperimentException {
+		return InferenceSets.addAssertedInferences(
+				getReasoner().getProof(query),
 				getReasoner().getRootOntology().getAxioms(Imports.EXCLUDED));
+	}
+
+	@Override
+	protected InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> newJustifier()
+			throws ExperimentException {
+		return InferenceSets.justifyAssertedInferences();
 	}
 
 }

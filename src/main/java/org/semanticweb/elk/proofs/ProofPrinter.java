@@ -9,8 +9,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 
 /**
  * A simple pretty printer for proofs using ASCII characters. Due to potential
@@ -30,12 +31,17 @@ public class ProofPrinter<C, A> {
 	/**
 	 * the set of inferences from which the proofs are formed
 	 */
-	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences_;
+	private final InferenceSet<C> inferences_;
+
+	/**
+	 * provides justifications for inferences
+	 */
+	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 	/**
 	 * the current positions of iterators over inferences for conclusions
 	 */
-	private final Deque<Iterator<? extends JustifiedInference<C, A>>> inferenceStack_ = new LinkedList<Iterator<? extends JustifiedInference<C, A>>>();
+	private final Deque<Iterator<? extends Inference<C>>> inferenceStack_ = new LinkedList<Iterator<? extends Inference<C>>>();
 
 	/**
 	 * the current positions of iterators over conclusions for inferences
@@ -57,16 +63,17 @@ public class ProofPrinter<C, A> {
 	 */
 	private final BufferedWriter writer_;
 
-	protected ProofPrinter(
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	protected ProofPrinter(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			BufferedWriter writer) {
-		this.inferences_ = inferences;
+		this.inferences_ = inferenceSet;
+		this.justifier_ = justifier;
 		this.writer_ = writer;
 	}
 
-	protected ProofPrinter(
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences) {
-		this(inferences,
+	protected ProofPrinter(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+		this(inferenceSet, justifier,
 				new BufferedWriter(new OutputStreamWriter(System.out)));
 	}
 
@@ -76,10 +83,10 @@ public class ProofPrinter<C, A> {
 		writer_.flush();
 	}
 
-	public static <C, A> void print(
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	public static <C, A> void print(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) throws IOException {
-		ProofPrinter<C, A> pp = new ProofPrinter<>(inferences);
+		ProofPrinter<C, A> pp = new ProofPrinter<>(inferenceSet, justifier);
 		pp.printProof(conclusion);
 	}
 
@@ -116,16 +123,16 @@ public class ProofPrinter<C, A> {
 	private void process() throws IOException {
 		for (;;) {
 			// processing inferences
-			Iterator<? extends JustifiedInference<C, A>> infIter = inferenceStack_
-					.peek();
+			Iterator<? extends Inference<C>> infIter = inferenceStack_.peek();
 			if (infIter == null) {
 				return;
 			}
 			// else
 			if (infIter.hasNext()) {
-				JustifiedInference<C, A> inf = infIter.next();
+				Inference<C> inf = infIter.next();
 				conclusionStack_.push(inf.getPremises().iterator());
-				justificationStack_.push(inf.getJustification().iterator());
+				justificationStack_
+						.push(justifier_.getJustification(inf).iterator());
 			} else {
 				inferenceStack_.pop();
 			}
@@ -161,15 +168,14 @@ public class ProofPrinter<C, A> {
 	}
 
 	private void writePrefix() throws IOException {
-		Iterator<Iterator<? extends JustifiedInference<C, A>>> inferStackItr = inferenceStack_
+		Iterator<Iterator<? extends Inference<C>>> inferStackItr = inferenceStack_
 				.descendingIterator();
 		Iterator<Iterator<? extends C>> conclStackItr = conclusionStack_
 				.descendingIterator();
 		Iterator<Iterator<? extends A>> justStackItr = justificationStack_
 				.descendingIterator();
 		while (inferStackItr.hasNext()) {
-			Iterator<? extends JustifiedInference<C, A>> inferIter = inferStackItr
-					.next();
+			Iterator<? extends Inference<C>> inferIter = inferStackItr.next();
 			Iterator<? extends C> conclIter = conclStackItr.next();
 			Iterator<? extends A> justIter = justStackItr.next();
 			boolean hasNextPremise = conclIter.hasNext() || justIter.hasNext();

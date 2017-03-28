@@ -19,7 +19,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceSet;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
@@ -31,11 +32,11 @@ import org.semanticweb.elk.owl.interfaces.ElkClassAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
+import org.semanticweb.elk.proofs.TracingInferenceJustifier;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -181,16 +182,18 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner,
 							conclusion);
-			final TracingInferenceSet inferenceSet =
+			final InferenceSet<Conclusion> inferenceSet =
 					reasoner.explainConclusion(expression);
+			final TracingInferenceJustifier justifier =
+					TracingInferenceJustifier.INSTANCE;
 			
 			final Set<ElkAxiom> axiomExprs =
 					new HashSet<ElkAxiom>();
 			final Set<Conclusion> lemmaExprs =
 					new HashSet<Conclusion>();
 			
-			Utils.traverseProofs(expression, inferenceSet,
-					Functions.<JustifiedInference<Conclusion, ElkAxiom>>identity(),
+			Utils.traverseProofs(expression, inferenceSet, justifier,
+					Functions.<Inference<Conclusion>>identity(),
 					new Function<Conclusion, Void>(){
 						@Override
 						public Void apply(final Conclusion expr) {
@@ -222,16 +225,16 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			}
 			
 			// cnf
-			Utils.traverseProofs(expression, inferenceSet,
-					new Function<JustifiedInference<Conclusion, ElkAxiom>, Void>() {
+			Utils.traverseProofs(expression, inferenceSet, justifier,
+					new Function<Inference<Conclusion>, Void>() {
 						@Override
 						public Void apply(
-								final JustifiedInference<Conclusion, ElkAxiom> inf) {
+								final Inference<Conclusion> inf) {
 							
 							LOG.trace("processing {}", inf);
 							
 							for (final ElkAxiom axiom :
-									inf.getJustification()) {
+									justifier.getJustification(inf)) {
 								cnf.print(-axiomIndex.get(axiom));
 								cnf.print(" ");
 							}

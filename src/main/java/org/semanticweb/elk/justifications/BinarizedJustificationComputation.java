@@ -5,11 +5,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
-import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.semanticweb.elk.proofs.adapters.InferenceSets;
 
@@ -31,11 +31,12 @@ public class BinarizedJustificationComputation<C, A>
 
 	BinarizedJustificationComputation(
 			JustificationComputation.Factory<List<C>, A> mainFactory,
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferences, monitor);
-		computaiton_ = mainFactory.create(InferenceSets.binarize(inferences),
-				monitor);
+		super(inferenceSet, justifier, monitor);
+		computaiton_ = mainFactory.create(InferenceSets.binarize(inferenceSet),
+				InferenceSets.binarize(justifier), monitor);
 	}
 
 	@Override
@@ -67,10 +68,11 @@ public class BinarizedJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
 			return new BinarizedJustificationComputation<C, A>(mainFactory_,
-					inferenceSet, monitor);
+					inferenceSet, justifier, monitor);
 		}
 
 	}

@@ -24,15 +24,17 @@ import javax.swing.tree.ExpandVetoException;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 
 import com.google.common.collect.HashMultimap;
 
 public class InferenceSetTreeComponent<C, A> extends JTree {
 	private static final long serialVersionUID = 8406872780618425810L;
 
-	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet_;
+	private final InferenceSet<C> inferenceSet_;
+	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 	private final C conclusion_;
 
 	private final TreeNodeLabelProvider nodeDecorator_;
@@ -41,16 +43,19 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 	private final HashMultimap<Object, TreePath> visibleNodes_;
 
 	public InferenceSetTreeComponent(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion) {
-		this(inferenceSet, conclusion, null, null);
+		this(inferenceSet, justifier, conclusion, null, null);
 	}
 
 	public InferenceSetTreeComponent(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
 		this.inferenceSet_ = inferenceSet;
+		this.justifier_ = justifier;
 		this.conclusion_ = conclusion;
 		this.nodeDecorator_ = nodeDecorator;
 		this.toolTipProvider_ = toolTipProvider;
@@ -84,7 +89,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 				final int count = getModel().getChildCount(parent);
 				for (int i = 0; i < count; i++) {
 					final Object child = getModel().getChild(parent, i);
-					if (!(child instanceof JustifiedInference)) {
+					if (!(child instanceof Inference)) {
 						visibleNodes_.put(child, path.pathByAddingChild(child));
 					}
 				}
@@ -100,7 +105,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 				final int count = getModel().getChildCount(parent);
 				for (int i = 0; i < count; i++) {
 					final Object child = getModel().getChild(parent, i);
-					if (!(child instanceof JustifiedInference)) {
+					if (!(child instanceof Inference)) {
 						visibleNodes_.remove(child,
 								path.pathByAddingChild(child));
 					}
@@ -147,7 +152,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 				final int count = getModel().getChildCount(parent);
 				for (int i = 0; i < count; i++) {
 					final Object child = getModel().getChild(parent, i);
-					if (!(child instanceof JustifiedInference)) {
+					if (!(child instanceof Inference)) {
 						visibleNodes_.put(child, path.pathByAddingChild(child));
 					}
 				}
@@ -164,7 +169,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 		final Map<Object, TreePath> done = new HashMap<Object, TreePath>();
 
 		Object node = rootPath.getLastPathComponent();
-		if (node instanceof JustifiedInference) {
+		if (node instanceof Inference) {
 
 			expandPath(rootPath);
 
@@ -220,7 +225,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 		if (value == null) {
 			label = "";
 		} else {
-			if (value instanceof JustifiedInference) {
+			if (value instanceof Inference) {
 				label = "⊣";// TODO: display the justification here instead of
 							// as one of the premises
 			} else {
@@ -247,8 +252,8 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 		@Override
 		public Object getChild(final Object parent, final int index) {
-			if (parent instanceof JustifiedInference) {
-				final JustifiedInference<?, ?> inf = (JustifiedInference<?, ?>) parent;
+			if (parent instanceof Inference) {
+				final Inference<C> inf = (Inference<C>) parent;
 				int i = 0;
 				for (final Object premise : inf.getPremises()) {
 					if (i == index) {
@@ -256,7 +261,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					}
 					i++;
 				}
-				for (final Object axiom : inf.getJustification()) {
+				for (final Object axiom : justifier_.getJustification(inf)) {
 					if (i == index) {
 						return axiom;
 					}
@@ -270,10 +275,10 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends JustifiedInference<C, A>> inferences = inferenceSet_
+					final Collection<? extends Inference<C>> inferences = inferenceSet_
 							.getInferences((C) parent);
 					int i = 0;
-					for (final JustifiedInference<C, A> inf : inferences) {
+					for (final Inference<C> inf : inferences) {
 						if (i == index) {
 							return inf;
 						}
@@ -288,9 +293,9 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 		@Override
 		public int getChildCount(final Object parent) {
-			if (parent instanceof JustifiedInference) {
-				final JustifiedInference<?, ?> inf = (JustifiedInference<?, ?>) parent;
-				return inf.getPremises().size() + inf.getJustification().size();
+			if (parent instanceof Inference) {
+				final Inference<C> inf = (Inference<C>) parent;
+				return inf.getPremises().size() + justifier_.getJustification(inf).size();
 			} else {
 				try {
 					/*
@@ -299,7 +304,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Iterator<? extends JustifiedInference<C, A>> inferenceIterator = inferenceSet_
+					final Iterator<? extends Inference<C>> inferenceIterator = inferenceSet_
 							.getInferences((C) parent).iterator();
 					int i = 0;
 					while (inferenceIterator.hasNext()) {
@@ -316,10 +321,10 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 		@Override
 		public boolean isLeaf(final Object node) {
-			if (node instanceof JustifiedInference) {
-				final JustifiedInference<?, ?> inf = (JustifiedInference<?, ?>) node;
+			if (node instanceof Inference) {
+				final Inference<C> inf = (Inference<C>) node;
 				return inf.getPremises().isEmpty()
-						&& inf.getJustification().isEmpty();
+						&& justifier_.getJustification(inf).isEmpty();
 			} else {
 				try {
 					/*
@@ -328,7 +333,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends JustifiedInference<C, A>> inferences = inferenceSet_
+					final Collection<? extends Inference<C>> inferences = inferenceSet_
 							.getInferences((C) node);
 					return !inferences.iterator().hasNext();
 				} catch (final ClassCastException e) {
@@ -343,8 +348,8 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 			if (parent == null || child == null) {
 				return -1;
 			}
-			if (parent instanceof JustifiedInference) {
-				final JustifiedInference<?, ?> inf = (JustifiedInference<?, ?>) parent;
+			if (parent instanceof Inference) {
+				final Inference<C> inf = (Inference<C>) parent;
 				int i = 0;
 				for (final Object premise : inf.getPremises()) {
 					if (child.equals(premise)) {
@@ -352,7 +357,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					}
 					i++;
 				}
-				for (final Object axiom : inf.getJustification()) {
+				for (final Object axiom : justifier_.getJustification(inf)) {
 					if (child.equals(axiom)) {
 						return i;
 					}
@@ -366,10 +371,10 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends JustifiedInference<C, A>> inferences = inferenceSet_
+					final Collection<? extends Inference<C>> inferences = inferenceSet_
 							.getInferences((C) parent);
 					int i = 0;
-					for (final JustifiedInference<C, A> inf : inferences) {
+					for (final Inference<C> inf : inferences) {
 						if (child.equals(inf)) {
 							return i;
 						}

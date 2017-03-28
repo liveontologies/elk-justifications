@@ -11,12 +11,13 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.Util;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
-import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -55,14 +56,14 @@ public class MinPremisesBottomUp<C, A>
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, JustifiedInference<C, A>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, Inference<C>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
 	 * a map from premises and inferences for which they are used to their
 	 * justifications
 	 */
-	private final Multimap<Pair<JustifiedInference<C, A>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
+	private final Multimap<Pair<Inference<C>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -77,10 +78,10 @@ public class MinPremisesBottomUp<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0, countBlocked_ = 0;
 
-	private MinPremisesBottomUp(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	private MinPremisesBottomUp(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferences, monitor);
+		super(inferenceSet, justifier, monitor);
 		initQueue(null);
 	}
 
@@ -244,8 +245,7 @@ public class MinPremisesBottomUp<C, A>
 				LOGGER_.trace("{}: computation of justifiations initialized",
 						conclusion);
 				boolean derived = false;
-				for (final JustifiedInference<C, A> inf : getInferences(
-						conclusion)) {
+				for (final Inference<C> inf : getInferences(conclusion)) {
 					LOGGER_.trace("{}: new inference", inf);
 					derived = true;
 					countInferences_++;
@@ -255,7 +255,7 @@ public class MinPremisesBottomUp<C, A>
 					}
 					if (inf.getPremises().isEmpty()) {
 						toDoJustifications_.add(createJustification(
-								inf.getConclusion(), inf.getJustification()));
+								inf.getConclusion(), getJustification(inf)));
 						countJustificationCandidates_++;
 					}
 				}
@@ -311,12 +311,11 @@ public class MinPremisesBottomUp<C, A>
 
 					// all justifications are computed,
 					// the inferences are not needed anymore
-					for (final JustifiedInference<C, A> inf : getInferences(
-							conclusion)) {
+					for (final Inference<C> inf : getInferences(conclusion)) {
 						for (C premise : inf.getPremises()) {
 							inferencesByPremises_.remove(premise, inf);
-							final Pair<JustifiedInference<C, A>, C> key = Pair
-									.create(inf, premise);
+							final Pair<Inference<C>, C> key = Pair.create(inf,
+									premise);
 							premiseJustifications_.removeAll(key);
 							premiseJustifications_.put(key,
 									just.copyTo(premise));
@@ -333,10 +332,9 @@ public class MinPremisesBottomUp<C, A>
 					 * removed, there is no need to minimize their premise
 					 * justifications
 					 */
-					for (final JustifiedInference<C, A> inf : getInferences(
-							conclusion)) {
+					for (final Inference<C> inf : getInferences(conclusion)) {
 						final Justification<C, A> justLessInf = just
-								.removeElements(inf.getJustification());
+								.removeElements(getJustification(inf));
 						for (final C premise : inf.getPremises()) {
 							final Iterator<Justification<C, A>> premiseJustIt = premiseJustifications_
 									.get(Pair.create(inf, premise)).iterator();
@@ -357,19 +355,19 @@ public class MinPremisesBottomUp<C, A>
 				 * where this conclusion is the premise iff it is minimal w.r.t.
 				 * justifications of the inference conclusion
 				 */
-				final Collection<JustifiedInference<C, A>> inferences = inferencesByPremises_
+				final Collection<Inference<C>> inferences = inferencesByPremises_
 						.get(conclusion);
 				if (inferences == null || inferences.isEmpty()) {
 					continue;
 				}
-				final List<JustifiedInference<C, A>> infsToPropagate = new ArrayList<>(
+				final List<Inference<C>> infsToPropagate = new ArrayList<>(
 						inferences.size());
-				for (final JustifiedInference<C, A> inf : inferences) {
+				for (final Inference<C> inf : inferences) {
 					final Collection<Justification<C, A>> premiseJusts = premiseJustifications_
 							.get(Pair.create(inf, conclusion));
 
 					final Justification<C, A> justWithInf = just
-							.addElements(inf.getJustification());
+							.addElements(getJustification(inf));
 					if (Utils.isMinimal(justWithInf,
 							justifications_.get(inf.getConclusion()))) {
 						premiseJusts.add(just);
@@ -381,12 +379,12 @@ public class MinPremisesBottomUp<C, A>
 				/*
 				 * propagating justification over inferences
 				 */
-				for (final JustifiedInference<C, A> inf : infsToPropagate) {
+				for (final Inference<C> inf : infsToPropagate) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 					Justification<C, A> conclusionJust = just
 							.copyTo(inf.getConclusion())
-							.addElements(inf.getJustification());
+							.addElements(getJustification(inf));
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {
@@ -452,9 +450,10 @@ public class MinPremisesBottomUp<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
-			return new MinPremisesBottomUp<>(inferenceSet, monitor);
+			return new MinPremisesBottomUp<>(inferenceSet, justifier, monitor);
 		}
 
 	}

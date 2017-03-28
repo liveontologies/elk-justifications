@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Set;
 
 import org.liveontologies.puli.Delegator;
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
-import org.semanticweb.elk.proofs.InferencePrinter;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Inferences;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
@@ -28,21 +29,17 @@ import com.google.common.collect.Collections2;
  * @param <C>
  *            the type of conclusion and premises used by the original
  *            inferences
- * @param <A>
- *            the type of axioms used by the original and binarized inferences
  */
-class BinarizedInferenceSetAdapter<C, A> implements
-		GenericInferenceSet<List<C>, JustifiedInference<List<C>, A>> {
+class BinarizedInferenceSetAdapter<C> implements InferenceSet<List<C>> {
 
-	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> original_;
+	private final InferenceSet<C> original_;
 
-	BinarizedInferenceSetAdapter(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> original) {
+	BinarizedInferenceSetAdapter(final InferenceSet<C> original) {
 		this.original_ = original;
 	}
 
 	@Override
-	public Collection<? extends JustifiedInference<List<C>, A>> getInferences(
+	public Collection<? extends Inference<List<C>>> getInferences(
 			final List<C> conclusion) {
 		switch (conclusion.size()) {
 		case 0:
@@ -50,10 +47,9 @@ class BinarizedInferenceSetAdapter<C, A> implements
 		case 1:
 			C member = conclusion.get(0);
 			return Collections2.transform(original_.getInferences(member),
-					ToBinaryInference.<C, A> get());
+					ToBinaryInference.<C> get());
 		default:
-			JustifiedInference<List<C>, A> inf = new BinaryListInference<C, A>(
-					conclusion);
+			Inference<List<C>> inf = new BinaryListInference<C>(conclusion);
 			return Collections.singleton(inf);
 		}
 	}
@@ -65,10 +61,9 @@ class BinarizedInferenceSetAdapter<C, A> implements
 	 * @author Yevgeny Kazakov
 	 *
 	 * @param <C>
-	 * @param <A>
 	 */
-	private static class BinaryListInference<C, A> extends Delegator<List<C>>
-			implements JustifiedInference<List<C>, A> {
+	private static class BinaryListInference<C> extends Delegator<List<C>>
+			implements Inference<List<C>> {
 
 		public BinaryListInference(final List<C> conclusion) {
 			super(conclusion);
@@ -91,13 +86,8 @@ class BinarizedInferenceSetAdapter<C, A> implements
 		}
 
 		@Override
-		public Set<? extends A> getJustification() {
-			return Collections.emptySet();
-		}
-
-		@Override
 		public String toString() {
-			return InferencePrinter.toString(this);
+			return Inferences.toString(this);
 		}
 
 		@Override
@@ -107,29 +97,27 @@ class BinarizedInferenceSetAdapter<C, A> implements
 
 	}
 
-	private static class ToBinaryInference<C, A> implements
-			Function<JustifiedInference<C, A>, JustifiedInference<List<C>, A>> {
+	private static class ToBinaryInference<C>
+			implements Function<Inference<C>, Inference<List<C>>> {
 
-		private static final ToBinaryInference<?, ?> INSTANCE_ = new ToBinaryInference<Object, Object>();
+		private static final ToBinaryInference<?> INSTANCE_ = new ToBinaryInference<Object>();
 
 		@Override
-		public JustifiedInference<List<C>, A> apply(
-				JustifiedInference<C, A> input) {
-			return new BinaryInferenceAdapter<C, A>(input);
+		public Inference<List<C>> apply(final Inference<C> input) {
+			return new BinaryInferenceAdapter<C>(input);
 		}
 
 		@SuppressWarnings("unchecked")
-		static <C, A> Function<JustifiedInference<C, A>, JustifiedInference<List<C>, A>> get() {
-			return (ToBinaryInference<C, A>) INSTANCE_;
+		static <C> Function<Inference<C>, Inference<List<C>>> get() {
+			return (ToBinaryInference<C>) INSTANCE_;
 		}
 
 	}
 
-	private static class BinaryInferenceAdapter<C, A>
-			extends Delegator<JustifiedInference<C, A>>
-			implements JustifiedInference<List<C>, A> {
+	private static class BinaryInferenceAdapter<C>
+			extends Delegator<Inference<C>> implements Inference<List<C>> {
 
-		BinaryInferenceAdapter(final JustifiedInference<C, A> original) {
+		BinaryInferenceAdapter(final Inference<C> original) {
 			super(original);
 		}
 
@@ -168,18 +156,36 @@ class BinarizedInferenceSetAdapter<C, A> implements
 		}
 
 		@Override
-		public Set<? extends A> getJustification() {
-			return getDelegate().getJustification();
-		}
-
-		@Override
 		public String toString() {
-			return InferencePrinter.toString(this);
+			return Inferences.toString(this);
 		}
 
 		@Override
 		public String getName() {
 			return getDelegate().getName();
+		}
+
+	}
+
+	static class Justifier<C, A>
+			implements InferenceJustifier<List<C>, Set<? extends A>> {
+
+		private final InferenceJustifier<C, ? extends Set<? extends A>> original_;
+
+		Justifier(
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+			this.original_ = justifier;
+		}
+
+		@Override
+		public Set<? extends A> getJustification(
+				final Inference<List<C>> inference) {
+			if (!(inference instanceof BinaryInferenceAdapter)) {
+				return Collections.emptySet();
+			}
+			// else
+			final BinaryInferenceAdapter<C> binaryInference = (BinaryInferenceAdapter<C>) inference;
+			return original_.getJustification(binaryInference.getDelegate());
 		}
 
 	}

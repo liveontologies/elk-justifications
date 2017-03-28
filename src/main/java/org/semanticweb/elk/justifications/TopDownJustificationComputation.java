@@ -11,14 +11,15 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.liveontologies.puli.Delegator;
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.Util;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
-import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -70,16 +71,16 @@ public class TopDownJustificationComputation<C, A>
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
 			expansionCount_ = 0, expandedInferencesCount_ = 0;
 
-	private TopDownJustificationComputation(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	private TopDownJustificationComputation(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferences, monitor);
+		super(inferenceSet, justifier, monitor);
 		this.rank_ = new Comparator<C>() {
 			@Override
 			public int compare(final C first, final C second) {
 				int result = Integer.compare(
-						inferences.getInferences(first).size(),
-						inferences.getInferences(second).size());
+						inferenceSet.getInferences(first).size(),
+						inferenceSet.getInferences(second).size());
 				if (result != 0) {
 					return result;
 				}
@@ -126,7 +127,7 @@ public class TopDownJustificationComputation<C, A>
 					}
 				} else {
 					expansionCount_++;
-					for (final JustifiedInference<C, A> inf : getInferences(
+					for (final Inference<C> inf : getInferences(
 							chooseConclusion(job.premises_))) {
 						expandedInferencesCount_++;
 						final Job newJob = job.expand(inf);
@@ -209,12 +210,12 @@ public class TopDownJustificationComputation<C, A>
 			this(Collections.singleton(goal), Collections.<A> emptySet());
 		}
 
-		public Job expand(final JustifiedInference<C, A> inference) {
+		public Job expand(final Inference<C> inference) {
 			final Set<C> newPremises = new HashSet<>(premises_);
 			newPremises.remove(inference.getConclusion());
 			newPremises.addAll(inference.getPremises());
 			Set<A> newJustification = justification_;
-			Set<? extends A> toExpand = inference.getJustification();
+			Set<? extends A> toExpand = getJustification(inference);
 			if (newJustification.containsAll(toExpand)) {
 				newJustification = justification_;
 			} else {
@@ -339,9 +340,11 @@ public class TopDownJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
-			return new TopDownJustificationComputation<>(inferenceSet, monitor);
+			return new TopDownJustificationComputation<>(inferenceSet,
+					justifier, monitor);
 		}
 
 	}

@@ -8,11 +8,11 @@ import java.util.Map;
 import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.InferenceSets;
 import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
-import org.semanticweb.elk.proofs.adapters.InferenceSets;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
@@ -47,12 +47,14 @@ public abstract class OwlJustificationComputationTest
 				.loadOntologyFromOntologyDocument(entailFile).getLogicalAxioms()
 				.iterator().next();
 
-		final GenericInferenceSet<OWLAxiom, ? extends JustifiedInference<OWLAxiom, OWLAxiom>> inferenceSet = InferenceSets
-				.justifyAsserted(prover_.getProof(entailment),
+		final InferenceSet<OWLAxiom> inferenceSet = InferenceSets
+				.addAssertedInferences(prover_.getProof(entailment),
 						prover_.getRootOntology().getAxioms(Imports.EXCLUDED));
+		final InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> justifier = InferenceSets
+				.justifyAssertedInferences();
 
 		final JustificationCollector<OWLAxiom, OWLAxiom> collector = new JustificationCollector<>(
-				getFactory(), inferenceSet);
+				getFactory(), inferenceSet, justifier);
 
 		return new HashSet<>(collector.collectJustifications(entailment));
 	}

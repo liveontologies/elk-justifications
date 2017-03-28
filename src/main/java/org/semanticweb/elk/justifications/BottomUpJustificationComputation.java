@@ -10,12 +10,13 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.Util;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
-import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -57,7 +58,7 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, JustifiedInference<C, A>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, Inference<C>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -72,10 +73,10 @@ public class BottomUpJustificationComputation<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0;
 
-	private BottomUpJustificationComputation(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	private BottomUpJustificationComputation(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferences, monitor);
+		super(inferenceSet, justifier, monitor);
 		initQueue(null);
 	}
 
@@ -235,13 +236,13 @@ public class BottomUpJustificationComputation<C, A>
 			C conclusion;
 			while ((conclusion = toDo_.poll()) != null) {
 
-				final Collection<? extends JustifiedInference<C, A>> infs = getInferences(
+				final Collection<? extends Inference<C>> infs = getInferences(
 						conclusion);
 				if (infs.isEmpty()) {
 					LOGGER_.warn("{}: lemma not derived!", conclusion);
 				}
 
-				for (final JustifiedInference<C, A> inf : infs) {
+				for (final Inference<C> inf : infs) {
 					LOGGER_.trace("{}: new inference", inf);
 					countInferences_++;
 					for (final C premise : inf.getPremises()) {
@@ -255,10 +256,10 @@ public class BottomUpJustificationComputation<C, A>
 							"{}: computation of justifiations initialized",
 							conclusion);
 					// propagate existing justifications for premises
-					for (final JustifiedInference<C, A> inf : infs) {
+					for (final Inference<C> inf : infs) {
 						List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 						conclusionJusts.add(createJustification(
-								inf.getConclusion(), inf.getJustification()));
+								inf.getConclusion(), getJustification(inf)));
 						for (final C premise : inf.getPremises()) {
 							conclusionJusts = Utils.join(conclusionJusts,
 									justifications_.get(premise));
@@ -326,8 +327,7 @@ public class BottomUpJustificationComputation<C, A>
 				if (just.isEmpty()) {
 					// all justifications are computed,
 					// the inferences are not needed anymore
-					for (JustifiedInference<C, A> inf : getInferences(
-							conclusion)) {
+					for (final Inference<C> inf : getInferences(conclusion)) {
 						for (C premise : inf.getPremises()) {
 							inferencesByPremises_.remove(premise, inf);
 						}
@@ -337,13 +337,13 @@ public class BottomUpJustificationComputation<C, A>
 				/*
 				 * propagating justification over inferences
 				 */
-				for (JustifiedInference<C, A> inf : inferencesByPremises_
+				for (final Inference<C> inf : inferencesByPremises_
 						.get(conclusion)) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 					Justification<C, A> conclusionJust = just
 							.copyTo(inf.getConclusion())
-							.addElements(inf.getJustification());
+							.addElements(getJustification(inf));
 					conclusionJusts.add(conclusionJust);
 					for (final C premise : inf.getPremises()) {
 						if (!premise.equals(conclusion)) {
@@ -412,10 +412,11 @@ public class BottomUpJustificationComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
 			return new BottomUpJustificationComputation<>(inferenceSet,
-					monitor);
+					justifier, monitor);
 		}
 
 	}

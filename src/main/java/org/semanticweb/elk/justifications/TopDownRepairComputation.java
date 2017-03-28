@@ -7,14 +7,15 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.Util;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
-import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -55,10 +56,10 @@ public class TopDownRepairComputation<C, A>
 	// Statistics
 	private int producedJobsCount_ = 0;
 
-	private TopDownRepairComputation(
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	private TopDownRepairComputation(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferences, monitor);
+		super(inferenceSet, justifier, monitor);
 	}
 
 	@Override
@@ -88,7 +89,7 @@ public class TopDownRepairComputation<C, A>
 				continue;
 			}
 			for (;;) {
-				JustifiedInference<C, A> nextToBreak = job.toBreak_.poll();
+				final Inference<C> nextToBreak = job.toBreak_.poll();
 				if (nextToBreak == null) {
 					minimalRepairs_.add(job.repair_);
 					if (listener_ != null) {
@@ -105,7 +106,7 @@ public class TopDownRepairComputation<C, A>
 					nextJob.toBreak_.addAll(getInferences(premise));
 					produce(nextJob);
 				}
-				for (A axiom : nextToBreak.getJustification()) {
+				for (A axiom : getJustification(nextToBreak)) {
 					Job nextJob = job.copy();
 					nextJob.repair_.add(axiom);
 					produce(nextJob);
@@ -141,14 +142,12 @@ public class TopDownRepairComputation<C, A>
 		return BloomTrieCollection2.class;
 	}
 
-	private final Comparator<JustifiedInference<C, A>> inferenceComparator = new Comparator<JustifiedInference<C, A>>() {
+	private final Comparator<Inference<C>> inferenceComparator = new Comparator<Inference<C>>() {
 
 		@Override
-		public int compare(JustifiedInference<C, A> inf1,
-				JustifiedInference<C, A> inf2) {
-			return inf1.getPremises().size() + inf1.getJustification().size()
-					- inf2.getPremises().size()
-					- inf2.getJustification().size();
+		public int compare(final Inference<C> inf1, final Inference<C> inf2) {
+			return inf1.getPremises().size() + getJustification(inf1).size()
+					- inf2.getPremises().size() - getJustification(inf2).size();
 		}
 
 	};
@@ -163,10 +162,9 @@ public class TopDownRepairComputation<C, A>
 
 		private final Set<C> broken_;
 		private final Set<A> repair_;
-		private final Queue<JustifiedInference<C, A>> toBreak_;
+		private final Queue<Inference<C>> toBreak_;
 
-		Job(Set<C> broken, Set<A> repair,
-				Queue<JustifiedInference<C, A>> toBreak) {
+		Job(Set<C> broken, Set<A> repair, Queue<Inference<C>> toBreak) {
 			this.broken_ = broken;
 			this.repair_ = repair;
 			this.toBreak_ = toBreak;
@@ -176,7 +174,7 @@ public class TopDownRepairComputation<C, A>
 			this.broken_ = new HashSet<C>();
 			broken_.add(conclusion);
 			this.repair_ = new HashSet<>();
-			Collection<? extends JustifiedInference<C, A>> inferences = getInferences(
+			Collection<? extends Inference<C>> inferences = getInferences(
 					conclusion);
 			this.toBreak_ = new PriorityQueue<>(inferences.size(),
 					inferenceComparator);
@@ -186,19 +184,19 @@ public class TopDownRepairComputation<C, A>
 		Job copy() {
 			Set<C> newBroken = new HashSet<>(broken_);
 			Set<A> newRepair = new HashSet<>(repair_);
-			Queue<JustifiedInference<C, A>> newToBreak = new PriorityQueue<>(
+			Queue<Inference<C>> newToBreak = new PriorityQueue<>(
 					toBreak_.size() + 1, inferenceComparator);
 			newToBreak.addAll(toBreak_);
 			return new Job(newBroken, newRepair, newToBreak);
 		}
 
-		boolean isBroken(JustifiedInference<C, A> inference) {
+		boolean isBroken(final Inference<C> inference) {
 			for (C premise : inference.getPremises()) {
 				if (broken_.contains(premise)) {
 					return true;
 				}
 			}
-			for (A axiom : inference.getJustification()) {
+			for (A axiom : getJustification(inference)) {
 				if (repair_.contains(axiom)) {
 					return true;
 				}
@@ -250,9 +248,11 @@ public class TopDownRepairComputation<C, A>
 
 		@Override
 		public JustificationComputation<C, A> create(
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
-			return new TopDownRepairComputation<>(inferenceSet, monitor);
+			return new TopDownRepairComputation<>(inferenceSet, justifier,
+					monitor);
 		}
 
 	}

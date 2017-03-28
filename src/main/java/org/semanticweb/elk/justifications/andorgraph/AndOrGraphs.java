@@ -4,10 +4,12 @@ import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Set;
 
 import org.liveontologies.puli.Delegator;
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
@@ -100,20 +102,25 @@ public class AndOrGraphs {
 	}
 
 	public static <C, A> Node<A> getAndOrGraphForJustifications(
-			final C conclusion,
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet) {
-		return new OrNodeConclusionAdapter<>(conclusion, inferenceSet);
+			final C conclusion, final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+		return new OrNodeConclusionAdapter<>(conclusion, inferenceSet,
+				justifier);
 	}
 
 	private static class AndNodeInferenceAdapter<C, A>
-			extends Delegator<JustifiedInference<C, A>> implements AndNode<A> {
+			extends Delegator<Inference<C>> implements AndNode<A> {
 
-		private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet_;
+		private final InferenceSet<C> inferenceSet_;
 
-		public AndNodeInferenceAdapter(final JustifiedInference<C, A> inference,
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet) {
+		private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
+
+		public AndNodeInferenceAdapter(final Inference<C> inference,
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
 			super(inference);
 			this.inferenceSet_ = inferenceSet;
+			this.justifier_ = justifier;
 		}
 
 		@Override
@@ -125,13 +132,13 @@ public class AndOrGraphs {
 						@Override
 						public Node<A> apply(final C premise) {
 							return new OrNodeConclusionAdapter<>(premise,
-									inferenceSet_);
+									inferenceSet_, justifier_);
 						}
 
 					});
 
 			final Collection<Node<A>> axioms = Collections2.transform(
-					getDelegate().getJustification(),
+					justifier_.getJustification(getDelegate()),
 					new Function<A, Node<A>>() {
 
 						@Override
@@ -172,25 +179,28 @@ public class AndOrGraphs {
 	private static class OrNodeConclusionAdapter<C, A> extends Delegator<C>
 			implements OrNode<A> {
 
-		private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet_;
+		private final InferenceSet<C> inferenceSet_;
+
+		private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 		public OrNodeConclusionAdapter(final C conclusion,
-				final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet) {
+				final InferenceSet<C> inferenceSet,
+				final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
 			super(conclusion);
 			this.inferenceSet_ = inferenceSet;
+			this.justifier_ = justifier;
 		}
 
 		@Override
 		public Collection<? extends Node<A>> getParents() {
 			return Collections2.transform(
 					inferenceSet_.getInferences(getDelegate()),
-					new Function<JustifiedInference<C, A>, Node<A>>() {
+					new Function<Inference<C>, Node<A>>() {
 
 						@Override
-						public Node<A> apply(
-								final JustifiedInference<C, A> inference) {
+						public Node<A> apply(final Inference<C> inference) {
 							return new AndNodeInferenceAdapter<>(inference,
-									inferenceSet_);
+									inferenceSet_, justifier_);
 						}
 
 					});

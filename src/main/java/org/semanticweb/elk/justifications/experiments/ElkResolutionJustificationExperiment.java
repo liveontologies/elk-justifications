@@ -3,9 +3,10 @@ package org.semanticweb.elk.justifications.experiments;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -14,6 +15,7 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
+import org.semanticweb.elk.proofs.TracingInferenceJustifier;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
@@ -108,8 +110,8 @@ public class ElkResolutionJustificationExperiment
 	}
 
 	@Override
-	protected GenericInferenceSet<Conclusion, ? extends JustifiedInference<Conclusion, ElkAxiom>> newInferenceSet(
-			final Conclusion query) throws ExperimentException {
+	protected InferenceSet<Conclusion> newInferenceSet(final Conclusion query)
+			throws ExperimentException {
 		try {
 
 			return getReasoner().explainConclusion(query);
@@ -117,6 +119,12 @@ public class ElkResolutionJustificationExperiment
 		} catch (final ElkException e) {
 			throw new ExperimentException(e);
 		}
+	}
+
+	@Override
+	protected InferenceJustifier<Conclusion, ? extends Set<? extends ElkAxiom>> newJustifier()
+			throws ExperimentException {
+		return TracingInferenceJustifier.INSTANCE;
 	}
 
 }

@@ -4,10 +4,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.JustificationComputation.Factory;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stats;
@@ -70,17 +70,20 @@ public abstract class BaseJustificationExperiment<C, A>
 			throws ExperimentException {
 
 		final C goal = decodeQuery(query);
-		final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet = newInferenceSet(
-				goal);
-		computation_ = factory_.create(inferenceSet, monitor);
+		final InferenceSet<C> inferenceSet = newInferenceSet(goal);
+		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
+		computation_ = factory_.create(inferenceSet, justifier, monitor);
 		computation_.enumerateJustifications(goal, null, justificationCounter_);
 
 	}
 
 	protected abstract C decodeQuery(String query) throws ExperimentException;
 
-	protected abstract GenericInferenceSet<C, ? extends JustifiedInference<C, A>> newInferenceSet(
-			C query) throws ExperimentException;
+	protected abstract InferenceSet<C> newInferenceSet(C query)
+			throws ExperimentException;
+
+	protected abstract InferenceJustifier<C, ? extends Set<? extends A>> newJustifier()
+			throws ExperimentException;
 
 	@Override
 	public int getJustificationCount() {

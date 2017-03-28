@@ -7,9 +7,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericDelegatingInferenceSet;
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.DelegatingInferenceSet;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,17 +29,17 @@ import com.google.common.collect.Multimap;
  *
  * @param <C>
  *            the type of conclusion and premises used by the inferences
- * @param <I>
- *            The type of the inferences.
  * @param <A>
  *            the type of axioms used by the inferences
  * 
  */
-class TautologyRemovingInferenceSetAdapter<C, I extends JustifiedInference<C, A>, A>
-		extends GenericDelegatingInferenceSet<C, I, GenericInferenceSet<C, I>> {
+class TautologyRemovingInferenceSetAdapter<C, A>
+		extends DelegatingInferenceSet<C, InferenceSet<C>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(TautologyRemovingInferenceSetAdapter.class);
+
+	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 	/**
 	 * the set of tautologies detected so far
@@ -54,7 +55,7 @@ class TautologyRemovingInferenceSetAdapter<C, I extends JustifiedInference<C, A>
 	 * index to retrieve inferences with empty justifications by their premises;
 	 * only such inferences can derive new tautologies
 	 */
-	private final Multimap<C, I> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, Inference<C>> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
@@ -68,22 +69,23 @@ class TautologyRemovingInferenceSetAdapter<C, I extends JustifiedInference<C, A>
 	 */
 	private final Set<C> doneInit_ = new HashSet<C>();
 
-	TautologyRemovingInferenceSetAdapter(
-			final GenericInferenceSet<C, I> originalInferences) {
-		super(originalInferences);
+	TautologyRemovingInferenceSetAdapter(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+		super(inferenceSet);
+		this.justifier_ = justifier;
 	}
 
 	@Override
-	public Collection<? extends I> getInferences(C conclusion) {
+	public Collection<? extends Inference<C>> getInferences(C conclusion) {
 		toDoInit(conclusion);
 		initialize();
 		process();
-		Collection<? extends I> inferences = getDelegate()
+		Collection<? extends Inference<C>> inferences = getDelegate()
 				.getInferences(conclusion);
 		if (isATautology(conclusion)) {
 			// find one tautological inference
-			for (final I inf : inferences) {
-				if (!inf.getJustification().isEmpty()) {
+			for (final Inference<C> inf : inferences) {
+				if (!justifier_.getJustification(inf).isEmpty()) {
 					continue;
 				}
 				boolean inferenceIsATautology = true;
@@ -128,9 +130,11 @@ class TautologyRemovingInferenceSetAdapter<C, I extends JustifiedInference<C, A>
 	private void initialize() {
 		C conclusion;
 		while ((conclusion = toDoInit_.poll()) != null) {
-			for (final I inf : getDelegate().getInferences(conclusion)) {
+			for (final Inference<C> inf : getDelegate()
+					.getInferences(conclusion)) {
 				LOGGER_.trace("recursing by {}", inf);
-				boolean noJustification = inf.getJustification().isEmpty();
+				boolean noJustification = justifier_.getJustification(inf)
+						.isEmpty();
 				boolean conclusionIsATautology = noJustification;
 				for (C premise : inf.getPremises()) {
 					toDoInit(premise);
@@ -150,7 +154,8 @@ class TautologyRemovingInferenceSetAdapter<C, I extends JustifiedInference<C, A>
 	private void process() {
 		C tautology;
 		while ((tautology = toDoTautologies_.poll()) != null) {
-			for (final I inf : inferencesByPremises_.get(tautology)) {
+			for (final Inference<C> inf : inferencesByPremises_
+					.get(tautology)) {
 				boolean conclusionIsATautology = true;
 				for (C premise : inf.getPremises()) {
 					if (!isATautology(premise)) {

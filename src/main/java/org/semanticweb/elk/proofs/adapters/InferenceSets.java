@@ -5,9 +5,8 @@ import java.util.Set;
 
 import org.liveontologies.puli.GenericInferenceSet;
 import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.JustifiedInference;
-import org.semanticweb.elk.proofs.JustifiedAssertedConclusionInferenceSet;
 
 /**
  * Static utilities for inference sets
@@ -17,9 +16,14 @@ import org.semanticweb.elk.proofs.JustifiedAssertedConclusionInferenceSet;
  */
 public class InferenceSets {
 
-	public static <C, A> GenericInferenceSet<List<C>, ? extends JustifiedInference<List<C>, A>> binarize(
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences) {
-		return new BinarizedInferenceSetAdapter<C, A>(inferences);
+	public static <C> InferenceSet<List<C>> binarize(
+			final InferenceSet<C> inferences) {
+		return new BinarizedInferenceSetAdapter<C>(inferences);
+	}
+
+	public static <C, A> InferenceJustifier<List<C>, Set<? extends A>> binarize(
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+		return new BinarizedInferenceSetAdapter.Justifier<C, A>(justifier);
 	}
 
 	public static <C, I extends Inference<C>> GenericInferenceSet<C, I> eliminateCycles(
@@ -27,9 +31,11 @@ public class InferenceSets {
 		return new CycleRemovingInferenceSetAdapter<C, I>(inferences);
 	}
 
-	public static <C, I extends JustifiedInference<C, A>, A> GenericInferenceSet<C, I> eliminateTautologyInferences(
-			final GenericInferenceSet<C, I> inferences) {
-		return new TautologyRemovingInferenceSetAdapter<C, I, A>(inferences);
+	public static <C, A> InferenceSet<C> eliminateTautologyInferences(
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+		return new TautologyRemovingInferenceSetAdapter<C, A>(inferenceSet,
+				justifier);
 	}
 
 	public static <C> boolean hasCycle(final InferenceSet<C> inferences,
@@ -39,15 +45,11 @@ public class InferenceSets {
 	}
 
 	public static <C, A> InferenceSetInfoForConclusion<C, A> getInfo(
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) {
-		return new InferenceSetInfoForConclusion<C, A>(inferences, conclusion);
-	}
-
-	public static <C> GenericInferenceSet<C, ? extends JustifiedInference<C, C>> justifyAsserted(
-			final InferenceSet<C> inferences, final Set<? extends C> asserted) {
-		return new JustifiedAssertedConclusionInferenceSet<C>(inferences,
-				asserted);
+		return new InferenceSetInfoForConclusion<C, A>(inferenceSet, justifier,
+				conclusion);
 	}
 
 }

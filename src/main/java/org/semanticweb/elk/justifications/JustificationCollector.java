@@ -6,10 +6,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 
 public class JustificationCollector<C, A> {
 
@@ -19,8 +19,9 @@ public class JustificationCollector<C, A> {
 
 	public JustificationCollector(
 			final JustificationComputation.Factory<C, A> factory,
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences) {
-		this.computation_ = factory.create(inferences, monitor_);
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+		this.computation_ = factory.create(inferenceSet, justifier, monitor_);
 	}
 
 	public Collection<? extends Set<A>> collectJustifications(final C query,

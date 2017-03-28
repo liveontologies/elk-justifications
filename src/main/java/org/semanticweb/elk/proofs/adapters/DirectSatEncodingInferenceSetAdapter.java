@@ -6,19 +6,30 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
+/**
+ * TODO: load a simple inference set from cnf and addAsserted from assumptions!!
+ * 
+ * @author Peter Skocovsky
+ */
 public class DirectSatEncodingInferenceSetAdapter
-		implements GenericInferenceSet<Integer, JustifiedInference<Integer, Integer>> {
+		implements InferenceSet<Integer>,
+		InferenceJustifier<Integer, Set<Integer>> {
 
 	public static DirectSatEncodingInferenceSetAdapter load(
 			final InputStream assumptions, final InputStream cnf)
@@ -36,8 +47,10 @@ public class DirectSatEncodingInferenceSetAdapter
 //			}
 //		}
 		
-		final ListMultimap<Integer, JustifiedInference<Integer, Integer>> inferences =
+		final ListMultimap<Integer, Inference<Integer>> inferences =
 				ArrayListMultimap.create();
+		final Map<Inference<Integer>, Set<Integer>> justifications =
+				new HashMap<>();
 		
 		final BufferedReader cnfReader =
 				new BufferedReader(new InputStreamReader(cnf));
@@ -52,7 +65,7 @@ public class DirectSatEncodingInferenceSetAdapter
 			final String[] literals = line.split("\\s");
 			final List<Integer> premises =
 					new ArrayList<Integer>(literals.length - 2);
-			final List<Integer> justifications =
+			final List<Integer> justification =
 					new ArrayList<Integer>(literals.length - 2);
 			Integer conclusion = null;
 			boolean terminated = false;
@@ -62,7 +75,7 @@ public class DirectSatEncodingInferenceSetAdapter
 				if (l < 0) {
 					final int premise = -l;
 					if (axioms.contains(premise)) {
-						justifications.add(premise);
+						justification.add(premise);
 					} else {
 						premises.add(premise);
 					}
@@ -89,12 +102,14 @@ public class DirectSatEncodingInferenceSetAdapter
 				throw new IOException("Clause not terminated at the end of line! \"" + line + "\"");
 			}
 			
-			inferences.put(conclusion,
-					new DirectSatEncodingInference(conclusion, premises,
-							new HashSet<Integer>(justifications)));
+			final Inference<Integer> inference =
+					new DirectSatEncodingInference(conclusion, premises);
+			inferences.put(conclusion, inference);
+			justifications.put(inference, ImmutableSet.copyOf(justification));
 		}
 		
-		return new DirectSatEncodingInferenceSetAdapter(inferences);
+		return new DirectSatEncodingInferenceSetAdapter(inferences,
+				justifications);
 	}
 	
 	private static void readAxioms(final BufferedReader axiomReader,
@@ -135,17 +150,30 @@ public class DirectSatEncodingInferenceSetAdapter
 		
 	}
 	
-	private final Multimap<Integer, JustifiedInference<Integer, Integer>> inferences_;
+	private final Multimap<Integer, Inference<Integer>> inferences_;
+	private final Map<Inference<Integer>, Set<Integer>> justifications_;
 	
 	private DirectSatEncodingInferenceSetAdapter(
-			final Multimap<Integer, JustifiedInference<Integer, Integer>> inferences) {
+			final Multimap<Integer, Inference<Integer>> inferences,
+			final Map<Inference<Integer>, Set<Integer>> justifications) {
 		this.inferences_ = inferences;
+		this.justifications_ = justifications;
 	}
-
+	
 	@Override
-	public Collection<JustifiedInference<Integer, Integer>> getInferences(
+	public Collection<Inference<Integer>> getInferences(
 			final Integer conclusion) {
 		return inferences_.get(conclusion);
 	}
-
+	
+	@Override
+	public Set<Integer> getJustification(final Inference<Integer> inference) {
+		final Set<Integer> result = justifications_.get(inference);
+		if (result == null) {
+			return Collections.emptySet();
+		}
+		// else
+		return result;
+	}
+	
 }

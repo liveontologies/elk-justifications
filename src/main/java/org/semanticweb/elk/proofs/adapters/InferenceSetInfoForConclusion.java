@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,16 +29,18 @@ public class InferenceSetInfoForConclusion<C, A> {
 
 	private final Set<C> usedConclusions_ = new HashSet<>();
 	private final Set<A> usedAxioms_ = new HashSet<>();
-	private final List<JustifiedInference<C, A>> usedInferences_ = new ArrayList<>();
+	private final List<Inference<C>> usedInferences_ = new ArrayList<>();
 
 	private final Queue<C> toDo_ = new LinkedList<C>();
 
-	private final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences_;
+	private final InferenceSet<C> inferences_;
+	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
-	InferenceSetInfoForConclusion(
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	InferenceSetInfoForConclusion(final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) {
-		this.inferences_ = inferences;
+		this.inferences_ = inferenceSet;
+		this.justifier_ = justifier;
 		toDo(conclusion);
 		process();
 	}
@@ -45,7 +48,7 @@ public class InferenceSetInfoForConclusion<C, A> {
 	/**
 	 * @return the inferences used in the proofs for the given conclusion
 	 */
-	public List<JustifiedInference<C, A>> getUsedInferences() {
+	public List<Inference<C>> getUsedInferences() {
 		return usedInferences_;
 	}
 
@@ -79,10 +82,9 @@ public class InferenceSetInfoForConclusion<C, A> {
 	private void process() {
 		C next;
 		while ((next = toDo_.poll()) != null) {
-			for (JustifiedInference<C, A> inf : inferences_
-					.getInferences(next)) {
+			for (final Inference<C> inf : inferences_.getInferences(next)) {
 				usedInferences_.add(inf);
-				usedAxioms_.addAll(inf.getJustification());
+				usedAxioms_.addAll(justifier_.getJustification(inf));
 				for (C premise : inf.getPremises()) {
 					toDo(premise);
 				}

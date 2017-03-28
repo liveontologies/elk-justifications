@@ -2,9 +2,10 @@ package org.semanticweb.elk.justifications;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.proofs.ProofPrinter;
 
@@ -26,25 +27,31 @@ public class ProofJustificationPrinter<C, A> extends ProofPrinter<C, A> {
 	private final int sizeLimit_;
 
 	ProofJustificationPrinter(JustificationComputation.Factory<C, A> factory,
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			int sizeLimit) {
-		super(inferences);
-		this.collector_ = new JustificationCollector<>(factory, inferences);
+		super(inferenceSet, justifier);
+		this.collector_ = new JustificationCollector<>(factory, inferenceSet,
+				justifier);
 		this.sizeLimit_ = sizeLimit;
 	}
 
-	public static <C, A> void print(JustificationComputation.Factory<C, A> factory,
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	public static <C, A> void print(
+			JustificationComputation.Factory<C, A> factory,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion, int sizeLimit) throws IOException {
 		ProofPrinter<C, A> pp = new ProofJustificationPrinter<>(factory,
-				inferences, sizeLimit);
+				inferenceSet, justifier, sizeLimit);
 		pp.printProof(conclusion);
 	}
 
-	public static <C, A> void print(JustificationComputation.Factory<C, A> factory,
-			GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferences,
+	public static <C, A> void print(
+			JustificationComputation.Factory<C, A> factory,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) throws IOException {
-		print(factory, inferences, conclusion, Integer.MAX_VALUE);
+		print(factory, inferenceSet, justifier, conclusion, Integer.MAX_VALUE);
 	}
 
 	@Override

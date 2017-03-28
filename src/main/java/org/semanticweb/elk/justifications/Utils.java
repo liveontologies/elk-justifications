@@ -13,8 +13,9 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.exceptions.ElkRuntimeException;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
@@ -86,8 +87,9 @@ public final class Utils {
 	}
 
 	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
-			final GenericInferenceSet<C, ? extends JustifiedInference<C, A>> inferenceSet,
-			final Function<JustifiedInference<C, A>, IO> perInference,
+			final InferenceSet<C> inferenceSet,
+			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+			final Function<Inference<C>, IO> perInference,
 			final Function<C, CO> perConclusion,
 			final Function<A, AO> perAxiom) {
 
@@ -106,11 +108,10 @@ public final class Utils {
 
 			perConclusion.apply(next);
 
-			for (final JustifiedInference<C, A> inf : inferenceSet
-					.getInferences(next)) {
+			for (final Inference<C> inf : inferenceSet.getInferences(next)) {
 				perInference.apply(inf);
 
-				for (final A axiom : inf.getJustification()) {
+				for (final A axiom : justifier.getJustification(inf)) {
 					perAxiom.apply(axiom);
 				}
 
@@ -329,13 +330,13 @@ public final class Utils {
 
 	public static InterruptMonitor getDummyInterruptMonitor() {
 		return new InterruptMonitor() {
-			
+
 			@Override
 			public boolean isInterrupted() {
 				return false;
 			}
 		};
-		
+
 	}
 
 }

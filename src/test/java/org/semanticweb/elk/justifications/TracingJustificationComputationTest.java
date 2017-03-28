@@ -11,6 +11,7 @@ import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkDeclarationAxiom;
 import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
+import org.semanticweb.elk.proofs.TracingInferenceJustifier;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.TestReasonerUtils;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
@@ -41,7 +42,8 @@ public abstract class TracingJustificationComputationTest
 		final Conclusion conclusion = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner_, entailment);
 		final JustificationCollector<Conclusion, ElkAxiom> collector = new JustificationCollector<>(
-				getFactory(), reasoner_.explainConclusion(conclusion));
+				getFactory(), reasoner_.explainConclusion(conclusion),
+				TracingInferenceJustifier.INSTANCE);
 
 		return new HashSet<>(collector.collectJustifications(conclusion));
 	}

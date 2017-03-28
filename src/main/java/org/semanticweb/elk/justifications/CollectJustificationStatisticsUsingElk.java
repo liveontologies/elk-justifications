@@ -14,7 +14,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
@@ -25,11 +26,11 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
+import org.semanticweb.elk.proofs.TracingInferenceJustifier;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInferenceSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,14 +142,16 @@ public class CollectJustificationStatisticsUsingElk {
 							final Conclusion expression = Utils
 									.getFirstDerivedConclusionForSubsumption(
 											reasoner, conclusion);
-							final TracingInferenceSet inferenceSet =
+							final InferenceSet<Conclusion> inferenceSet =
 									reasoner.explainConclusion(expression);
+							final TracingInferenceJustifier justifier =
+									TracingInferenceJustifier.INSTANCE;
 
 							final JustificationCollector<Conclusion, ElkAxiom> collector =
 									new JustificationCollector<Conclusion, ElkAxiom>(
 											BottomUpJustificationComputation
 											.<Conclusion, ElkAxiom> getFactory(),
-											inferenceSet);
+											inferenceSet, justifier);
 							
 							final int sizeLimit = justificationSizeLimit <= 0
 									? Integer.MAX_VALUE
@@ -158,9 +161,10 @@ public class CollectJustificationStatisticsUsingElk {
 							final List<Long> minProductSum = Arrays.asList(0l);
 							final List<Long> minSum = Arrays.asList(0l);
 							Utils.traverseProofs(expression, inferenceSet,
-									new Function<JustifiedInference<Conclusion, ElkAxiom>, Void>() {
+									justifier,
+									new Function<Inference<Conclusion>, Void>() {
 										@Override
-										public Void apply(final JustifiedInference<Conclusion, ElkAxiom> inf) {
+										public Void apply(final Inference<Conclusion> inf) {
 											if (monitor.isInterrupted()) {
 												return null;
 											}
@@ -181,7 +185,7 @@ public class CollectJustificationStatisticsUsingElk {
 												long count = 0;
 												for (final Set<ElkAxiom> just : js) {
 													if (Utils.isMinimal(
-															new BloomSet<>(inf.getConclusion(), just, inf.getJustification()),
+															new BloomSet<>(inf.getConclusion(), just, justifier.getJustification(inf)),
 															conclJs)) {
 														count++;
 													}

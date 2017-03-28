@@ -3,9 +3,10 @@ package org.semanticweb.elk.justifications.experiments;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 
-import org.liveontologies.puli.GenericInferenceSet;
-import org.liveontologies.puli.JustifiedInference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceSet;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ public class DirectSatJustificationExperiment
 	}
 
 	@Override
-	protected GenericInferenceSet<Integer, ? extends JustifiedInference<Integer, Integer>> newInferenceSet(
+	protected InferenceSet<Integer> newInferenceSet(
 			final Integer query) throws ExperimentException {
 
 		InputStream cnf = null;
@@ -58,7 +59,37 @@ public class DirectSatJustificationExperiment
 
 			LOG.info("Loading CNF ...");
 			final long start = System.currentTimeMillis();
-			final GenericInferenceSet<Integer, ? extends JustifiedInference<Integer, Integer>> result = DirectSatEncodingInferenceSetAdapter
+			final InferenceSet<Integer> result = DirectSatEncodingInferenceSetAdapter
+					.load(assumptions, cnf);
+			LOG.info("... took {}s",
+					(System.currentTimeMillis() - start) / 1000.0);
+
+			return result;
+
+		} catch (final IOException e) {
+			throw new ExperimentException(e);
+		} finally {
+			Utils.closeQuietly(cnf);
+			Utils.closeQuietly(assumptions);
+		}
+
+	}
+
+	@Override
+	protected InferenceJustifier<Integer, ? extends Set<? extends Integer>> newJustifier()
+			throws ExperimentException {
+
+		InputStream cnf = null;
+		InputStream assumptions = null;
+
+		try {
+
+			cnf = new FileInputStream(cnfFileName_);
+			assumptions = new FileInputStream(assumptionsFileName_);
+
+			LOG.info("Loading CNF ...");
+			final long start = System.currentTimeMillis();
+			final InferenceJustifier<Integer, Set<Integer>> result = DirectSatEncodingInferenceSetAdapter
 					.load(assumptions, cnf);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
