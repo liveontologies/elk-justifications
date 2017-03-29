@@ -3,19 +3,23 @@ package org.semanticweb.elk.justifications;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Util;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.exceptions.ElkRuntimeException;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
@@ -336,6 +340,81 @@ public final class Utils {
 				return false;
 			}
 		};
+
+	}
+
+	public static class Counter implements Function<Object, Integer> {
+
+		private int counter;
+
+		public Counter() {
+			this(0);
+		}
+
+		public Counter(final int first) {
+			this.counter = first;
+		}
+
+		public int next() {
+			return counter++;
+		}
+
+		@Override
+		public Integer apply(final Object o) {
+			return next();
+		}
+
+	}
+
+	public static class Index<T> {
+
+		private final Map<T, Integer> index = new HashMap<>();
+
+		private final Function<? super T, Integer> newElement_;
+
+		public Index(final Function<? super T, Integer> newElement) {
+			Util.checkNotNull(newElement);
+			this.newElement_ = newElement;
+		}
+
+		public int get(final T element) {
+			Integer result = index.get(element);
+			if (result == null) {
+				result = newElement_.apply(element);
+				index.put(element, result);
+			}
+			return result;
+		}
+
+		public Map<T, Integer> getIndex() {
+			return Collections.unmodifiableMap(index);
+		}
+
+	}
+
+	public static class IndexRecorder<T> implements Function<T, Integer> {
+
+		private final Function<? super T, Integer> newElement_;
+
+		private final PrintWriter record_;
+
+		public IndexRecorder(final Function<? super T, Integer> newElement,
+				final PrintWriter record) {
+			Util.checkNotNull(newElement);
+			this.newElement_ = newElement;
+			Util.checkNotNull(record);
+			this.record_ = record;
+		}
+
+		@Override
+		public Integer apply(final T newElement) {
+			final Integer result = newElement_.apply(newElement);
+			record_.print(result);
+			record_.print(" ");
+			record_.println(newElement);
+			record_.flush();
+			return result;
+		}
 
 	}
 

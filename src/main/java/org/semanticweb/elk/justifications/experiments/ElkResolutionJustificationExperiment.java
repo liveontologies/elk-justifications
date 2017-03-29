@@ -1,5 +1,6 @@
 package org.semanticweb.elk.justifications.experiments;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -22,31 +23,31 @@ import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.sourceforge.argparse4j.impl.Arguments;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.Namespace;
+
 public class ElkResolutionJustificationExperiment
 		extends ResolutionJustificationExperiment<Conclusion, ElkAxiom> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(ElkResolutionJustificationExperiment.class);
 
-	private final Reasoner reasoner_;
+	public static final String ONTOLOGY_OPT = "ontology";
 
-	public ElkResolutionJustificationExperiment(final String[] args)
-			throws ExperimentException {
-		super(args);
+	private Reasoner reasoner_;
 
-		final int requiredArgCount = 2;
-
-		if (args.length < requiredArgCount) {
-			throw new ExperimentException("Insufficient arguments!");
-		}
-
-		final String ontologyFileName = args[1];
-
-		reasoner_ = loadAndClassifyOntology(ontologyFileName);
-
+	@Override
+	protected void addArguments(final ArgumentParser parser) {
+		parser.addArgument(ONTOLOGY_OPT).type(Arguments.fileType().verifyExists().verifyCanRead()).help("ontology file");
 	}
-
-	protected Reasoner loadAndClassifyOntology(final String ontologyFileName)
+	
+	@Override
+	protected void init(final Namespace options) throws ExperimentException {
+		reasoner_ = loadAndClassifyOntology(options.<File>get(ONTOLOGY_OPT));
+	}
+	
+	protected Reasoner loadAndClassifyOntology(final File ontologyFileName)
 			throws ExperimentException {
 
 		InputStream ontologyIS = null;

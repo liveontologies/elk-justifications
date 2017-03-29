@@ -123,18 +123,22 @@ public class RunJustificationExperiments {
 			LOGGER_.info("experimentArgs: {}", Arrays.toString(experimentArgs));
 
 			final JustificationExperiment experiment = newExperiment(
-					experimentClassName, experimentArgs);
+					experimentClassName);
 
 			if (warmupCount > 0) {
 				LOGGER_.info("Warm Up");
+				experiment.init(experimentArgs);
 				run(experiment, queryFile, timeOutMillis, globalTimeOutMillis,
 						warmupCount, runGc, null);
+				experiment.dispose();
 			}
 
 			LOGGER_.info("Actual Experiment Run");
 			recordWriter = new PrintWriter(recordFile);
+			experiment.init(experimentArgs);
 			run(experiment, queryFile, timeOutMillis, globalTimeOutMillis, 0,
 					runGc, recordWriter);
+			experiment.dispose();
 
 		} catch (final ExperimentException e) {
 			LOGGER_.error(e.getMessage(), e);
@@ -156,15 +160,13 @@ public class RunJustificationExperiments {
 	}
 
 	private static JustificationExperiment newExperiment(
-			final String experimentClassName, final String[] args)
-			throws ExperimentException {
+			final String experimentClassName) throws ExperimentException {
 
 		try {
 			final Class<?> experimentClass = RunJustificationExperiments.class
 					.getClassLoader().loadClass(experimentClassName);
-			final Constructor<?> constructor = experimentClass
-					.getConstructor(String[].class);
-			final Object object = constructor.newInstance((Object) args);
+			final Constructor<?> constructor = experimentClass.getConstructor();
+			final Object object = constructor.newInstance();
 			if (!(object instanceof JustificationExperiment)) {
 				throw new ExperimentException(
 						"The specified experiment class is not a subclass of "
@@ -198,7 +200,7 @@ public class RunJustificationExperiments {
 			final File queryFile, final long timeOutMillis,
 			final long globalTimeOutMillis, final int maxIterations,
 			final boolean runGc, final PrintWriter recordWriter)
-			throws IOException {
+			throws IOException, ExperimentException {
 
 		BufferedReader queryReader = null;
 
@@ -244,7 +246,7 @@ public class RunJustificationExperiments {
 					record.flush();
 				}
 
-				experiment.init();
+				experiment.before();
 				if (runGc) {
 					System.gc();
 				}
@@ -272,7 +274,8 @@ public class RunJustificationExperiments {
 				worker.start();
 				// wait for timeout
 				try {
-					worker.join(timeOutMillis + TIMEOUT_DELAY_MILLIS);
+					worker.join(timeOutMillis > 0
+							? timeOutMillis + TIMEOUT_DELAY_MILLIS : 0);
 				} catch (final InterruptedException e) {
 					LOGGER_.warn("Waiting for the worker thread interruptet!",
 							e);
@@ -291,6 +294,9 @@ public class RunJustificationExperiments {
 				record.put("time", runTimeNanos / NANOS_IN_MILLIS);
 				record.put("nJust", nJust);
 				record.put("usedMemory", usedMemory);
+
+				experiment.after();
+
 				final Map<String, Object> stats = Stats.copyIntoMap(experiment,
 						new TreeMap<String, Object>());
 				for (final Map.Entry<String, Object> entry : stats.entrySet()) {

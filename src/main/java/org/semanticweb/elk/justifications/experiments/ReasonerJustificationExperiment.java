@@ -3,11 +3,11 @@ package org.semanticweb.elk.justifications.experiments;
 public abstract class ReasonerJustificationExperiment<C, A, R>
 		extends BaseJustificationExperiment<C, A> {
 
-	private final R reasoner_;
+	private R reasoner_;
 
-	public ReasonerJustificationExperiment(final String[] args)
-			throws ExperimentException {
-		super(args);
+	@Override
+	public void init(final String[] args) throws ExperimentException {
+		super.init(args);
 
 		final int requiredArgCount = 2;
 

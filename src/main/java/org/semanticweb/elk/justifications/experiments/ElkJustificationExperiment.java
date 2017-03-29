@@ -28,11 +28,6 @@ public class ElkJustificationExperiment extends
 	private static final Logger LOG = LoggerFactory
 			.getLogger(ElkJustificationExperiment.class);
 
-	public ElkJustificationExperiment(final String[] args)
-			throws ExperimentException {
-		super(args);
-	}
-
 	@Override
 	protected Reasoner loadAndClassifyOntology(final String ontologyFileName)
 			throws ExperimentException {

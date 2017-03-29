@@ -29,11 +29,6 @@ public class OwlJustificationExperiment
 	private OWLOntologyManager manager_ = null;
 	private OWLDataFactory factory_ = null;
 
-	public OwlJustificationExperiment(final String[] args)
-			throws ExperimentException {
-		super(args);
-	}
-
 	private OWLOntologyManager getManager() {
 		if (manager_ == null) {
 			manager_ = OWLManager.createOWLOntologyManager();

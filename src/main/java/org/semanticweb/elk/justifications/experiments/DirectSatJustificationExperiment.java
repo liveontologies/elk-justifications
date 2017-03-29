@@ -18,12 +18,12 @@ public class DirectSatJustificationExperiment
 	private static final Logger LOG = LoggerFactory
 			.getLogger(DirectSatJustificationExperiment.class);
 
-	private final String cnfFileName_;
-	private final String assumptionsFileName_;
+	private String cnfFileName_;
+	private String assumptionsFileName_;
 
-	public DirectSatJustificationExperiment(final String[] args)
-			throws ExperimentException {
-		super(args);
+	@Override
+	public void init(final String[] args) throws ExperimentException {
+		super.init(args);
 
 		final int requiredArgCount = 3;
 
@@ -46,8 +46,8 @@ public class DirectSatJustificationExperiment
 	}
 
 	@Override
-	protected InferenceSet<Integer> newInferenceSet(
-			final Integer query) throws ExperimentException {
+	protected InferenceSet<Integer> newInferenceSet(final Integer query)
+			throws ExperimentException {
 
 		InputStream cnf = null;
 		InputStream assumptions = null;

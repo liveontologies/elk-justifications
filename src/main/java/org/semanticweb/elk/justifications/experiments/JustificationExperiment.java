@@ -2,18 +2,18 @@ package org.semanticweb.elk.justifications.experiments;
 
 import org.liveontologies.puli.justifications.InterruptMonitor;
 
-public abstract class JustificationExperiment {
+public interface JustificationExperiment {
 
-	public JustificationExperiment(final String[] args)
-			throws ExperimentException {
-		// Empty.
-	}
+	void init(String[] args) throws ExperimentException;
 
-	public abstract void init();
+	void before() throws ExperimentException;
 
-	public abstract void run(String query, InterruptMonitor monitor)
-			throws ExperimentException;
+	void run(String query, InterruptMonitor monitor) throws ExperimentException;
 
-	public abstract int getJustificationCount();
+	void after() throws ExperimentException;
+
+	void dispose();
+
+	int getJustificationCount();
 
 }

@@ -13,17 +13,16 @@ import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stats;
 
 public abstract class BaseJustificationExperiment<C, A>
-		extends JustificationExperiment {
+		implements JustificationExperiment {
 
-	private final JustificationComputation.Factory<C, A> factory_;
+	private JustificationComputation.Factory<C, A> factory_;
 
 	private volatile JustificationComputation<C, A> computation_ = null;
 
 	private final JustificationCounter justificationCounter_ = new JustificationCounter();
 
-	public BaseJustificationExperiment(final String[] args)
-			throws ExperimentException {
-		super(args);
+	@Override
+	public void init(final String[] args) throws ExperimentException {
 
 		final int requiredArgCount = 1;
 
@@ -58,7 +57,7 @@ public abstract class BaseJustificationExperiment<C, A>
 	}
 
 	@Override
-	public void init() {
+	public void before() {
 		justificationCounter_.reset();
 		if (computation_ != null) {
 			Stats.resetStats(computation_);
@@ -84,6 +83,16 @@ public abstract class BaseJustificationExperiment<C, A>
 
 	protected abstract InferenceJustifier<C, ? extends Set<? extends A>> newJustifier()
 			throws ExperimentException;
+
+	@Override
+	public void after() throws ExperimentException {
+		// Empty.
+	}
+
+	@Override
+	public void dispose() {
+		// Empty.
+	}
 
 	@Override
 	public int getJustificationCount() {
