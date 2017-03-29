@@ -85,7 +85,7 @@ public class TopDownRepairComputation<C, A>
 	private void process() {
 		Job job;
 		jobLoop: while ((job = toDoJobs_.poll()) != null) {
-			if (!minimalRepairs_.isMaximal(job.repair_)) {
+			if (!minimalRepairs_.isMinimal(job.repair_)) {
 				continue;
 			}
 			for (;;) {
