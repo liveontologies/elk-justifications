@@ -1,12 +1,16 @@
 package org.semanticweb.elk.justifications;
 
+import java.util.AbstractSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
+import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
@@ -19,6 +23,9 @@ import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Iterators;
 
 /**
  * 
@@ -34,7 +41,7 @@ public class TopDownRepairComputation<C, A>
 
 	private static final TopDownRepairComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
-	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
+	private static final int INITIAL_QUEUE_CAPACITY_ = 256;
 
 	@SuppressWarnings("unchecked")
 	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
@@ -50,6 +57,11 @@ public class TopDownRepairComputation<C, A>
 	 * Used to collect the result and prune jobs
 	 */
 	private final Collection2<Set<A>> minimalRepairs_ = new BloomTrieCollection2<>();
+
+	/**
+	 * Used to filter out redundant jobs
+	 */
+	private final Collection2<Job> minimalJobs_ = new BloomTrieCollection2<>();
 
 	private JustificationComputation.Listener<A> listener_ = null;
 
@@ -83,48 +95,57 @@ public class TopDownRepairComputation<C, A>
 	}
 
 	private void process() {
-		Job job;
-		jobLoop: while ((job = toDoJobs_.poll()) != null) {
-			if (!minimalRepairs_.isMinimal(job.repair_)) {
-				continue;
-			}
-			for (;;) {
-				final Inference<C> nextToBreak = job.toBreak_.poll();
-				if (nextToBreak == null) {
-					minimalRepairs_.add(job.repair_);
-					if (listener_ != null) {
-						listener_.newJustification(job.repair_);
-					}
-					continue jobLoop;
-				}
-				if (job.isBroken(nextToBreak)) {
-					continue;
-				}
-				for (C premise : nextToBreak.getPremises()) {
-					Job nextJob = job.copy();
-					nextJob.broken_.add(premise);
-					nextJob.toBreak_.addAll(getInferences(premise));
-					produce(nextJob);
-				}
-				for (A axiom : getJustification(nextToBreak)) {
-					Job nextJob = job.copy();
-					nextJob.repair_.add(axiom);
-					produce(nextJob);
-				}
-				break;
-			}
-
+		for (;;) {
 			if (isInterrupted()) {
 				break;
 			}
-
+			Job job = toDoJobs_.poll();
+			if (job == null) {
+				break;
+			}
+			// else
+			if (!minimalRepairs_.isMinimal(job.repair_)) {
+				continue;
+			}
+			// else
+			if (!minimalJobs_.isMinimal(job)) {
+				continue;
+			}
+			// else
+			minimalJobs_.add(job);
+			final Inference<C> nextToBreak = chooseToBreak(job.toBreak_);
+			if (nextToBreak == null) {
+				minimalRepairs_.add(job.repair_);
+				if (listener_ != null) {
+					listener_.newJustification(job.repair_);
+				}
+				continue;
+			}
+			for (C premise : nextToBreak.getPremises()) {
+				produce(job.copy().brake(premise, job.toBreak_));
+			}
+			for (A axiom : getJustification(nextToBreak)) {
+				produce(job.copy().repair(axiom, job.toBreak_));
+			}
 		}
+	}
+
+	private Inference<C> chooseToBreak(
+			final Collection<Inference<C>> inferences) {
+		// select the smallest conclusion according to the comparator
+		Inference<C> result = null;
+		for (Inference<C> inf : inferences) {
+			if (result == null
+					|| inferenceComparator.compare(inf, result) < 0) {
+				result = inf;
+			}
+		}
+		return result;
 	}
 
 	private void produce(final Job job) {
 		producedJobsCount_++;
 		toDoJobs_.add(job);
-		// System.err.println("produced: " + job);
 	}
 
 	@Stat
@@ -153,62 +174,139 @@ public class TopDownRepairComputation<C, A>
 	};
 
 	/**
-	 * A simple state for computing a repair
+	 * A simple state for computing a repair;
 	 * 
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	private class Job {
+	private class Job extends AbstractSet<JobMember<C, A>> {
 
-		private final Set<C> broken_;
 		private final Set<A> repair_;
-		private final Queue<Inference<C>> toBreak_;
+		private final Set<Inference<C>> toBreak_;
+		/**
+		 * the cached set of conclusions not derivable without using
+		 * {@link #repair_} and {@link #toBreak_}
+		 */
+		private final Set<C> broken_;
 
-		Job(Set<C> broken, Set<A> repair, Queue<Inference<C>> toBreak) {
-			this.broken_ = broken;
+		Job(Set<A> repair, Set<Inference<C>> toBreak, Set<C> broken) {
 			this.repair_ = repair;
 			this.toBreak_ = toBreak;
+			this.broken_ = broken;
+		}
+
+		Job() {
+			this(new HashSet<A>(1), new HashSet<Inference<C>>(3),
+					new HashSet<C>(1));
 		}
 
 		Job(C conclusion) {
-			this.broken_ = new HashSet<C>();
-			broken_.add(conclusion);
-			this.repair_ = new HashSet<>();
-			Collection<? extends Inference<C>> inferences = getInferences(
-					conclusion);
-			this.toBreak_ = new PriorityQueue<>(inferences.size(),
-					inferenceComparator);
-			toBreak_.addAll(inferences);
+			this();
+			brake(conclusion, Collections.<Inference<C>> emptySet());
 		}
 
 		Job copy() {
-			Set<C> newBroken = new HashSet<>(broken_);
-			Set<A> newRepair = new HashSet<>(repair_);
-			Queue<Inference<C>> newToBreak = new PriorityQueue<>(
-					toBreak_.size() + 1, inferenceComparator);
-			newToBreak.addAll(toBreak_);
-			return new Job(newBroken, newRepair, newToBreak);
+			return new Job(new HashSet<A>(repair_),
+					new HashSet<Inference<C>>(toBreak_.size()),
+					new HashSet<C>(broken_));
 		}
 
-		boolean isBroken(final Inference<C> inference) {
-			for (C premise : inference.getPremises()) {
-				if (broken_.contains(premise)) {
-					return true;
+		Job brake(C broken, Collection<Inference<C>> toBreak) {
+			broken_.add(broken);
+			for (Inference<C> inf : toBreak) {
+				if (!inf.getPremises().contains(broken)) {
+					toBreak_.add(inf);
 				}
 			}
-			for (A axiom : getJustification(inference)) {
-				if (repair_.contains(axiom)) {
-					return true;
+			infLoop: for (Inference<C> inf : getInferences(broken)) {
+				for (C premise : inf.getPremises()) {
+					if (broken_.contains(premise)) {
+						continue infLoop;
+					}
+				}
+				for (A axiom : getJustification(inf)) {
+					if (repair_.contains(axiom)) {
+						continue infLoop;
+					}
+				}
+				toBreak_.add(inf);
+			}
+			return this;
+		}
+
+		Job repair(A axiom, Collection<Inference<C>> toBreak) {
+			repair_.add(axiom);
+			for (Inference<C> inf : toBreak) {
+				if (!getJustification(inf).contains(axiom)) {
+					toBreak_.add(inf);
 				}
 			}
-			// else not broken
-			return false;
+			return this;
+		}
+
+		@Override
+		public boolean containsAll(final Collection<?> c) {
+			if (c instanceof TopDownRepairComputation<?, ?>.Job) {
+				final TopDownRepairComputation<?, ?>.Job other = (TopDownRepairComputation<?, ?>.Job) c;
+				return repair_.containsAll(other.repair_)
+						&& toBreak_.containsAll(other.toBreak_);
+			}
+			// else
+			return super.containsAll(c);
 		}
 
 		@Override
 		public String toString() {
 			return repair_.toString() + "; " + broken_.toString() + "; "
-					+ toBreak_;
+					+ toBreak_.toString();
+		}
+
+		@Override
+		public Iterator<JobMember<C, A>> iterator() {
+			return Iterators.<JobMember<C, A>> concat(Iterators.transform(
+					repair_.iterator(), new Function<A, Axiom<C, A>>() {
+
+						@Override
+						public Axiom<C, A> apply(final A axiom) {
+							return new Axiom<C, A>(axiom);
+						}
+
+					}), Iterators.transform(toBreak_.iterator(),
+							new Function<Inference<C>, Inf<C, A>>() {
+
+								@Override
+								public Inf<C, A> apply(Inference<C> inf) {
+									return new Inf<C, A>(inf);
+								}
+
+							}));
+		}
+
+		@Override
+		public int size() {
+			return repair_.size() + toBreak_.size();
+		}
+
+	}
+
+	private interface JobMember<C, A> {
+
+	}
+
+	private final static class Inf<C, A> extends Delegator<Inference<C>>
+			implements JobMember<C, A> {
+
+		public Inf(Inference<C> delegate) {
+			super(delegate);
+		}
+
+	}
+
+	private final static class Axiom<C, A> extends Delegator<A>
+			implements JobMember<C, A> {
+
+		public Axiom(A delegate) {
+			super(delegate);
 		}
 
 	}
@@ -227,7 +325,12 @@ public class TopDownRepairComputation<C, A>
 
 			@Override
 			public int compare(final Job job1, final Job job2) {
-				return justOrder.compare(job1.repair_, job2.repair_);
+				int result = justOrder.compare(job1.repair_, job2.repair_);
+				if (result != 0) {
+					return result;
+				}
+				// else
+				return job1.toBreak_.size() - job2.toBreak_.size();
 			}
 
 		};
