@@ -13,7 +13,6 @@ import java.util.Set;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.Util;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.JustificationComputation;
@@ -23,6 +22,7 @@ import org.liveontologies.puli.statistics.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
@@ -96,7 +96,7 @@ public class BottomUpJustificationComputation<C, A>
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
 			final Listener<A> listener) {
-		Util.checkNotNull(listener);
+		Preconditions.checkNotNull(listener);
 		this.listener_ = listener;
 
 		boolean doNotReset = true;

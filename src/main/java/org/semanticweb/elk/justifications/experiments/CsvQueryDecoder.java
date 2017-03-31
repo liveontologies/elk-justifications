@@ -1,6 +1,6 @@
 package org.semanticweb.elk.justifications.experiments;
 
-import org.liveontologies.puli.Util;
+import com.google.common.base.Preconditions;
 
 public class CsvQueryDecoder {
 
@@ -9,7 +9,7 @@ public class CsvQueryDecoder {
 	}
 
 	public static <Q> Q decode(final String query, final Factory<Q> factory) {
-		Util.checkNotNull(query);
+		Preconditions.checkNotNull(query);
 
 		final String[] columns = query.split(" ");
 		if (columns.length < 2) {

@@ -14,7 +14,6 @@ import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.Util;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractJustificationComputation;
@@ -25,6 +24,7 @@ import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 
 /**
@@ -78,7 +78,7 @@ public class TopDownRepairComputation<C, A>
 	public void enumerateJustifications(final C conclusion,
 			final Comparator<? super Set<A>> order,
 			JustificationComputation.Listener<A> listener) {
-		Util.checkNotNull(listener);
+		Preconditions.checkNotNull(listener);
 		this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
 				extendToJobOrder(order));
 		this.minimalRepairs_.clear();

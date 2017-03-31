@@ -11,15 +11,15 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.Util;
-import org.liveontologies.puli.justifications.JustificationComputation;
 import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.justifications.JustificationComputation;
 import org.semanticweb.elk.justifications.andorgraph.AndNode;
 import org.semanticweb.elk.justifications.andorgraph.Node;
 import org.semanticweb.elk.justifications.andorgraph.OrNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ListMultimap;
@@ -93,7 +93,7 @@ public class BottomUpOverAndOrGraphs<A>
 	public void enumerateJustifications(final Node<A> conclusion,
 			final Comparator<? super Set<A>> order,
 			final Listener<A> listener) {
-		Util.checkNotNull(listener);
+		Preconditions.checkNotNull(listener);
 		this.listener_ = listener;
 
 		boolean doNotReset = true;

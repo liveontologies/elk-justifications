@@ -19,7 +19,6 @@ import java.util.Set;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.Util;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.exceptions.ElkRuntimeException;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
@@ -38,6 +37,7 @@ import org.semanticweb.elk.util.collections.ArrayHashSet;
 import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 
 public final class Utils {
 
@@ -373,7 +373,7 @@ public final class Utils {
 		private final Function<? super T, Integer> newElement_;
 
 		public Index(final Function<? super T, Integer> newElement) {
-			Util.checkNotNull(newElement);
+			Preconditions.checkNotNull(newElement);
 			this.newElement_ = newElement;
 		}
 
@@ -400,9 +400,9 @@ public final class Utils {
 
 		public IndexRecorder(final Function<? super T, Integer> newElement,
 				final PrintWriter record) {
-			Util.checkNotNull(newElement);
+			Preconditions.checkNotNull(newElement);
 			this.newElement_ = newElement;
-			Util.checkNotNull(record);
+			Preconditions.checkNotNull(record);
 			this.record_ = record;
 		}
 
