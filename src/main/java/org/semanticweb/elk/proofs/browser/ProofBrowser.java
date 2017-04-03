@@ -19,7 +19,7 @@ import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
-import org.semanticweb.elk.justifications.JustificationCollector;
+import org.semanticweb.elk.justifications.MinimalSubsetCollector;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
@@ -84,8 +84,8 @@ public class ProofBrowser {
 			final TracingInferenceJustifier justifier =
 					TracingInferenceJustifier.INSTANCE;
 
-			final JustificationCollector<Conclusion, ElkAxiom> collector =
-					new JustificationCollector<Conclusion, ElkAxiom>(
+			final MinimalSubsetCollector<Conclusion, ElkAxiom> collector =
+					new MinimalSubsetCollector<Conclusion, ElkAxiom>(
 							BottomUpJustificationComputation
 							.<Conclusion, ElkAxiom> getFactory(),
 							inferenceSet, justifier);
@@ -95,7 +95,7 @@ public class ProofBrowser {
 				final int sizeLimit = size;
 				
 				final Collection<? extends Set<ElkAxiom>> justs =
-						collector.collectJustifications(expression, sizeLimit);
+						collector.collect(expression, sizeLimit);
 				
 				final TreeNodeLabelProvider decorator = new TreeNodeLabelProvider() {
 					@Override
@@ -105,14 +105,14 @@ public class ProofBrowser {
 						if (obj instanceof Conclusion) {
 							final Conclusion c = (Conclusion) obj;
 							final Collection<? extends Set<ElkAxiom>> js =
-									collector.collectJustifications(c, sizeLimit);
+									collector.collect(c, sizeLimit);
 							return "[" + js.size() + "] ";
 						} else if (obj instanceof Inference) {
 							final Inference<?> inf = (Inference<?>) obj;
 							int product = 1;
 							for (final Object premise : inf.getPremises()) {
 								final Collection<? extends Set<ElkAxiom>> js =
-										collector.collectJustifications((Conclusion) premise, sizeLimit);
+										collector.collect((Conclusion) premise, sizeLimit);
 								product *= js.size();
 							}
 							return "<" + product + "> ";
@@ -144,9 +144,9 @@ public class ProofBrowser {
 						final Conclusion concl = (Conclusion) c;
 						
 						final Collection<? extends Set<ElkAxiom>> premiseJs =
-								collector.collectJustifications(premise, sizeLimit);
+								collector.collect(premise, sizeLimit);
 						final Collection<? extends Set<ElkAxiom>> conclJs =
-								collector.collectJustifications(concl, sizeLimit);
+								collector.collect(concl, sizeLimit);
 						
 						int countInf = 0;
 						for (final Set<ElkAxiom> just : premiseJs) {

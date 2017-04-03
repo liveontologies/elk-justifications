@@ -5,9 +5,8 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Map;
 
-import org.junit.Assume;
 import org.junit.runners.Parameterized.Parameters;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 
@@ -22,18 +21,10 @@ public class SimpleTracingRepairComputationTest
 	}
 
 	public SimpleTracingRepairComputationTest(
-			final JustificationComputation.Factory<Conclusion, ElkAxiom> factory,
+			final MinimalSubsetsFromInferences.Factory<Conclusion, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
 		super(factory, ontoFile, entailFilesPerJustFile);
-	}
-
-	@Override
-	public void setUp() {
-		super.setUp();
-		Assume.assumeFalse("BottomUpOverAndOrGraphsForRepairs does not work.",
-				getFactory().equals(
-						BottomUpOverAndOrGraphsForRepairs.getFactory()));
 	}
 
 }

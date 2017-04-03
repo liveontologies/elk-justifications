@@ -147,8 +147,8 @@ public class CollectJustificationStatisticsUsingElk {
 							final TracingInferenceJustifier justifier =
 									TracingInferenceJustifier.INSTANCE;
 
-							final JustificationCollector<Conclusion, ElkAxiom> collector =
-									new JustificationCollector<Conclusion, ElkAxiom>(
+							final MinimalSubsetCollector<Conclusion, ElkAxiom> collector =
+									new MinimalSubsetCollector<Conclusion, ElkAxiom>(
 											BottomUpJustificationComputation
 											.<Conclusion, ElkAxiom> getFactory(),
 											inferenceSet, justifier);
@@ -170,7 +170,7 @@ public class CollectJustificationStatisticsUsingElk {
 											}
 											
 											final Collection<? extends Set<ElkAxiom>> conclJs =
-													collector.collectJustifications(inf.getConclusion(), sizeLimit);
+													collector.collect(inf.getConclusion(), sizeLimit);
 											
 											long product = 1;
 											long minProduct = 1;
@@ -178,7 +178,7 @@ public class CollectJustificationStatisticsUsingElk {
 											for (final Conclusion premise : inf.getPremises()) {
 												
 												final Collection<? extends Set<ElkAxiom>> js =
-														collector.collectJustifications(premise, sizeLimit);
+														collector.collect(premise, sizeLimit);
 												
 												product *= js.size();
 												

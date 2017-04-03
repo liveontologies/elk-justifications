@@ -7,17 +7,17 @@ import java.util.Set;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.JustificationComputation;
-import org.liveontologies.puli.justifications.JustificationComputation.Factory;
+import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stats;
 
 public abstract class BaseJustificationExperiment<C, A>
 		implements JustificationExperiment {
 
-	private JustificationComputation.Factory<C, A> factory_;
+	private MinimalSubsetsFromInferences.Factory<C, A> factory_;
 
-	private volatile JustificationComputation<C, A> computation_ = null;
+	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
 
 	private final JustificationCounter justificationCounter_ = new JustificationCounter();
 
@@ -37,7 +37,7 @@ public abstract class BaseJustificationExperiment<C, A>
 					.forName(computationClassName);
 			final Method getFactory = computationClass.getMethod("getFactory");
 			@SuppressWarnings("unchecked")
-			final Factory<C, A> factory = (JustificationComputation.Factory<C, A>) getFactory
+			final MinimalSubsetsFromInferences.Factory<C, A> factory = (MinimalSubsetsFromInferences.Factory<C, A>) getFactory
 					.invoke(null);
 			factory_ = factory;
 		} catch (final ClassNotFoundException e) {
@@ -72,7 +72,7 @@ public abstract class BaseJustificationExperiment<C, A>
 		final InferenceSet<C> inferenceSet = newInferenceSet(goal);
 		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
 		computation_ = factory_.create(inferenceSet, justifier, monitor);
-		computation_.enumerateJustifications(goal, null, justificationCounter_);
+		computation_.newEnumerator(goal).enumerate(null, justificationCounter_);
 
 	}
 
@@ -100,17 +100,17 @@ public abstract class BaseJustificationExperiment<C, A>
 	}
 
 	@NestedStats
-	public JustificationComputation<C, A> getJustificationComputation() {
+	public MinimalSubsetEnumerator.Factory<C, A> getJustificationComputation() {
 		return computation_;
 	}
 
 	private class JustificationCounter
-			implements JustificationComputation.Listener<A> {
+			implements MinimalSubsetEnumerator.Listener<A> {
 
 		private volatile int count_ = 0;
 
 		@Override
-		public void newJustification(final Set<A> justification) {
+		public void newMinimalSubset(final Set<A> justification) {
 			count_++;
 		}
 

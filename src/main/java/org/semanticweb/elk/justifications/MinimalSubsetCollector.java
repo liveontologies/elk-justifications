@@ -9,33 +9,35 @@ import java.util.Set;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 
-public class JustificationCollector<C, A> {
+public class MinimalSubsetCollector<C, A> {
 
-	private final JustificationComputation<C, A> computation_;
+	private final MinimalSubsetEnumerator.Factory<C, A> enumeratorFactory_;
 
 	private final CancellableMonitor monitor_ = new CancellableMonitor();
 
-	public JustificationCollector(
-			final JustificationComputation.Factory<C, A> factory,
+	public MinimalSubsetCollector(
+			final MinimalSubsetsFromInferences.Factory<C, A> factory,
 			final InferenceSet<C> inferenceSet,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
-		this.computation_ = factory.create(inferenceSet, justifier, monitor_);
+		this.enumeratorFactory_ = factory.create(inferenceSet, justifier,
+				monitor_);
 	}
 
-	public Collection<? extends Set<A>> collectJustifications(final C query,
+	public Collection<? extends Set<A>> collect(final C query,
 			final int sizeLimit) {
 		final int limit = sizeLimit <= 0 ? Integer.MAX_VALUE : sizeLimit;
 
-		final List<Set<A>> justifications = new ArrayList<>();
+		final List<Set<A>> sets = new ArrayList<>();
 
-		final JustificationComputation.Listener<A> listener = new JustificationComputation.Listener<A>() {
+		final MinimalSubsetEnumerator.Listener<A> listener = new MinimalSubsetEnumerator.Listener<A>() {
 
 			@Override
-			public void newJustification(final Set<A> justification) {
-				if (justification.size() <= limit) {
-					justifications.add(justification);
+			public void newMinimalSubset(final Set<A> set) {
+				if (set.size() <= limit) {
+					sets.add(set);
 				} else {
 					monitor_.cancel();
 				}
@@ -43,13 +45,14 @@ public class JustificationCollector<C, A> {
 
 		};
 
-		computation_.enumerateJustifications(query, SIZE_ORDER_, listener);
+		enumeratorFactory_.newEnumerator(query).enumerate(SIZE_ORDER_,
+				listener);
 
-		return justifications;
+		return sets;
 	}
 
-	public Collection<? extends Set<A>> collectJustifications(final C query) {
-		return collectJustifications(query, Integer.MAX_VALUE);
+	public Collection<? extends Set<A>> collect(final C query) {
+		return collect(query, Integer.MAX_VALUE);
 	}
 
 	private static class CancellableMonitor implements InterruptMonitor {

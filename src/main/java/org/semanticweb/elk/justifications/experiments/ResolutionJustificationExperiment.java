@@ -12,7 +12,7 @@ import java.util.Set;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stats;
@@ -42,7 +42,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private PrintWriter indexWriter_;
 	private Utils.Index<A> axiomIndex_;
 
-	private volatile JustificationComputation<C, A> computation_ = null;
+	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
 	private volatile String lastQuery_ = null;
 
 	private JustificationCounter justificationListener_;
@@ -133,7 +133,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
 		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
 				.create(inferenceSet, justifier, monitor, selectionFactory_);
-		computation_.enumerateJustifications(goal, null,
+		computation_.newEnumerator(goal).enumerate(null,
 				justificationListener_);
 
 	}
@@ -190,17 +190,17 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	}
 
 	@NestedStats
-	public JustificationComputation<C, A> getJustificationComputation() {
+	public MinimalSubsetEnumerator.Factory<C, A> getJustificationComputation() {
 		return computation_;
 	}
 
 	private class JustificationCounter
-			implements JustificationComputation.Listener<A> {
+			implements MinimalSubsetEnumerator.Listener<A> {
 
 		private volatile int count_ = 0;
 
 		@Override
-		public void newJustification(final Set<A> justification) {
+		public void newMinimalSubset(final Set<A> justification) {
 			count_++;
 		}
 
@@ -224,8 +224,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		private final Collection<Set<A>> justifications_ = new ArrayList<>();
 
 		@Override
-		public void newJustification(final Set<A> justification) {
-			super.newJustification(justification);
+		public void newMinimalSubset(final Set<A> justification) {
+			super.newMinimalSubset(justification);
 			justifications_.add(justification);
 		}
 

@@ -19,33 +19,32 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
 
 @RunWith(Parameterized.class)
 public abstract class BaseJustificationComputationTest<C, A> {
 
-	public static List<JustificationComputation.Factory<?, ?>> getJustificationComputationFactories() {
-		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
+	public static List<MinimalSubsetsFromInferences.Factory<?, ?>> getJustificationComputationFactories() {
+		final List<MinimalSubsetsFromInferences.Factory<?, ?>> computations = new ArrayList<MinimalSubsetsFromInferences.Factory<?, ?>>();
 		computations.add(BottomUpJustificationComputation.getFactory());
 		computations.add(BinarizedJustificationComputation
 				.getFactory(BottomUpJustificationComputation
 						.<List<Object>, Object> getFactory()));
 		computations.add(MinPremisesBottomUp.getFactory());
-		computations.add(BottomUpOverAndOrGraphsForJustifications.getFactory());
 		computations.add(TopDownJustificationComputation.getFactory());
 		computations.add(ResolutionJustificationComputation.getFactory());
 		return computations;
 	}
 
-	public static List<JustificationComputation.Factory<?, ?>> getRepairComputationFactories() {
-		final List<JustificationComputation.Factory<?, ?>> computations = new ArrayList<JustificationComputation.Factory<?, ?>>();
-		computations.add(BottomUpOverAndOrGraphsForRepairs.getFactory());
+	public static List<MinimalSubsetsFromInferences.Factory<?, ?>> getRepairComputationFactories() {
+		final List<MinimalSubsetsFromInferences.Factory<?, ?>> computations = new ArrayList<MinimalSubsetsFromInferences.Factory<?, ?>>();
+		computations.add(TopDownRepairComputation.getFactory());
 		return computations;
 	}
 
 	public static Collection<Object[]> getParameters(
-			final List<JustificationComputation.Factory<?, ?>> computationFactories,
+			final List<MinimalSubsetsFromInferences.Factory<?, ?>> computationFactories,
 			final String testInputDir,
 			final String expectedOutputForEntailmentDirName)
 			throws URISyntaxException {
@@ -55,7 +54,7 @@ public abstract class BaseJustificationComputationTest<C, A> {
 				expectedOutputForEntailmentDirName);
 
 		final List<Object[]> result = new ArrayList<Object[]>();
-		for (final JustificationComputation.Factory<?, ?> c : computationFactories) {
+		for (final MinimalSubsetsFromInferences.Factory<?, ?> c : computationFactories) {
 			for (final Object[] files : inputFiles) {
 				final Object[] r = new Object[files.length + 1];
 				r[0] = c;
@@ -67,12 +66,12 @@ public abstract class BaseJustificationComputationTest<C, A> {
 		return result;
 	}
 
-	private final JustificationComputation.Factory<C, A> factory_;
+	private final MinimalSubsetsFromInferences.Factory<C, A> factory_;
 	private final File ontoFile_;
 	private final Map<File, File[]> entailFilesPerJustFile_;
 
 	public BaseJustificationComputationTest(
-			final JustificationComputation.Factory<C, A> factory,
+			final MinimalSubsetsFromInferences.Factory<C, A> factory,
 			final File ontoFile,
 			final Map<File, File[]> entailFilesPerJustFile) {
 		this.factory_ = factory;
@@ -80,7 +79,7 @@ public abstract class BaseJustificationComputationTest<C, A> {
 		this.entailFilesPerJustFile_ = entailFilesPerJustFile;
 	}
 
-	public JustificationComputation.Factory<C, A> getFactory() {
+	public MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
 		return factory_;
 	}
 

@@ -11,7 +11,7 @@ import org.liveontologies.owlapi.proof.OWLProver;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.InferenceSets;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -29,7 +29,7 @@ public abstract class OwlJustificationComputationTest
 	private final OWLProver prover_;
 
 	public OwlJustificationComputationTest(
-			final JustificationComputation.Factory<OWLAxiom, OWLAxiom> factory,
+			final MinimalSubsetsFromInferences.Factory<OWLAxiom, OWLAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws OWLOntologyCreationException {
 		super(factory, ontoFile, entailFilesPerJustFile);
@@ -53,10 +53,10 @@ public abstract class OwlJustificationComputationTest
 		final InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> justifier = InferenceSets
 				.justifyAssertedInferences();
 
-		final JustificationCollector<OWLAxiom, OWLAxiom> collector = new JustificationCollector<>(
+		final MinimalSubsetCollector<OWLAxiom, OWLAxiom> collector = new MinimalSubsetCollector<>(
 				getFactory(), inferenceSet, justifier);
 
-		return new HashSet<>(collector.collectJustifications(entailment));
+		return new HashSet<>(collector.collect(entailment));
 	}
 
 	@Override

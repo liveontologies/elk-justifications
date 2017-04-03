@@ -14,9 +14,10 @@ import java.util.Set;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.justifications.AbstractJustificationComputation;
+import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -38,7 +39,7 @@ import com.google.common.collect.Multimap;
  * @param <A>
  */
 public class MinPremisesBottomUp<C, A>
-		extends AbstractJustificationComputation<C, A> {
+		extends MinimalSubsetsFromInferences<C, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(MinPremisesBottomUp.class);
@@ -66,13 +67,6 @@ public class MinPremisesBottomUp<C, A>
 	private final Multimap<Pair<Inference<C>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
 			.create();
 
-	/**
-	 * newly computed justifications to be propagated
-	 */
-	private PriorityQueue<Justification<C, A>> toDoJustifications_ = new PriorityQueue<Justification<C, A>>();
-
-	private Listener<A> listener_ = null;
-
 	// Statistics
 
 	private int countInferences_ = 0, countConclusions_ = 0,
@@ -82,57 +76,17 @@ public class MinPremisesBottomUp<C, A>
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
 		super(inferenceSet, justifier, monitor);
-		initQueue(null);
 	}
 
 	private void reset() {
 		justifications_.clear();
 		inferencesByPremises_.clear();
 		premiseJustifications_.clear();
-		toDoJustifications_ = null;
-	}
-
-	private void initQueue(final Comparator<? super Set<A>> order) {
-		this.toDoJustifications_ = new PriorityQueue<Justification<C, A>>(
-				INITIAL_QUEUE_CAPACITY_, new Order(order));
 	}
 
 	@Override
-	public void enumerateJustifications(final C conclusion,
-			final Comparator<? super Set<A>> order,
-			final Listener<A> listener) {
-		Preconditions.checkNotNull(listener);
-		this.listener_ = listener;
-
-		boolean doNotReset = true;
-		if (toDoJustifications_ != null) {
-			final Comparator<? super Justification<C, A>> comparator = toDoJustifications_
-					.comparator();
-			if (comparator != null
-					&& (comparator instanceof MinPremisesBottomUp.Order)) {
-				@SuppressWarnings("unchecked")
-				final Order oldOrder = (Order) comparator;
-				doNotReset = order == null ? oldOrder.originalOrder == null
-						: order.equals(oldOrder.originalOrder);
-			}
-		}
-
-		if (doNotReset) {
-			// Visit already computed justifications. They should be in the
-			// correct order.
-			for (final Justification<C, A> just : justifications_
-					.get(conclusion)) {
-				listener.newJustification(just);
-			}
-		} else {
-			// Reset everything.
-			reset();
-		}
-
-		initQueue(order);
-
-		new JustificationEnumerator(conclusion).process();
-
+	public MinimalSubsetEnumerator<A> newEnumerator(final C query) {
+		return new JustificationEnumerator(query);
 	}
 
 	@Stat
@@ -187,7 +141,7 @@ public class MinPremisesBottomUp<C, A>
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
+	public static <C, A> MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
 		return (Factory<C, A>) FACTORY_;
 	}
 
@@ -203,7 +157,8 @@ public class MinPremisesBottomUp<C, A>
 	 * 
 	 * @author Yevgeny Kazakov
 	 */
-	private class JustificationEnumerator {
+	private class JustificationEnumerator
+			extends AbstractMinimalSubsetEnumerator<A> {
 
 		private final C conclusion_;
 
@@ -220,6 +175,13 @@ public class MinPremisesBottomUp<C, A>
 		private final Queue<C> toInitialize_ = new LinkedList<C>();
 
 		/**
+		 * newly computed justifications to be propagated
+		 */
+		private PriorityQueue<Justification<C, A>> toDoJustifications_ = null;
+
+		private Listener<A> listener_ = null;
+
+		/**
 		 * the justifications will be returned here, they come in increasing
 		 * size order
 		 */
@@ -228,8 +190,46 @@ public class MinPremisesBottomUp<C, A>
 		JustificationEnumerator(C conclusion) {
 			this.conclusion_ = conclusion;
 			this.result_ = justifications_.get(conclusion);
-			toInitialize(conclusion);
+		}
+
+		@Override
+		public void enumerate(final Comparator<? super Set<A>> order,
+				final Listener<A> listener) {
+			Preconditions.checkNotNull(listener);
+			this.listener_ = listener;
+
+			boolean doNotReset = true;
+			if (toDoJustifications_ != null) {
+				final Comparator<? super Justification<C, A>> comparator = toDoJustifications_
+						.comparator();
+				if (comparator != null
+						&& (comparator instanceof MinPremisesBottomUp.JustificationEnumerator.Order)) {
+					@SuppressWarnings("unchecked")
+					final Order oldOrder = (Order) comparator;
+					doNotReset = order == null ? oldOrder.originalOrder == null
+							: order.equals(oldOrder.originalOrder);
+				}
+			}
+
+			if (doNotReset) {
+				// Visit already computed justifications. They should be in the
+				// correct order.
+				for (final Justification<C, A> just : justifications_
+						.get(conclusion_)) {
+					listener.newMinimalSubset(just);
+				}
+			} else {
+				// Reset everything.
+				reset();
+			}
+
+			this.toDoJustifications_ = new PriorityQueue<Justification<C, A>>(
+					INITIAL_QUEUE_CAPACITY_, new Order(order));
+
+			toInitialize(conclusion_);
 			initialize();
+			process();
+
 		}
 
 		/**
@@ -304,7 +304,7 @@ public class MinPremisesBottomUp<C, A>
 				justs.add(just);
 				LOGGER_.trace("new {}", just);
 				if (conclusion_.equals(conclusion) && listener_ != null) {
-					listener_.newJustification(just);
+					listener_.newMinimalSubset(just);
 				}
 
 				if (just.isEmpty()) {
@@ -405,32 +405,32 @@ public class MinPremisesBottomUp<C, A>
 
 		}
 
-	}
+		private class Order implements Comparator<Justification<C, A>> {
 
-	private class Order implements Comparator<Justification<C, A>> {
+			public final Comparator<? super Set<A>> originalOrder;
 
-		public final Comparator<? super Set<A>> originalOrder;
+			private final Comparator<? super Set<A>> setOrder_;
 
-		private final Comparator<? super Set<A>> setOrder_;
-
-		public Order(final Comparator<? super Set<A>> innerOrder) {
-			this.originalOrder = innerOrder;
-			if (innerOrder == null) {
-				setOrder_ = DEFAULT_ORDER;
-			} else {
-				setOrder_ = innerOrder;
+			public Order(final Comparator<? super Set<A>> innerOrder) {
+				this.originalOrder = innerOrder;
+				if (innerOrder == null) {
+					setOrder_ = DEFAULT_ORDER;
+				} else {
+					setOrder_ = innerOrder;
+				}
 			}
-		}
 
-		@Override
-		public int compare(final Justification<C, A> just1,
-				final Justification<C, A> just2) {
-			final int result = setOrder_.compare(just1, just2);
-			if (result != 0) {
-				return result;
+			@Override
+			public int compare(final Justification<C, A> just1,
+					final Justification<C, A> just2) {
+				final int result = setOrder_.compare(just1, just2);
+				if (result != 0) {
+					return result;
+				}
+				return Integer.compare(just1.getConclusion().hashCode(),
+						just2.getConclusion().hashCode());
 			}
-			return Integer.compare(just1.getConclusion().hashCode(),
-					just2.getConclusion().hashCode());
+
 		}
 
 	}
@@ -446,10 +446,10 @@ public class MinPremisesBottomUp<C, A>
 	 *            the type of axioms used by the inferences
 	 */
 	private static class Factory<C, A>
-			implements JustificationComputation.Factory<C, A> {
+			implements MinimalSubsetsFromInferences.Factory<C, A> {
 
 		@Override
-		public JustificationComputation<C, A> create(
+		public MinimalSubsetEnumerator.Factory<C, A> create(
 				final InferenceSet<C> inferenceSet,
 				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {

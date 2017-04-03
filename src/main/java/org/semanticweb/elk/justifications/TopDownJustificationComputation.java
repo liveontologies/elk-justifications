@@ -16,9 +16,10 @@ import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
-import org.liveontologies.puli.justifications.AbstractJustificationComputation;
+import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -37,35 +38,21 @@ import com.google.common.collect.Iterators;
  *            the type of axioms used by the inferences
  */
 public class TopDownJustificationComputation<C, A>
-		extends AbstractJustificationComputation<C, A> {
+		extends MinimalSubsetsFromInferences<C, A> {
 
 	private static final TopDownJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
 	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> JustificationComputation.Factory<C, A> getFactory() {
+	public static <C, A> MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
 		return (Factory<C, A>) FACTORY_;
 	}
 
 	/**
-	 * newly computed jobs to be propagated
-	 */
-	private Queue<Job> toDoJobs_ = new PriorityQueue<Job>();
-
-	/**
-	 * Used to minimize the jobs
-	 */
-	private final Collection2<Set<Object>> minimalJobs_ = new BloomTrieCollection2<>();
-
-	private final Collection2<Set<A>> minimalJustifications_ = new BloomTrieCollection2<>();
-
-	/**
 	 * used to select the conclusion to expand
 	 */
-	final private Comparator<C> rank_;
-
-	private Listener<A> listener_ = null;
+	private final Comparator<C> rank_;
 
 	// Statistics
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
@@ -91,74 +78,129 @@ public class TopDownJustificationComputation<C, A>
 	}
 
 	@Override
-	public void enumerateJustifications(final C conclusion,
-			final Comparator<? super Set<A>> order,
-			final Listener<A> listener) {
-		Preconditions.checkNotNull(listener);
-
-		this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
-				extendToJobOrder(order));
-		this.minimalJobs_.clear();
-		this.minimalJustifications_.clear();
-		this.listener_ = listener;
-
-		initialize(conclusion);
-		process();
-
-		this.listener_ = null;
+	public MinimalSubsetEnumerator<A> newEnumerator(final C query) {
+		return new JustificationEnumerator(query);
 	}
 
-	private void initialize(final C goal) {
-		final Job initialJob = new Job(goal);
-		produce(initialJob);
-	}
+	private class JustificationEnumerator
+			extends AbstractMinimalSubsetEnumerator<A> {
 
-	private void process() {
-		Job job;
-		while ((job = toDoJobs_.poll()) != null) {
+		private final C conclusion_;
 
-			if (minimalJustifications_.isMinimal(job.justification_)
-					&& minimalJobs_.isMinimal(job)) {
-				minimalJobs_.add(job);
-				if (job.premises_.isEmpty()) {
-					minimalJustifications_.add(job.justification_);
-					if (listener_ != null) {
-						listener_.newJustification(job.justification_);
+		/**
+		 * newly computed jobs to be propagated
+		 */
+		private Queue<Job> toDoJobs_;
+
+		/**
+		 * Used to minimize the jobs
+		 */
+		private final Collection2<Set<Object>> minimalJobs_ = new BloomTrieCollection2<>();
+
+		private final Collection2<Set<A>> minimalJustifications_ = new BloomTrieCollection2<>();
+
+		private Listener<A> listener_ = null;
+
+		JustificationEnumerator(final C query) {
+			this.conclusion_ = query;
+		}
+
+		@Override
+		public void enumerate(final Comparator<? super Set<A>> order,
+				final Listener<A> listener) {
+			Preconditions.checkNotNull(listener);
+
+			this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
+					extendToJobOrder(order));
+			this.minimalJobs_.clear();
+			this.minimalJustifications_.clear();
+			this.listener_ = listener;
+
+			initialize(conclusion_);
+			process();
+
+			this.listener_ = null;
+		}
+
+		private void initialize(final C goal) {
+			final Job initialJob = new Job(goal);
+			produce(initialJob);
+		}
+
+		private void process() {
+			Job job;
+			while ((job = toDoJobs_.poll()) != null) {
+
+				if (minimalJustifications_.isMinimal(job.justification_)
+						&& minimalJobs_.isMinimal(job)) {
+					minimalJobs_.add(job);
+					if (job.premises_.isEmpty()) {
+						minimalJustifications_.add(job.justification_);
+						if (listener_ != null) {
+							listener_.newMinimalSubset(job.justification_);
+						}
+					} else {
+						expansionCount_++;
+						for (final Inference<C> inf : getInferences(
+								chooseConclusion(job.premises_))) {
+							expandedInferencesCount_++;
+							final Job newJob = job.expand(inf);
+							produce(newJob);
+						}
 					}
 				} else {
-					expansionCount_++;
-					for (final Inference<C> inf : getInferences(
-							chooseConclusion(job.premises_))) {
-						expandedInferencesCount_++;
-						final Job newJob = job.expand(inf);
-						produce(newJob);
-					}
+					nonMinimalJobsCount_++;
 				}
+
+				if (isInterrupted()) {
+					break;
+				}
+
+			}
+		}
+
+		private C chooseConclusion(final Collection<C> conclusions) {
+			// select the conclusion with the smallest rank
+			C result = null;
+			for (C c : conclusions) {
+				if (result == null || rank_.compare(c, result) < 0) {
+					result = c;
+				}
+			}
+			return result;
+		}
+
+		private void produce(final Job job) {
+			producedJobsCount_++;
+			toDoJobs_.add(job);
+		}
+
+		private Comparator<Job> extendToJobOrder(
+				final Comparator<? super Set<A>> order) {
+
+			final Comparator<? super Set<A>> justOrder;
+			if (order == null) {
+				justOrder = DEFAULT_ORDER;
 			} else {
-				nonMinimalJobsCount_++;
+				justOrder = order;
 			}
 
-			if (isInterrupted()) {
-				break;
-			}
+			return new Comparator<Job>() {
 
+				@Override
+				public int compare(final Job job1, final Job job2) {
+					final int result = justOrder.compare(job1.justification_,
+							job2.justification_);
+					if (result != 0) {
+						return result;
+					}
+					return Integer.compare(job1.premises_.size(),
+							job2.premises_.size());
+				}
+
+			};
 		}
-	}
 
-	private C chooseConclusion(final Collection<C> conclusions) {
-		// select the conclusion with the smallest rank
-		C result = null;
-		for (C c : conclusions) {
-			if (result == null || rank_.compare(c, result) < 0) {
-				result = c;
-			}
-		}
-		return result;
-	}
-
-	private void produce(final Job job) {
-		producedJobsCount_++;
-		toDoJobs_.add(job);
 	}
 
 	@Stat
@@ -299,32 +341,6 @@ public class TopDownJustificationComputation<C, A>
 
 	}
 
-	private Comparator<Job> extendToJobOrder(
-			final Comparator<? super Set<A>> order) {
-
-		final Comparator<? super Set<A>> justOrder;
-		if (order == null) {
-			justOrder = DEFAULT_ORDER;
-		} else {
-			justOrder = order;
-		}
-
-		return new Comparator<Job>() {
-
-			@Override
-			public int compare(final Job job1, final Job job2) {
-				final int result = justOrder.compare(job1.justification_,
-						job2.justification_);
-				if (result != 0) {
-					return result;
-				}
-				return Integer.compare(job1.premises_.size(),
-						job2.premises_.size());
-			}
-
-		};
-	}
-
 	/**
 	 * The factory for creating a {@link BottomUpJustificationComputation}
 	 * 
@@ -336,10 +352,10 @@ public class TopDownJustificationComputation<C, A>
 	 *            the type of axioms used by the inferences
 	 */
 	private static class Factory<C, A>
-			implements JustificationComputation.Factory<C, A> {
+			implements MinimalSubsetsFromInferences.Factory<C, A> {
 
 		@Override
-		public JustificationComputation<C, A> create(
+		public MinimalSubsetEnumerator.Factory<C, A> create(
 				final InferenceSet<C> inferenceSet,
 				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {

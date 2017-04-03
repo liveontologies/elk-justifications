@@ -6,7 +6,7 @@ import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.justifications.JustificationComputation;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.semanticweb.elk.proofs.ProofPrinter;
 
 /**
@@ -22,22 +22,23 @@ import org.semanticweb.elk.proofs.ProofPrinter;
  */
 public class ProofJustificationPrinter<C, A> extends ProofPrinter<C, A> {
 
-	private final JustificationCollector<C, A> collector_;
+	private final MinimalSubsetCollector<C, A> collector_;
 
 	private final int sizeLimit_;
 
-	ProofJustificationPrinter(JustificationComputation.Factory<C, A> factory,
+	ProofJustificationPrinter(
+			final MinimalSubsetsFromInferences.Factory<C, A> factory,
 			final InferenceSet<C> inferenceSet,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			int sizeLimit) {
 		super(inferenceSet, justifier);
-		this.collector_ = new JustificationCollector<>(factory, inferenceSet,
+		this.collector_ = new MinimalSubsetCollector<>(factory, inferenceSet,
 				justifier);
 		this.sizeLimit_ = sizeLimit;
 	}
 
 	public static <C, A> void print(
-			JustificationComputation.Factory<C, A> factory,
+			final MinimalSubsetsFromInferences.Factory<C, A> factory,
 			final InferenceSet<C> inferenceSet,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion, int sizeLimit) throws IOException {
@@ -47,7 +48,7 @@ public class ProofJustificationPrinter<C, A> extends ProofPrinter<C, A> {
 	}
 
 	public static <C, A> void print(
-			JustificationComputation.Factory<C, A> factory,
+			final MinimalSubsetsFromInferences.Factory<C, A> factory,
 			final InferenceSet<C> inferenceSet,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) throws IOException {
@@ -58,8 +59,8 @@ public class ProofJustificationPrinter<C, A> extends ProofPrinter<C, A> {
 	protected void writeConclusion(C conclusion) throws IOException {
 		BufferedWriter w = getWriter();
 		w.write('[');
-		w.write(Integer.toString(collector_
-				.collectJustifications(conclusion, sizeLimit_).size()));
+		w.write(Integer
+				.toString(collector_.collect(conclusion, sizeLimit_).size()));
 		w.write(']');
 		w.write(' ');
 		super.writeConclusion(conclusion);
