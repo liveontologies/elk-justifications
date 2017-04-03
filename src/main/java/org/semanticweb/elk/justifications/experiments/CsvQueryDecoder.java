@@ -14,7 +14,7 @@ public class CsvQueryDecoder {
 		final String[] columns = query.split(" ");
 		if (columns.length < 2) {
 			throw new IllegalArgumentException(
-					"Invalie query format: " + query);
+					"Invalid query format: " + query);
 		}
 
 		return factory.createQuery(columns[0], columns[1]);

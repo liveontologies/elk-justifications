@@ -44,248 +44,247 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 
+import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.annotation.Arg;
+import net.sourceforge.argparse4j.impl.Arguments;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.ArgumentParserException;
+
 public class DirectSatEncodingUsingElkCsvQuery {
-	
-	private static final Logger LOG =
-			LoggerFactory.getLogger(DirectSatEncodingUsingElkCsvQuery.class);
+
+	private static final Logger LOG_ = LoggerFactory
+			.getLogger(DirectSatEncodingUsingElkCsvQuery.class);
+
+	private static final ElkObjectBaseFactory FACTORY_ = new ElkObjectBaseFactory();
+
+	public static final String ONTOLOGY_OPT = "ontology";
+	public static final String QUERIES_OPT = "queries";
+	public static final String OUTDIR_OPT = "outdir";
+
+	public static class Options {
+		@Arg(dest = ONTOLOGY_OPT)
+		public File ontologyFile;
+		@Arg(dest = QUERIES_OPT)
+		public File queriesFile;
+		@Arg(dest = OUTDIR_OPT)
+		public File outDir;
+	}
 
 	public static void main(final String[] args) {
-		
-		if (args.length < 3) {
-			LOG.error("Insufficient arguments!");
-			System.exit(1);
-		}
-		
-		final String ontologyFileName = args[0];
-		final String conclusionsFileName = args[1];
-		final File outputDirectory = new File(args[2]);
-		if (!Utils.cleanDir(outputDirectory)) {
-			LOG.error("Could not prepare the output directory!");
-			System.exit(2);
-		}
-		
-		final ElkObjectBaseFactory factory = new ElkObjectBaseFactory();
-		
+
+		final ArgumentParser parser = ArgumentParsers
+				.newArgumentParser(
+						DirectSatEncodingUsingElkCsvQuery.class.getSimpleName())
+				.description("Export inference sets into *.wcnf files.");
+		parser.addArgument(ONTOLOGY_OPT)
+				.type(Arguments.fileType().verifyExists().verifyCanRead())
+				.help("ontology file");
+		parser.addArgument(QUERIES_OPT)
+				.type(Arguments.fileType().verifyExists().verifyCanRead())
+				.help("query file");
+		parser.addArgument(OUTDIR_OPT).type(File.class)
+				.help("output directory");
+
 		InputStream ontologyIS = null;
-		BufferedReader conclusionReader = null;
-		
+		BufferedReader queryReader = null;
+
 		try {
-			
-			ontologyIS = new FileInputStream(ontologyFileName);
-			
+
+			final Options opt = new Options();
+			parser.parseArgs(args, opt);
+
+			if (!Utils.cleanDir(opt.outDir)) {
+				LOG_.error("Could not prepare the output directory!");
+				System.exit(2);
+			}
+
+			ontologyIS = new FileInputStream(opt.ontologyFile);
+
 			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
 					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory().createReasoner(
-					loader);
-			
-			LOG.info("Classifying ...");
+			final Reasoner reasoner = new ReasonerFactory()
+					.createReasoner(loader);
+
+			LOG_.info("Classifying ...");
 			long start = System.currentTimeMillis();
 			reasoner.getTaxonomy();
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start)/1000.0);
-			
-			conclusionReader =
-					new BufferedReader(new FileReader(conclusionsFileName));
-			
-			int conclCount = 0;
+			LOG_.info("... took {}s",
+					(System.currentTimeMillis() - start) / 1000.0);
+
+			queryReader = new BufferedReader(new FileReader(opt.queriesFile));
+			int queryCount = 0;
 			String line;
-			while ((line = conclusionReader.readLine()) != null) {
-				conclCount++;
+			while ((line = queryReader.readLine()) != null) {
+				queryCount++;
 			}
-			conclusionReader.close();
-			
-			conclusionReader =
-					new BufferedReader(new FileReader(conclusionsFileName));
-			
-			int conclIndex = 0;
-			while ((line = conclusionReader.readLine()) != null) {
-				
-				final ElkSubClassOfAxiom conclusion = CsvQueryDecoder.decode(
-						line,
-						new CsvQueryDecoder.Factory<ElkSubClassOfAxiom>() {
+			queryReader.close();
 
-							@Override
-							public ElkSubClassOfAxiom createQuery(
-									final String subIri, final String supIri) {
-								return factory.getSubClassOfAxiom(
-										factory.getClass(
-												new ElkFullIri(subIri)),
-										factory.getClass(
-												new ElkFullIri(supIri)));
-							}
+			queryReader = new BufferedReader(new FileReader(opt.queriesFile));
 
-						});
-				
-				LOG.debug("Collecting statistics for {}", conclusion);
-				
-				encode(conclusion, reasoner, outputDirectory, conclCount,
-						conclIndex++);
-				
+			int queryIndex = 0;
+			while ((line = queryReader.readLine()) != null) {
+
+				LOG_.debug("Encoding {} of {}: {}", queryIndex, queryCount,
+						line);
+
+				encode(line, reasoner, opt.outDir, queryCount, queryIndex++);
+
 			}
-			
+
 		} catch (final FileNotFoundException e) {
-			LOG.error("File Not Found!", e);
+			LOG_.error("File Not Found!", e);
 			System.exit(2);
 		} catch (final ElkInconsistentOntologyException e) {
-			LOG.error("The ontology is inconsistent!", e);
+			LOG_.error("The ontology is inconsistent!", e);
 			System.exit(2);
 		} catch (final ElkException e) {
-			LOG.error("Could not classify the ontology!", e);
+			LOG_.error("Could not classify the ontology!", e);
 			System.exit(2);
 		} catch (final IOException e) {
-			LOG.error("I/O error!", e);
+			LOG_.error("I/O error!", e);
+			System.exit(2);
+		} catch (final ArgumentParserException e) {
+			parser.handleError(e);
 			System.exit(2);
 		} finally {
-			if (ontologyIS != null) {
-				try {
-					ontologyIS.close();
-				} catch (final IOException e) {}
-			}
-			if (conclusionReader != null) {
-				try {
-					conclusionReader.close();
-				} catch (final IOException e) {}
-			}
+			Utils.closeQuietly(ontologyIS);
+			Utils.closeQuietly(queryReader);
 		}
-		
+
 	}
-	
-	private static void encode(final ElkSubClassOfAxiom conclusion,
-			final Reasoner reasoner, final File outputDirectory,
-			final int conclCount, final int conclIndex)
-					throws ElkException, IOException {
-		
-//		final String conclName = Utils.toFileName(conclusion);
-		final String conclName = String.format(
-				"%0" + Integer.toString(conclCount).length() + "d", conclIndex);
-		final File outDir = new File(outputDirectory, conclName);
+
+	private static void encode(final String line, final Reasoner reasoner,
+			final File outputDirectory, final int queryCount,
+			final int queryIndex) throws ElkException, IOException {
+
+		final ElkSubClassOfAxiom query = CsvQueryDecoder.decode(line,
+				new CsvQueryDecoder.Factory<ElkSubClassOfAxiom>() {
+
+					@Override
+					public ElkSubClassOfAxiom createQuery(final String subIri,
+							final String supIri) {
+						return FACTORY_.getSubClassOfAxiom(
+								FACTORY_.getClass(new ElkFullIri(subIri)),
+								FACTORY_.getClass(new ElkFullIri(supIri)));
+					}
+
+				});
+
+		// final String conclName = Utils.toFileName(conclusion);
+		final String queryName = String.format(
+				"%0" + Integer.toString(queryCount).length() + "d", queryIndex);
+		final File outDir = new File(outputDirectory, queryName);
 		final File hFile = new File(outDir, "encoding.h");
 		final File cnfFile = new File(outDir, "encoding.cnf");
 		final File questionFile = new File(outDir, "encoding.question");
-		final File conclusionFile = new File(outDir, "encoding.conclusion");
+		final File queryFile = new File(outDir, "encoding.query");
 		final File pppFile = new File(outDir, "encoding.ppp");
 		final File pppguFile = new File(outDir, "encoding.ppp.g.u");
 		final File zzzFile = new File(outDir, "encoding.zzz");
 		final File zzzgciFile = new File(outDir, "encoding.zzz.gci");
 		final File zzzriFile = new File(outDir, "encoding.zzz.ri");
 		outDir.mkdirs();
-		
+
 		PrintWriter cnfWriter = null;
 		PrintWriter hWriter = null;
-		
+
 		try {
-			
+
 			cnfWriter = new PrintWriter(cnfFile);
 			hWriter = new PrintWriter(hFile);
 			final PrintWriter cnf = cnfWriter;
-			
+
 			final Conclusion expression = Utils
-					.getFirstDerivedConclusionForSubsumption(reasoner,
-							conclusion);
-			final InferenceSet<Conclusion> inferenceSet =
-					reasoner.explainConclusion(expression);
-			final TracingInferenceJustifier justifier =
-					TracingInferenceJustifier.INSTANCE;
-			
-			final Set<ElkAxiom> axiomExprs =
-					new HashSet<ElkAxiom>();
-			final Set<Conclusion> lemmaExprs =
-					new HashSet<Conclusion>();
-			
+					.getFirstDerivedConclusionForSubsumption(reasoner, query);
+			final InferenceSet<Conclusion> inferenceSet = reasoner
+					.explainConclusion(expression);
+			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
+
+			final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
+			final Set<Conclusion> conclusions = new HashSet<Conclusion>();
+
 			Utils.traverseProofs(expression, inferenceSet, justifier,
-					Functions.<Inference<Conclusion>>identity(),
-					new Function<Conclusion, Void>(){
+					Functions.<Inference<Conclusion>> identity(),
+					new Function<Conclusion, Void>() {
 						@Override
 						public Void apply(final Conclusion expr) {
-							lemmaExprs.add(expr);
+							conclusions.add(expr);
 							return null;
 						}
-					},
-					new Function<ElkAxiom, Void>(){
+					}, new Function<ElkAxiom, Void>() {
 						@Override
 						public Void apply(final ElkAxiom axiom) {
-							axiomExprs.add(axiom);
+							axioms.add(axiom);
 							return null;
 						}
-					}
-			);
-			
-			final Counter literalCounter = new Counter(1);
-			final Counter clauseCounter = new Counter();
-			
-			final Map<ElkAxiom, Integer> axiomIndex =
-					new HashMap<ElkAxiom, Integer>();
-			for (final ElkAxiom axExpr : axiomExprs) {
-				axiomIndex.put(axExpr, literalCounter.next());
+					});
+
+			final Utils.Counter literalCounter = new Utils.Counter(1);
+			final Utils.Counter clauseCounter = new Utils.Counter();
+
+			final Map<ElkAxiom, Integer> axiomIndex = new HashMap<ElkAxiom, Integer>();
+			for (final ElkAxiom axiom : axioms) {
+				axiomIndex.put(axiom, literalCounter.next());
 			}
-			final Map<Conclusion, Integer> conclusionIndex =
-					new HashMap<Conclusion, Integer>();
-			for (final Conclusion expr : lemmaExprs) {
-				conclusionIndex.put(expr, literalCounter.next());
+			final Map<Conclusion, Integer> conclusionIndex = new HashMap<Conclusion, Integer>();
+			for (final Conclusion conclusion : conclusions) {
+				conclusionIndex.put(conclusion, literalCounter.next());
 			}
-			
+
 			// cnf
 			Utils.traverseProofs(expression, inferenceSet, justifier,
 					new Function<Inference<Conclusion>, Void>() {
 						@Override
-						public Void apply(
-								final Inference<Conclusion> inf) {
-							
-							LOG.trace("processing {}", inf);
-							
-							for (final ElkAxiom axiom :
-									justifier.getJustification(inf)) {
+						public Void apply(final Inference<Conclusion> inf) {
+
+							LOG_.trace("processing {}", inf);
+
+							for (final ElkAxiom axiom : justifier
+									.getJustification(inf)) {
 								cnf.print(-axiomIndex.get(axiom));
 								cnf.print(" ");
 							}
-							
-							for (final Conclusion premise :
-									inf.getPremises()) {
+
+							for (final Conclusion premise : inf.getPremises()) {
 								cnf.print(-conclusionIndex.get(premise));
 								cnf.print(" ");
 							}
-							
+
 							cnf.print(conclusionIndex.get(inf.getConclusion()));
 							cnf.println(" 0");
 							clauseCounter.next();
-							
+
 							return null;
 						}
-					},
-					Functions.<Conclusion>identity(),
-					Functions.<ElkAxiom>identity());
-			
+					}, Functions.<Conclusion> identity(),
+					Functions.<ElkAxiom> identity());
+
 			final int lastLiteral = literalCounter.next();
-			
+
 			// h
-			hWriter.println("p cnf " + (lastLiteral - 1)
-					+ " " + clauseCounter.next());
-			
+			hWriter.println(
+					"p cnf " + (lastLiteral - 1) + " " + clauseCounter.next());
+
 			// ppp
 			writeLines(axiomIndex.values(), pppFile);
-			
+
 			// ppp.g.u
-			final List<Integer> orderedAxioms =
-					new ArrayList<Integer>(axiomIndex.values());
+			final List<Integer> orderedAxioms = new ArrayList<Integer>(
+					axiomIndex.values());
 			Collections.sort(orderedAxioms);
 			writeLines(orderedAxioms, pppguFile);
-			
+
 			// question
 			writeLines(Collections.singleton(conclusionIndex.get(expression)),
 					questionFile);
-			
-			// conclusion
-			writeLines(Collections.singleton(
-					"" + conclusionIndex.get(expression) + " " + conclusion),
-					conclusionFile);
-			
+
+			// query
+			writeLines(Collections.singleton(line), queryFile);
+
 			// zzz
-			final SortedMap<Integer, ElkAxiom> gcis =
-					new TreeMap<Integer, ElkAxiom>();
-			final SortedMap<Integer, ElkAxiom> ris =
-					new TreeMap<Integer, ElkAxiom>();
-			for (final Entry<ElkAxiom, Integer> entry
-					: axiomIndex.entrySet()) {
+			final SortedMap<Integer, ElkAxiom> gcis = new TreeMap<Integer, ElkAxiom>();
+			final SortedMap<Integer, ElkAxiom> ris = new TreeMap<Integer, ElkAxiom>();
+			for (final Entry<ElkAxiom, Integer> entry : axiomIndex.entrySet()) {
 				final ElkAxiom expr = entry.getKey();
 				final int lit = entry.getValue();
 				if (expr instanceof ElkClassAxiom) {
@@ -294,93 +293,74 @@ public class DirectSatEncodingUsingElkCsvQuery {
 					ris.put(lit, expr);
 				}
 			}
-			final SortedMap<Integer, Conclusion> lemmas =
-					new TreeMap<Integer, Conclusion>();
-			for (final Entry<Conclusion, Integer> entry
-					: conclusionIndex.entrySet()) {
+			final SortedMap<Integer, Conclusion> lemmas = new TreeMap<Integer, Conclusion>();
+			for (final Entry<Conclusion, Integer> entry : conclusionIndex
+					.entrySet()) {
 				lemmas.put(entry.getValue(), entry.getKey());
 			}
-			
-			writeLines(Iterables.transform(gcis.entrySet(), PRINT2), zzzgciFile);
+
+			writeLines(Iterables.transform(gcis.entrySet(), PRINT2),
+					zzzgciFile);
 			writeLines(Iterables.transform(ris.entrySet(), PRINT2), zzzriFile);
 			writeLines(Iterables.transform(lemmas.entrySet(), PRINT), zzzFile);
-			
+
 		} finally {
-			if (cnfWriter != null) {
-				cnfWriter.close();
-			}
-			if (hWriter != null) {
-				hWriter.close();
-			}
+			Utils.closeQuietly(cnfWriter);
+			Utils.closeQuietly(hWriter);
 		}
-		
+
 	}
-	
+
 	private static void writeLines(final Iterable<?> lines, final File file)
 			throws FileNotFoundException {
-		
+
 		PrintWriter writer = null;
-		
+
 		try {
 			writer = new PrintWriter(file);
-			
+
 			for (final Object line : lines) {
 				writer.println(line);
 			}
-			
+
 		} finally {
 			if (writer != null) {
 				writer.close();
 			}
 		}
-		
+
 	}
-	
-	private static final Function<Entry<Integer, Conclusion>, String> PRINT =
-			new Function<Entry<Integer, Conclusion>, String>() {
-		
+
+	private static final Function<Entry<Integer, Conclusion>, String> PRINT = new Function<Entry<Integer, Conclusion>, String>() {
+
 		@Override
 		public String apply(final Entry<Integer, Conclusion> entry) {
 			final StringBuilder result = new StringBuilder();
-			
+
 			result.append(entry.getKey()).append(" ").append(entry.getValue());
-			
+
 			return result.toString();
 		}
-		
+
 	};
-	
-	private static final Function<Entry<Integer, ElkAxiom>, String> PRINT2 =
-			new Function<Entry<Integer, ElkAxiom>, String>() {
-		
+
+	private static final Function<Entry<Integer, ElkAxiom>, String> PRINT2 = new Function<Entry<Integer, ElkAxiom>, String>() {
+
 		@Override
 		public String apply(final Entry<Integer, ElkAxiom> entry) {
 			final StringBuilder result = new StringBuilder();
-			
+
 			result.append(entry.getKey()).append(" ");
-			
+
 			final ElSatPrinterVisitor printer = new ElSatPrinterVisitor(result);
-			
+
 			entry.getValue().accept(printer);
-			
+
 			result.setLength(result.length() - 1);// Remove the last line end.
-			
+
 			return result.toString();
 		}
-		
+
 	};
-	
-	private static class Counter {
-		private int counter;
-		public Counter() {
-			this(0);
-		}
-		public Counter(final int first) {
-			this.counter = first;
-		}
-		public int next() {
-			return counter++;
-		}
-	}
-	
+
 }
