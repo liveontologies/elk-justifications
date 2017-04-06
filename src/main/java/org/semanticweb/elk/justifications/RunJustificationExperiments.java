@@ -125,6 +125,8 @@ public class RunJustificationExperiments {
 			final JustificationExperiment experiment = newExperiment(
 					experimentClassName);
 
+			recordWriter = new PrintWriter(recordFile);
+
 			if (warmupTimeOut > 0) {
 				LOGGER_.info("Warm Up");
 				experiment.init(experimentArgs);
@@ -134,7 +136,6 @@ public class RunJustificationExperiments {
 			}
 
 			LOGGER_.info("Actual Experiment Run");
-			recordWriter = new PrintWriter(recordFile);
 			experiment.init(experimentArgs);
 			run(experiment, queryFile, timeOutMillis, globalTimeOutMillis, 0,
 					runGc, recordWriter);
@@ -255,8 +256,7 @@ public class RunJustificationExperiments {
 				final long localStopTimeMillis = timeOutMillis > 0
 						? localStartTimeMillis + timeOutMillis : Long.MAX_VALUE;
 
-				final long stopTimeMillis = Math.min(globalStopTimeMillis,
-						localStopTimeMillis);
+				final long stopTimeMillis = localStopTimeMillis;
 
 				final Runnable runnable = new Runnable() {
 					@Override

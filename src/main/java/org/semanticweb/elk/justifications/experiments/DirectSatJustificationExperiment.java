@@ -78,31 +78,7 @@ public class DirectSatJustificationExperiment
 	@Override
 	protected InferenceJustifier<Integer, ? extends Set<? extends Integer>> newJustifier()
 			throws ExperimentException {
-
-		InputStream cnf = null;
-		InputStream assumptions = null;
-
-		try {
-
-			cnf = new FileInputStream(cnfFileName_);
-			assumptions = new FileInputStream(assumptionsFileName_);
-
-			LOG.info("Loading CNF ...");
-			final long start = System.currentTimeMillis();
-			final InferenceJustifier<Integer, Set<Integer>> result = DirectSatEncodingInferenceSetAdapter
-					.load(assumptions, cnf);
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
-
-			return result;
-
-		} catch (final IOException e) {
-			throw new ExperimentException(e);
-		} finally {
-			Utils.closeQuietly(cnf);
-			Utils.closeQuietly(assumptions);
-		}
-
+		return DirectSatEncodingInferenceSetAdapter.JUSTIFIER;
 	}
 
 }

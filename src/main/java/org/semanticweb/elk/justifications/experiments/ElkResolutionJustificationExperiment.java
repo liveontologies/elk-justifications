@@ -39,14 +39,16 @@ public class ElkResolutionJustificationExperiment
 
 	@Override
 	protected void addArguments(final ArgumentParser parser) {
-		parser.addArgument(ONTOLOGY_OPT).type(Arguments.fileType().verifyExists().verifyCanRead()).help("ontology file");
+		parser.addArgument(ONTOLOGY_OPT)
+				.type(Arguments.fileType().verifyExists().verifyCanRead())
+				.help("ontology file");
 	}
-	
+
 	@Override
 	protected void init(final Namespace options) throws ExperimentException {
-		reasoner_ = loadAndClassifyOntology(options.<File>get(ONTOLOGY_OPT));
+		reasoner_ = loadAndClassifyOntology(options.<File> get(ONTOLOGY_OPT));
 	}
-	
+
 	protected Reasoner loadAndClassifyOntology(final File ontologyFileName)
 			throws ExperimentException {
 
