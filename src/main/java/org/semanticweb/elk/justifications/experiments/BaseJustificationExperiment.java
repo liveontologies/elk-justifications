@@ -72,7 +72,7 @@ public abstract class BaseJustificationExperiment<C, A>
 		final InferenceSet<C> inferenceSet = newInferenceSet(goal);
 		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
 		computation_ = factory_.create(inferenceSet, justifier, monitor);
-		computation_.newEnumerator(goal).enumerate(null, justificationCounter_);
+		computation_.newEnumerator(goal).enumerate(justificationCounter_);
 
 	}
 

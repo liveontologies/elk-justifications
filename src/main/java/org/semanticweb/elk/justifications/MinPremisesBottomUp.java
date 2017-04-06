@@ -2,7 +2,6 @@ package org.semanticweb.elk.justifications;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,6 +14,7 @@ import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.ComparableWrapper;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
@@ -43,8 +43,6 @@ public class MinPremisesBottomUp<C, A>
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(MinPremisesBottomUp.class);
-
-	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
 
 	private static final MinPremisesBottomUp.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
@@ -177,9 +175,11 @@ public class MinPremisesBottomUp<C, A>
 		/**
 		 * newly computed justifications to be propagated
 		 */
-		private PriorityQueue<Justification<C, A>> toDoJustifications_ = null;
+		private PriorityQueue<Job<C, A, ?>> toDoJustifications_ = null;
 
 		private Listener<A> listener_ = null;
+
+		private ComparableWrapper.Factory<Set<A>, ?> wrapper_;
 
 		/**
 		 * the justifications will be returned here, they come in increasing
@@ -193,25 +193,18 @@ public class MinPremisesBottomUp<C, A>
 		}
 
 		@Override
-		public void enumerate(final Comparator<? super Set<A>> order,
+		public void enumerate(
+				final ComparableWrapper.Factory<Set<A>, ?> wrapper,
 				final Listener<A> listener) {
 			Preconditions.checkNotNull(listener);
 			this.listener_ = listener;
-
-			boolean doNotReset = true;
-			if (toDoJustifications_ != null) {
-				final Comparator<? super Justification<C, A>> comparator = toDoJustifications_
-						.comparator();
-				if (comparator != null
-						&& (comparator instanceof MinPremisesBottomUp.JustificationEnumerator.Order)) {
-					@SuppressWarnings("unchecked")
-					final Order oldOrder = (Order) comparator;
-					doNotReset = order == null ? oldOrder.originalOrder == null
-							: order.equals(oldOrder.originalOrder);
-				}
+			if (wrapper == null) {
+				enumerate(listener);
+				return;
 			}
+			// else
 
-			if (doNotReset) {
+			if (wrapper.equals(this.wrapper_)) {
 				// Visit already computed justifications. They should be in the
 				// correct order.
 				for (final Justification<C, A> just : justifications_
@@ -220,11 +213,11 @@ public class MinPremisesBottomUp<C, A>
 				}
 			} else {
 				// Reset everything.
+				this.wrapper_ = wrapper;
 				reset();
 			}
 
-			this.toDoJustifications_ = new PriorityQueue<Justification<C, A>>(
-					INITIAL_QUEUE_CAPACITY_, new Order(order));
+			this.toDoJustifications_ = new PriorityQueue<Job<C, A, ?>>();
 
 			toInitialize(conclusion_);
 			initialize();
@@ -254,8 +247,9 @@ public class MinPremisesBottomUp<C, A>
 						toInitialize(premise);
 					}
 					if (inf.getPremises().isEmpty()) {
-						toDoJustifications_.add(createJustification(
-								inf.getConclusion(), getJustification(inf)));
+						toDoJustifications_.add(Job.create(wrapper_,
+								createJustification(inf.getConclusion(),
+										getJustification(inf))));
 						countJustificationCandidates_++;
 					}
 				}
@@ -278,8 +272,9 @@ public class MinPremisesBottomUp<C, A>
 		 * process new justifications until the fixpoint
 		 */
 		private void process() {
-			Justification<C, A> just;
-			while ((just = toDoJustifications_.poll()) != null) {
+			Job<C, A, ?> job;
+			while ((job = toDoJustifications_.poll()) != null) {
+				Justification<C, A> just = job.justification;
 				if (isInterrupted()) {
 					return;
 				}
@@ -395,7 +390,8 @@ public class MinPremisesBottomUp<C, A>
 					}
 
 					for (Justification<C, A> conclJust : conclusionJusts) {
-						toDoJustifications_.add(conclJust);
+						toDoJustifications_
+								.add(Job.create(wrapper_, conclJust));
 						countJustificationCandidates_++;
 					}
 
@@ -405,32 +401,35 @@ public class MinPremisesBottomUp<C, A>
 
 		}
 
-		private class Order implements Comparator<Justification<C, A>> {
+	}
 
-			public final Comparator<? super Set<A>> originalOrder;
+	private static class Job<C, A, W extends ComparableWrapper<Set<A>, W>>
+			implements Comparable<Job<C, A, W>> {
 
-			private final Comparator<? super Set<A>> setOrder_;
+		private final W wrapped_;
 
-			public Order(final Comparator<? super Set<A>> innerOrder) {
-				this.originalOrder = innerOrder;
-				if (innerOrder == null) {
-					setOrder_ = DEFAULT_ORDER;
-				} else {
-					setOrder_ = innerOrder;
-				}
+		public final Justification<C, A> justification;
+
+		public Job(final W wrapped, final Justification<C, A> justification) {
+			this.wrapped_ = wrapped;
+			this.justification = justification;
+		}
+
+		public static <C, A, W extends ComparableWrapper<Set<A>, W>> Job<C, A, W> create(
+				final ComparableWrapper.Factory<Set<A>, W> wrapper,
+				final Justification<C, A> justification) {
+			final W wrapped = wrapper.wrap(justification);
+			return new Job<C, A, W>(wrapped, justification);
+		}
+
+		@Override
+		public int compareTo(final Job<C, A, W> other) {
+			final int result = wrapped_.compareTo(other.wrapped_);
+			if (result != 0) {
+				return result;
 			}
-
-			@Override
-			public int compare(final Justification<C, A> just1,
-					final Justification<C, A> just2) {
-				final int result = setOrder_.compare(just1, just2);
-				if (result != 0) {
-					return result;
-				}
-				return Integer.compare(just1.getConclusion().hashCode(),
-						just2.getConclusion().hashCode());
-			}
-
+			return Integer.compare(justification.getConclusion().hashCode(),
+					other.justification.getConclusion().hashCode());
 		}
 
 	}

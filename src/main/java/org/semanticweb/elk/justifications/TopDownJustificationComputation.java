@@ -17,6 +17,7 @@ import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.ComparableWrapper;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
@@ -41,8 +42,6 @@ public class TopDownJustificationComputation<C, A>
 		extends MinimalSubsetsFromInferences<C, A> {
 
 	private static final TopDownJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
-
-	private static final int INITIAL_QUEUE_CAPACITY_ = 11;
 
 	@SuppressWarnings("unchecked")
 	public static <C, A> MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
@@ -90,7 +89,7 @@ public class TopDownJustificationComputation<C, A>
 		/**
 		 * newly computed jobs to be propagated
 		 */
-		private Queue<Job> toDoJobs_;
+		private Queue<Job<?>> toDoJobs_;
 
 		/**
 		 * Used to minimize the jobs
@@ -101,19 +100,27 @@ public class TopDownJustificationComputation<C, A>
 
 		private Listener<A> listener_ = null;
 
+		private ComparableWrapper.Factory<Set<A>, ?> wrapper_;
+
 		JustificationEnumerator(final C query) {
 			this.conclusion_ = query;
 		}
 
 		@Override
-		public void enumerate(final Comparator<? super Set<A>> order,
+		public void enumerate(
+				final ComparableWrapper.Factory<Set<A>, ?> wrapper,
 				final Listener<A> listener) {
 			Preconditions.checkNotNull(listener);
+			if (wrapper == null) {
+				enumerate(listener);
+				return;
+			}
+			// else
 
-			this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
-					extendToJobOrder(order));
+			this.toDoJobs_ = new PriorityQueue<>();
 			this.minimalJobs_.clear();
 			this.minimalJustifications_.clear();
+			this.wrapper_ = wrapper;
 			this.listener_ = listener;
 
 			initialize(conclusion_);
@@ -123,12 +130,12 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		private void initialize(final C goal) {
-			final Job initialJob = new Job(goal);
+			final Job<?> initialJob = newJob(wrapper_, goal);
 			produce(initialJob);
 		}
 
 		private void process() {
-			Job job;
+			Job<?> job;
 			while ((job = toDoJobs_.poll()) != null) {
 
 				if (minimalJustifications_.isMinimal(job.justification_)
@@ -144,7 +151,7 @@ public class TopDownJustificationComputation<C, A>
 						for (final Inference<C> inf : getInferences(
 								chooseConclusion(job.premises_))) {
 							expandedInferencesCount_++;
-							final Job newJob = job.expand(inf);
+							final Job<?> newJob = job.expand(inf);
 							produce(newJob);
 						}
 					}
@@ -170,35 +177,9 @@ public class TopDownJustificationComputation<C, A>
 			return result;
 		}
 
-		private void produce(final Job job) {
+		private void produce(final Job<?> job) {
 			producedJobsCount_++;
 			toDoJobs_.add(job);
-		}
-
-		private Comparator<Job> extendToJobOrder(
-				final Comparator<? super Set<A>> order) {
-
-			final Comparator<? super Set<A>> justOrder;
-			if (order == null) {
-				justOrder = DEFAULT_ORDER;
-			} else {
-				justOrder = order;
-			}
-
-			return new Comparator<Job>() {
-
-				@Override
-				public int compare(final Job job1, final Job job2) {
-					final int result = justOrder.compare(job1.justification_,
-							job2.justification_);
-					if (result != 0) {
-						return result;
-					}
-					return Integer.compare(job1.premises_.size(),
-							job2.premises_.size());
-				}
-
-			};
 		}
 
 	}
@@ -231,6 +212,12 @@ public class TopDownJustificationComputation<C, A>
 		return BloomTrieCollection2.class;
 	}
 
+	private <W extends ComparableWrapper<Set<A>, W>> Job<W> newJob(
+			final ComparableWrapper.Factory<Set<A>, W> wrapper, final C goal) {
+		return new Job<W>(Collections.singleton(goal),
+				Collections.<A> emptySet(), wrapper);
+	}
+
 	/**
 	 * A set of premises and justification that can be used for deriving the
 	 * goal conclusion.
@@ -238,21 +225,23 @@ public class TopDownJustificationComputation<C, A>
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	private class Job extends AbstractSet<Object> implements Comparable<Job> {
+	private class Job<W extends ComparableWrapper<Set<A>, W>>
+			extends AbstractSet<Object> implements Comparable<Job<W>> {
 
 		private final Set<C> premises_;
 		private final Set<A> justification_;
+		private final W wrapped_;
+		private final ComparableWrapper.Factory<Set<A>, W> wrapper_;
 
-		private Job(final Set<C> premises, final Set<A> justification) {
+		private Job(final Set<C> premises, final Set<A> justification,
+				final ComparableWrapper.Factory<Set<A>, W> wrapper) {
 			this.premises_ = premises;
 			this.justification_ = justification;
+			this.wrapped_ = wrapper.wrap(justification);
+			this.wrapper_ = wrapper;
 		}
 
-		public Job(final C goal) {
-			this(Collections.singleton(goal), Collections.<A> emptySet());
-		}
-
-		public Job expand(final Inference<C> inference) {
+		public Job<W> expand(final Inference<C> inference) {
 			final Set<C> newPremises = new HashSet<>(premises_);
 			newPremises.remove(inference.getConclusion());
 			newPremises.addAll(inference.getPremises());
@@ -265,7 +254,7 @@ public class TopDownJustificationComputation<C, A>
 				newJustification.addAll(justification_);
 				newJustification.addAll(toExpand);
 			}
-			return new Job(newPremises, newJustification);
+			return new Job<W>(newPremises, newJustification, wrapper_);
 		}
 
 		@Override
@@ -286,7 +275,7 @@ public class TopDownJustificationComputation<C, A>
 		public boolean containsAll(final Collection<?> c) {
 			if (c instanceof TopDownJustificationComputation.Job) {
 				@SuppressWarnings("unchecked")
-				final Job other = (Job) c;
+				final Job<?> other = (Job<?>) c;
 				return premises_.containsAll(other.premises_)
 						&& justification_.containsAll(other.justification_);
 			}
@@ -322,13 +311,12 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		@Override
-		public int compareTo(Job o) {
-			int result = justification_.size() - o.justification_.size();
+		public int compareTo(final Job<W> other) {
+			final int result = wrapped_.compareTo(other.wrapped_);
 			if (result != 0) {
 				return result;
 			}
-			result = premises_.size() - o.premises_.size();
-			return result;
+			return Integer.compare(premises_.size(), other.premises_.size());
 		}
 
 	}

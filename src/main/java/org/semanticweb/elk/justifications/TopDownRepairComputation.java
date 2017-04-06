@@ -17,6 +17,7 @@ import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
+import org.liveontologies.puli.justifications.ComparableWrapper;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
@@ -41,8 +42,6 @@ public class TopDownRepairComputation<C, A>
 		extends MinimalSubsetsFromInferences<C, A> {
 
 	private static final TopDownRepairComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
-
-	private static final int INITIAL_QUEUE_CAPACITY_ = 256;
 
 	@SuppressWarnings("unchecked")
 	public static <C, A> MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
@@ -70,7 +69,7 @@ public class TopDownRepairComputation<C, A>
 		/**
 		 * jobs to be processed
 		 */
-		private Queue<Job> toDoJobs_;
+		private Queue<Job<?>> toDoJobs_;
 
 		/**
 		 * Used to collect the result and prune jobs
@@ -80,21 +79,29 @@ public class TopDownRepairComputation<C, A>
 		/**
 		 * Used to filter out redundant jobs
 		 */
-		private final Collection2<Job> minimalJobs_ = new BloomTrieCollection2<>();
+		private final Collection2<Job<?>> minimalJobs_ = new BloomTrieCollection2<>();
 
 		private Listener<A> listener_ = null;
+
+		private ComparableWrapper.Factory<Set<A>, ?> wrapper_ = null;
 
 		Enumerator(final C query) {
 			this.query_ = query;
 		}
 
 		@Override
-		public void enumerate(final Comparator<? super Set<A>> order,
+		public void enumerate(
+				final ComparableWrapper.Factory<Set<A>, ?> wrapper,
 				final Listener<A> listener) {
 			Preconditions.checkNotNull(listener);
-			this.toDoJobs_ = new PriorityQueue<>(INITIAL_QUEUE_CAPACITY_,
-					extendToJobOrder(order));
+			if (wrapper == null) {
+				enumerate(listener);
+				return;
+			}
+			// else
+			this.toDoJobs_ = new PriorityQueue<>();
 			this.minimalRepairs_.clear();
+			this.wrapper_ = wrapper;
 			this.listener_ = listener;
 
 			initialize(query_);
@@ -104,7 +111,7 @@ public class TopDownRepairComputation<C, A>
 		}
 
 		private void initialize(final C goal) {
-			produce(new Job(goal));
+			produce(newJob(wrapper_, goal));
 		}
 
 		private void process() {
@@ -112,7 +119,7 @@ public class TopDownRepairComputation<C, A>
 				if (isInterrupted()) {
 					break;
 				}
-				Job job = toDoJobs_.poll();
+				final Job<?> job = toDoJobs_.poll();
 				if (job == null) {
 					break;
 				}
@@ -135,10 +142,12 @@ public class TopDownRepairComputation<C, A>
 					continue;
 				}
 				for (C premise : nextToBreak.getPremises()) {
-					produce(job.copy().brake(premise, job.toBreak_));
+					produce(doBreak(job.repair_, job.toBreak_, job.broken_,
+							wrapper_, premise));
 				}
 				for (A axiom : getJustification(nextToBreak)) {
-					produce(job.copy().repair(axiom, job.toBreak_));
+					produce(repair(job.repair_, job.toBreak_, job.broken_,
+							wrapper_, axiom));
 				}
 			}
 		}
@@ -156,34 +165,9 @@ public class TopDownRepairComputation<C, A>
 			return result;
 		}
 
-		private void produce(final Job job) {
+		private void produce(final Job<?> job) {
 			producedJobsCount_++;
 			toDoJobs_.add(job);
-		}
-
-		private Comparator<Job> extendToJobOrder(
-				final Comparator<? super Set<A>> order) {
-
-			final Comparator<? super Set<A>> justOrder;
-			if (order == null) {
-				justOrder = DEFAULT_ORDER;
-			} else {
-				justOrder = order;
-			}
-
-			return new Comparator<Job>() {
-
-				@Override
-				public int compare(final Job job1, final Job job2) {
-					int result = justOrder.compare(job1.repair_, job2.repair_);
-					if (result != 0) {
-						return result;
-					}
-					// else
-					return job1.toBreak_.size() - job2.toBreak_.size();
-				}
-
-			};
 		}
 
 	}
@@ -213,13 +197,78 @@ public class TopDownRepairComputation<C, A>
 
 	};
 
+	private <W extends ComparableWrapper<Set<A>, W>> Job<W> newJob(
+			final ComparableWrapper.Factory<Set<A>, W> wrapper,
+			final C conclusion) {
+		return doBreak(Collections.<A> emptySet(),
+				Collections.<Inference<C>> emptySet(),
+				Collections.<C> emptySet(), wrapper, conclusion);
+	}
+
+	private <W extends ComparableWrapper<Set<A>, W>> Job<W> doBreak(
+			final Set<A> repair, final Collection<Inference<C>> toBreak,
+			final Set<C> broken,
+			final ComparableWrapper.Factory<Set<A>, W> wrapper,
+			final C conclusion) {
+
+		final Set<A> newRepair = repair.isEmpty() ? new HashSet<A>(1)
+				: new HashSet<>(repair);
+		final Set<Inference<C>> newToBreak = toBreak.isEmpty()
+				? new HashSet<Inference<C>>(3)
+				: new HashSet<Inference<C>>(toBreak.size());
+		final Set<C> newBroken = broken.isEmpty() ? new HashSet<C>(1)
+				: new HashSet<>(broken);
+
+		newBroken.add(conclusion);
+		for (final Inference<C> inf : toBreak) {
+			if (!inf.getPremises().contains(conclusion)) {
+				newToBreak.add(inf);
+			}
+		}
+		infLoop: for (final Inference<C> inf : getInferences(conclusion)) {
+			for (final C premise : inf.getPremises()) {
+				if (broken.contains(premise)) {
+					continue infLoop;
+				}
+			}
+			for (final A axiom : getJustification(inf)) {
+				if (repair.contains(axiom)) {
+					continue infLoop;
+				}
+			}
+			newToBreak.add(inf);
+		}
+		return new Job<W>(newRepair, newToBreak, newBroken,
+				wrapper.wrap(newRepair));
+	}
+
+	private <W extends ComparableWrapper<Set<A>, W>> Job<W> repair(
+			final Set<A> repair, final Collection<Inference<C>> toBreak,
+			final Set<C> broken,
+			final ComparableWrapper.Factory<Set<A>, W> wrapper, final A axiom) {
+
+		final Set<A> newRepair = new HashSet<>(repair);
+		final Set<Inference<C>> newToBreak = new HashSet<>(toBreak.size());
+		final Set<C> newBroken = new HashSet<>(broken);
+
+		newRepair.add(axiom);
+		for (final Inference<C> inf : toBreak) {
+			if (!getJustification(inf).contains(axiom)) {
+				newToBreak.add(inf);
+			}
+		}
+		return new Job<W>(newRepair, newToBreak, newBroken,
+				wrapper.wrap(newRepair));
+	}
+
 	/**
 	 * A simple state for computing a repair;
 	 * 
 	 * @author Peter Skocovsky
 	 * @author Yevgeny Kazakov
 	 */
-	private class Job extends AbstractSet<JobMember<C, A>> {
+	private class Job<W extends ComparableWrapper<Set<A>, W>>
+			extends AbstractSet<JobMember<C, A>> implements Comparable<Job<W>> {
 
 		private final Set<A> repair_;
 		private final Set<Inference<C>> toBreak_;
@@ -228,66 +277,20 @@ public class TopDownRepairComputation<C, A>
 		 * {@link #repair_} and {@link #toBreak_}
 		 */
 		private final Set<C> broken_;
+		private final W wrapped_;
 
-		Job(Set<A> repair, Set<Inference<C>> toBreak, Set<C> broken) {
+		Job(final Set<A> repair, final Set<Inference<C>> toBreak,
+				final Set<C> broken, final W wrapped) {
 			this.repair_ = repair;
 			this.toBreak_ = toBreak;
 			this.broken_ = broken;
-		}
-
-		Job() {
-			this(new HashSet<A>(1), new HashSet<Inference<C>>(3),
-					new HashSet<C>(1));
-		}
-
-		Job(C conclusion) {
-			this();
-			brake(conclusion, Collections.<Inference<C>> emptySet());
-		}
-
-		Job copy() {
-			return new Job(new HashSet<A>(repair_),
-					new HashSet<Inference<C>>(toBreak_.size()),
-					new HashSet<C>(broken_));
-		}
-
-		Job brake(C broken, Collection<Inference<C>> toBreak) {
-			broken_.add(broken);
-			for (Inference<C> inf : toBreak) {
-				if (!inf.getPremises().contains(broken)) {
-					toBreak_.add(inf);
-				}
-			}
-			infLoop: for (Inference<C> inf : getInferences(broken)) {
-				for (C premise : inf.getPremises()) {
-					if (broken_.contains(premise)) {
-						continue infLoop;
-					}
-				}
-				for (A axiom : getJustification(inf)) {
-					if (repair_.contains(axiom)) {
-						continue infLoop;
-					}
-				}
-				toBreak_.add(inf);
-			}
-			return this;
-		}
-
-		Job repair(A axiom, Collection<Inference<C>> toBreak) {
-			repair_.add(axiom);
-			for (Inference<C> inf : toBreak) {
-				if (!getJustification(inf).contains(axiom)) {
-					toBreak_.add(inf);
-				}
-			}
-			return this;
+			this.wrapped_ = wrapped;
 		}
 
 		@Override
 		public boolean containsAll(final Collection<?> c) {
-			if (c instanceof TopDownRepairComputation<?, ?>.Job) {
-				final TopDownRepairComputation<?, ?>.Job other = (TopDownRepairComputation<?, ?>.Job) c;
+			if (c instanceof TopDownRepairComputation<?, ?>.Job<?>) {
+				final TopDownRepairComputation<?, ?>.Job<?> other = (TopDownRepairComputation<?, ?>.Job<?>) c;
 				return repair_.containsAll(other.repair_)
 						&& toBreak_.containsAll(other.toBreak_);
 			}
@@ -325,6 +328,16 @@ public class TopDownRepairComputation<C, A>
 		@Override
 		public int size() {
 			return repair_.size() + toBreak_.size();
+		}
+
+		@Override
+		public int compareTo(final Job<W> other) {
+			int result = wrapped_.compareTo(other.wrapped_);
+			if (result != 0) {
+				return result;
+			}
+			// else
+			return toBreak_.size() - other.toBreak_.size();
 		}
 
 	}

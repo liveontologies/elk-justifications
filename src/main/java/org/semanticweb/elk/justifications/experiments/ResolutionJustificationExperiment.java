@@ -133,8 +133,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
 		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
 				.create(inferenceSet, justifier, monitor, selectionFactory_);
-		computation_.newEnumerator(goal).enumerate(null,
-				justificationListener_);
+		computation_.newEnumerator(goal).enumerate(justificationListener_);
 
 	}
 
