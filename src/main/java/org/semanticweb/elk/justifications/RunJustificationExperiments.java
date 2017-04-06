@@ -40,7 +40,7 @@ public class RunJustificationExperiments {
 	public static final String RECORD_OPT = "record";
 	public static final String TIMEOUT_OPT = "t";
 	public static final String GLOBAL_TIMEOUT_OPT = "g";
-	public static final String WARMUP_COUNT_OPT = "w";
+	public static final String WARMUP_TIMEOUT_OPT = "w";
 	public static final String GC_OPT = "gc";
 	public static final String QUERIES_OPT = "queries";
 	public static final String EXPERIMENT_OPT = "exp";
@@ -53,8 +53,8 @@ public class RunJustificationExperiments {
 		public Long timeOutMillis;
 		@Arg(dest = GLOBAL_TIMEOUT_OPT)
 		public Long globalTimeOutMillis;
-		@Arg(dest = WARMUP_COUNT_OPT)
-		public Integer warmupCount;
+		@Arg(dest = WARMUP_TIMEOUT_OPT)
+		public Integer warmupTimeOut;
 		@Arg(dest = GC_OPT)
 		public boolean runGc;
 		@Arg(dest = QUERIES_OPT)
@@ -80,8 +80,8 @@ public class RunJustificationExperiments {
 				.help("timeout per query in milliseconds");
 		parser.addArgument("-" + GLOBAL_TIMEOUT_OPT).type(Long.class)
 				.help("global timeout in milliseconds");
-		parser.addArgument("-" + WARMUP_COUNT_OPT).type(Integer.class)
-				.help("number of queries solved as warm up");
+		parser.addArgument("-" + WARMUP_TIMEOUT_OPT).type(Integer.class)
+				.help("how long should warm up in milliseconds");
 		parser.addArgument("--" + GC_OPT).action(Arguments.storeTrue())
 				.help("run garbage collector before every query");
 		parser.addArgument(QUERIES_OPT)
@@ -110,9 +110,9 @@ public class RunJustificationExperiments {
 			final long globalTimeOutMillis = opt.globalTimeOutMillis == null
 					? 0l : opt.globalTimeOutMillis;
 			LOGGER_.info("globalTimeOutMillis: {}", globalTimeOutMillis);
-			final int warmupCount = opt.warmupCount == null ? 0
-					: opt.warmupCount;
-			LOGGER_.info("warmupCount: {}", warmupCount);
+			final int warmupTimeOut = opt.warmupTimeOut == null ? 0
+					: opt.warmupTimeOut;
+			LOGGER_.info("warmupTimeOut: {}", warmupTimeOut);
 			final boolean runGc = opt.runGc;
 			LOGGER_.info("runGc: {}", runGc);
 			final File queryFile = opt.queryFile;
@@ -125,11 +125,11 @@ public class RunJustificationExperiments {
 			final JustificationExperiment experiment = newExperiment(
 					experimentClassName);
 
-			if (warmupCount > 0) {
+			if (warmupTimeOut > 0) {
 				LOGGER_.info("Warm Up");
 				experiment.init(experimentArgs);
-				run(experiment, queryFile, timeOutMillis, globalTimeOutMillis,
-						warmupCount, runGc, null);
+				run(experiment, queryFile, timeOutMillis, warmupTimeOut, 0,
+						runGc, null);
 				experiment.dispose();
 			}
 
