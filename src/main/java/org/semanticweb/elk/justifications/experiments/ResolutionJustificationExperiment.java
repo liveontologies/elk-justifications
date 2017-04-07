@@ -7,6 +7,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
@@ -15,6 +17,7 @@ import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
+import org.liveontologies.puli.statistics.Stat;
 import org.liveontologies.puli.statistics.Stats;
 import org.semanticweb.elk.justifications.Utils;
 import org.slf4j.Logger;
@@ -46,6 +49,11 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private volatile String lastQuery_ = null;
 
 	private JustificationCounter justificationListener_;
+
+	// Statistics
+	private int miJustSizeize_, maxJustSize_;
+	private double firstQuartileJustSize_, medianJustSize_, meanJustSize_,
+			thirdQuartileJustSize_;
 
 	@Override
 	public final void init(final String[] args) throws ExperimentException {
@@ -118,6 +126,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	@Override
 	public void before() {
 		justificationListener_.reset();
+		resetStats();
 		if (computation_ != null) {
 			Stats.resetStats(computation_);
 		}
@@ -147,6 +156,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	@Override
 	public void after() throws ExperimentException {
+
+		computeStats(justificationListener_.getSizes());
 
 		if (outputDir_ == null) {
 			return;
@@ -197,10 +208,12 @@ public abstract class ResolutionJustificationExperiment<C, A>
 			implements MinimalSubsetEnumerator.Listener<A> {
 
 		private volatile int count_ = 0;
+		private final List<Integer> justSizes_ = new ArrayList<>();
 
 		@Override
 		public void newMinimalSubset(final Set<A> justification) {
 			count_++;
+			justSizes_.add(justification.size());
 		}
 
 		public int getCount() {
@@ -211,6 +224,10 @@ public abstract class ResolutionJustificationExperiment<C, A>
 			return null;
 		}
 
+		public List<Integer> getSizes() {
+			return justSizes_;
+		}
+
 		public void reset() {
 			count_ = 0;
 		}
@@ -219,7 +236,6 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	private class JustificationCollector extends JustificationCounter {
 
-		// TODO: do I need some synchronization ?!?!
 		private final Collection<Set<A>> justifications_ = new ArrayList<>();
 
 		@Override
@@ -238,6 +254,92 @@ public abstract class ResolutionJustificationExperiment<C, A>
 			justifications_.clear();
 		}
 
+	}
+
+	@Stat
+	public int minJustSize() {
+		return miJustSizeize_;
+	}
+
+	@Stat
+	public int maxJustSize() {
+		return maxJustSize_;
+	}
+
+	@Stat
+	public double firstQuartileJustSize() {
+		return firstQuartileJustSize_;
+	}
+
+	@Stat
+	public double medianJustSize() {
+		return medianJustSize_;
+	}
+
+	@Stat
+	public double meanJustSize() {
+		return meanJustSize_;
+	}
+
+	@Stat
+	public double thirdQuartileJustSize() {
+		return thirdQuartileJustSize_;
+	}
+
+	private void resetStats() {
+		miJustSizeize_ = maxJustSize_ = 0;
+		firstQuartileJustSize_ = medianJustSize_ = meanJustSize_ = thirdQuartileJustSize_ = 0.0;
+	}
+
+	private void computeStats(final List<Integer> sizes) {
+
+		if (sizes == null || sizes.isEmpty()) {
+			resetStats();
+			return;
+		}
+		// else
+
+		Collections.sort(sizes);
+
+		miJustSizeize_ = sizes.get(0);
+		maxJustSize_ = sizes.get(sizes.size() - 1);
+
+		firstQuartileJustSize_ = firstQuartile(sizes);
+		medianJustSize_ = median(sizes);
+		meanJustSize_ = mean(sizes);
+		thirdQuartileJustSize_ = thirdQuartile(sizes);
+
+	}
+
+	private double median(final List<Integer> numbers) {
+		final int half = numbers.size() / 2;
+		if (numbers.size() % 2 == 0) {
+			return (numbers.get(half - 1) + numbers.get(half)) / 2.0;
+		} else {
+			return numbers.get(half);
+		}
+	}
+
+	private double firstQuartile(final List<Integer> numbers) {
+		final int half = numbers.size() / 2;
+		return median(numbers.subList(0, half));
+	}
+
+	private double thirdQuartile(final List<Integer> numbers) {
+		final int half = numbers.size() / 2;
+		if (numbers.size() % 2 == 0) {
+			return median(numbers.subList(half, numbers.size()));
+		} else {
+			return median(numbers.subList(half + 1, numbers.size()));
+		}
+	}
+
+	private double mean(final List<Integer> numbers) {
+		int sum = 0;
+		for (final Integer number : numbers) {
+			sum += number;
+		}
+		return sum / (double) numbers.size();
 	}
 
 }
