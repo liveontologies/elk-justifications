@@ -51,7 +51,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private JustificationCounter justificationListener_;
 
 	// Statistics
-	private int miJustSizeize_, maxJustSize_;
+	private int minJustSizeize_, maxJustSize_;
 	private double firstQuartileJustSize_, medianJustSize_, meanJustSize_,
 			thirdQuartileJustSize_;
 
@@ -230,6 +230,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 		public void reset() {
 			count_ = 0;
+			justSizes_.clear();
 		}
 
 	}
@@ -258,7 +259,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	@Stat
 	public int minJustSize() {
-		return miJustSizeize_;
+		return minJustSizeize_;
 	}
 
 	@Stat
@@ -287,7 +288,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	}
 
 	private void resetStats() {
-		miJustSizeize_ = maxJustSize_ = 0;
+		minJustSizeize_ = maxJustSize_ = 0;
 		firstQuartileJustSize_ = medianJustSize_ = meanJustSize_ = thirdQuartileJustSize_ = 0.0;
 	}
 
@@ -301,7 +302,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 		Collections.sort(sizes);
 
-		miJustSizeize_ = sizes.get(0);
+		minJustSizeize_ = sizes.get(0);
 		maxJustSize_ = sizes.get(sizes.size() - 1);
 
 		firstQuartileJustSize_ = firstQuartile(sizes);
@@ -322,16 +323,16 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	private double firstQuartile(final List<Integer> numbers) {
 		final int half = numbers.size() / 2;
-		return median(numbers.subList(0, half));
+		if (numbers.size() % 2 == 0) {
+			return median(numbers.subList(0, half));
+		} else { 
+			return median(numbers.subList(0, half + 1));
+		}
 	}
 
 	private double thirdQuartile(final List<Integer> numbers) {
 		final int half = numbers.size() / 2;
-		if (numbers.size() % 2 == 0) {
-			return median(numbers.subList(half, numbers.size()));
-		} else {
-			return median(numbers.subList(half + 1, numbers.size()));
-		}
+		return median(numbers.subList(half, numbers.size()));
 	}
 
 	private double mean(final List<Integer> numbers) {
