@@ -3,6 +3,7 @@
 
 plot.results = function(
 		args,
+		isFirst=TRUE,
 		main=NULL,
 		column="time",
 		mergeBy="query",
@@ -10,7 +11,11 @@ plot.results = function(
 		xlim=NULL,
 		ylim=c(0.001,timeout),
 		from.prop=10,
-		to.prop=5) {
+		to.prop=3,
+		xlab="\\% of queries",
+		ylab="time in seconds",
+		colors=c("red", "green3", "blue", "magenta"),
+		lineTypes=c("44", "1343", "73", "2262")) {
 
 	transform.proportions = function(x, from, to) {
 		base = 1 + 1/(to - 1)
@@ -31,7 +36,6 @@ plot.results = function(
 
 	xvalues = list()
 	yvalues = list()
-	colors = list()
 
 	argIndex <- 1
 	X <- read.csv(args[argIndex])
@@ -49,29 +53,38 @@ plot.results = function(
 		M <- merge(M, X, by.x=paste0(mergeBy, ".1"), by.y=paste0(mergeBy, ".", dataIndex))
 	}
 
+	par(mar=c(0, 0, 0, 0))
+	par(mgp=c(-2.2, -1, 0))
+
 	M[[column]] <- apply(M[,paste0(column, ".", seq(dataIndex))], 1, function(x) min(x, na.rm=TRUE))
 	data <- M[[column]]
 	timeOrder <- order(data)
 	step <- 100 / length(data)
 	xvalues <- seq(step, 100, step)
 	plot(xtrans(xvalues), cut.timeout(data[timeOrder] / 1000),
-			type="l", log="y", axes=FALSE, main=main,
-			xlab="\\% of queries", ylab="time in seconds", xlim=xlim, ylim=ylim)
+			type="l", log="y", axes=FALSE,
+			xlab="", ylab="", xlim=xlim, ylim=ylim)
 	xticks = seq(0, 100, 10)
-	axis(1, at=xtrans(xticks), labels=xticks)
+	axis(1, at=xtrans(xticks), labels=xticks, lty=0)
 	yticks = c(0.001, 0.01, 0.1, 1, 10, 60, 100)
-	ylabels = c("0.001", "0.01", "0.1", "1", "10", "60", "100")
-	axis(2, at=yticks, labels=ylabels)
+	ylabels = c("", "0.01", "0.1", "1", "10", "60", "100")
+	axis(2, at=yticks, labels=ylabels, lty=0)
 	abline(h=yticks, v=xtrans(xticks), col="gray", lty=3)
 	box()
+	title(main=main, line=-2)
+	title(xlab=xlab, line=-2.2)
+	title(ylab=ylab, line=-2.2, adj=0.8)
 
-	colorIndex <- 2
+	colorIndex <- 1
 	for (i in seq(dataIndex)) {
 		data <- M[[paste0(column, ".", i)]]
 		timeOrder <- order(data)
 		step <- 100 / length(data)
 		xvalues <- seq(step, 100, step)
-		lines(xtrans(xvalues), cut.timeout(data[timeOrder] / 1000), col=colorIndex, lty=colorIndex)
+		lines(xtrans(xvalues), cut.timeout(data[timeOrder] / 1000),
+				col=rep(colors, length.out=colorIndex)[colorIndex],
+				lty=rep(lineTypes, length.out=colorIndex)[colorIndex],
+				lwd=2)
 
 		colorIndex <- colorIndex + 1
 	}
@@ -106,18 +119,24 @@ if (length(args) %% length(titles) != 0) {
 argArray = array(args, c(length(titles), ceiling(length(args) / length(titles))))
 
 
-size=5
+size=1.61
 pdf(width=length(titles)*size, height=size)
 #library(tikzDevice)
-#tikz(file="plot-results.tex", width=length(titles)*size, height=size)
+#tikz(file="plot-resolution.tex", width=length(titles)*size, height=size)
+#tikz(file="plot-resolution.tex", width=length(titles)*size/2, height=size*2)
 
 par(mfrow=c(1, length(titles)))
+#par(mfrow=c(2, length(titles)/2))
+isFirst = TRUE
 rowIndex = 1
 while (rowIndex <= length(titles)) {
 	print(titles[rowIndex])
 	print(argArray[rowIndex,])
-	plot.results(argArray[rowIndex,], main=titles[rowIndex])
+	plot.results(argArray[rowIndex,], isFirst=isFirst, main=titles[rowIndex])
 	rowIndex = rowIndex + 1
+	if (isFirst) {
+		isFirst = FALSE
+	}
 }
 
 
