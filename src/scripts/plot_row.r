@@ -111,33 +111,79 @@ if (argIndex >= length(args)) {
 	cat(sprintf("Missing data arguments!\n"))
 	q(status=1)
 }
-args = args[argIndex:length(args)]
-if (length(args) %% length(titles) != 0) {
-	cat(sprintf("Not the same number of data per wach title!\n"))
+arg = args[argIndex]
+argIndex = argIndex + 1
+if (file.exists(arg)) {
+	cat(sprintf("Data file without legend: %s\n", arg))
 	q(status=1)
 }
-argArray = array(args, c(length(titles), ceiling(length(args) / length(titles))))
+legends = arg
+arg = args[argIndex]
+argIndex = argIndex + 1
+if (!file.exists(arg)) {
+	cat(sprintf("Legend wuthout data file: %s\n", arg))
+	q(status=1)
+}
+fileArray = c()
+files = arg
+while (argIndex <= length(args)) {
+	arg = args[argIndex]
+	argIndex = argIndex + 1
+	if (file.exists(arg)) {
+		files = c(files, arg)
+	} else {
+		if (length(files) != length(titles)) {
+			cat(sprintf("Wrong number of data files for legend: %s\n", legends[length(legends)]))
+			q(status=1)
+		}
+		legends = c(legends, arg)
+		arg = args[argIndex]
+		argIndex = argIndex + 1
+		if (!file.exists(arg)) {
+			cat(sprintf("Legend wuthout data file: %s\n", arg))
+			q(status=1)
+		}
+		fileArray = cbind(fileArray, files)
+		files = arg
+	}
+}
+fileArray = cbind(fileArray, files)
+if (length(files) != length(titles)) {
+	cat(sprintf("Wrong number of data files for legend: %s\n", legends[length(legends)]))
+	q(status=1)
+}
 
 
-size=1.61
-pdf(width=length(titles)*size, height=size)
+size = 1.61
+footerRatio = 0.15
+pdf(width=length(titles)*size, height=size * (1 + footerRatio))
 #library(tikzDevice)
-#tikz(file="plot-resolution.tex", width=length(titles)*size, height=size)
+#tikz(file="plot-resolution.tex", width=length(titles)*size, height=size * (1 + footerRatio))
 #tikz(file="plot-resolution.tex", width=length(titles)*size/2, height=size*2)
 
-par(mfrow=c(1, length(titles)))
+colors=c("red", "green3", "blue", "magenta")
+lineTypes=c("44", "1343", "73", "2262")
+
+#par(mfrow=c(1, length(titles)))
 #par(mfrow=c(2, length(titles)/2))
+par(cex=par("cex") * 2/3)
 isFirst = TRUE
-rowIndex = 1
-while (rowIndex <= length(titles)) {
-	print(titles[rowIndex])
-	print(argArray[rowIndex,])
-	plot.results(argArray[rowIndex,], isFirst=isFirst, main=titles[rowIndex])
-	rowIndex = rowIndex + 1
+colIndex = 1
+while (colIndex <= length(titles)) {
+	print(titles[colIndex])
+	print(fileArray[colIndex,])
+	par(fig=c((colIndex-1) / length(titles), colIndex / length(titles), footerRatio, 1), new=TRUE)
+	plot.results(fileArray[colIndex,], isFirst=isFirst, main=titles[colIndex],
+			colors=colors, lineTypes=lineTypes)
+	colIndex = colIndex + 1
 	if (isFirst) {
 		isFirst = FALSE
 	}
 }
+par(fig=c(0, 1, 0, footerRatio), new=TRUE)
+plot.new()
+legend("center", legends, col=rep(colors, length.out=length(legends)), lty=rep(lineTypes, length.out=length(legends)),
+		lwd=2, horiz=TRUE, bty="n")
 
 
 dev.off()
