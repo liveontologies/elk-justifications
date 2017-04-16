@@ -12,6 +12,7 @@ plot.results = function(
 		ylim=c(0.001,timeout),
 		from.prop=10,
 		to.prop=3,
+		pixels.in.plot.size=NULL,
 		xlab="\\% of queries",
 		ylab="time in seconds",
 		colors=c("red", "green3", "blue", "magenta"),
@@ -27,10 +28,36 @@ plot.results = function(
 	}
 
 
-	#xlim <- c(xtrans(0),xtrans(100))
+	max.xvalue = 100
+	#xlim <- c(xtrans(0),xtrans(max.xvalue))
 
 	cut.timeout = function(x) {
 		sapply(x, function(e) min(e,timeout))
+	}
+
+
+	min.x.interval = -Inf
+	if (!is.null(pixels.in.plot.size)) {
+		min.x.interval = max.xvalue / pixels.in.plot.size
+	}
+	reduce.data = function(x, y) {
+		if (length(x) != length(y)) {
+			stop("x and y has differet length!")
+		}
+		xIndex = 1
+		newX = x[xIndex]
+		newY = y[xIndex]
+		lastNewX = x[xIndex]
+		xIndex = xIndex + 1
+		while (xIndex <= length(x)) {
+			if (x[xIndex] - lastNewX >= min.x.interval) {
+				newX = c(newX, x[xIndex])
+				newY = c(newY, y[xIndex])
+				lastNewX = x[xIndex]
+			}
+			xIndex = xIndex + 1
+		}
+		return(list(x=newX, y=newY))
 	}
 
 
@@ -58,13 +85,18 @@ plot.results = function(
 
 	M[[column]] <- apply(M[,paste0(column, ".", seq(dataIndex))], 1, function(x) min(x, na.rm=TRUE))
 	data <- M[[column]]
-	timeOrder <- order(data)
-	step <- 100 / length(data)
-	xvalues <- seq(step, 100, step)
-	plot(xtrans(xvalues), cut.timeout(data[timeOrder] / 1000),
+	data <- data[order(data)]
+	step <- max.xvalue / length(data)
+	xvalues <- seq(step, max.xvalue, step)
+	xvalues <- xtrans(xvalues)
+	reduced.data <- reduce.data(xvalues, data)
+	if (length(reduced.data$y) < length(data)) {
+		cat(sprintf("data length reduced from %d to %d\n", length(data), length(reduced.data$y)))
+	}
+	plot(reduced.data$x, cut.timeout(reduced.data$y / 1000),
 			type="l", log="y", axes=FALSE,
 			xlab="", ylab="", xlim=xlim, ylim=ylim)
-	xticks = seq(0, 100, 10)
+	xticks = seq(0, max.xvalue, 10)
 	axis(1, at=xtrans(xticks), labels=xticks, lty=0)
 	yticks = c(0.001, 0.01, 0.1, 1, 10, 60, 100)
 	ylabels = c("", "0.01", "0.1", "1", "10", "60", "100")
@@ -78,10 +110,15 @@ plot.results = function(
 	colorIndex <- 1
 	for (i in seq(dataIndex)) {
 		data <- M[[paste0(column, ".", i)]]
-		timeOrder <- order(data)
-		step <- 100 / length(data)
-		xvalues <- seq(step, 100, step)
-		lines(xtrans(xvalues), cut.timeout(data[timeOrder] / 1000),
+		data <- data[order(data)]
+		step <- max.xvalue / length(data)
+		xvalues <- seq(step, max.xvalue, step)
+		xvalues <- xtrans(xvalues)
+		reduced.data <- reduce.data(xvalues, data)
+		if (length(reduced.data$y) < length(data)) {
+			cat(sprintf("data length reduced from %d to %d\n", length(data), length(reduced.data$y)))
+		}
+		lines(reduced.data$x, cut.timeout(reduced.data$y / 1000),
 				col=rep(colors, length.out=colorIndex)[colorIndex],
 				lty=rep(lineTypes, length.out=colorIndex)[colorIndex],
 				lwd=2)
@@ -154,15 +191,20 @@ if (length(files) != length(titles)) {
 }
 
 
+#size = 5
 size = 1.61
 footerRatio = 0.15
 pdf(width=length(titles)*size, height=size * (1 + footerRatio))
 #library(tikzDevice)
-#tikz(file="plot-resolution.tex", width=length(titles)*size, height=size * (1 + footerRatio))
+#tikz(file="plot-resolution-strategies.reduced.tex", width=length(titles)*size, height=size * (1 + footerRatio))
+#tikz(file="plot-sat-vs-elk-infs-el2mus.reduced.tex", width=length(titles)*size, height=size * (1 + footerRatio))
 #tikz(file="plot-resolution.tex", width=length(titles)*size/2, height=size*2)
 
-colors=c("red", "green3", "blue", "magenta")
-lineTypes=c("44", "1343", "73", "2262")
+colors = c("red", "green3", "blue", "magenta")
+lineTypes = c("44", "1343", "73", "2262")
+
+pixelSizeInch = 1/96#1/72
+pixelsInSize = size / pixelSizeInch
 
 #par(mfrow=c(1, length(titles)))
 #par(mfrow=c(2, length(titles)/2))
@@ -174,7 +216,7 @@ while (colIndex <= length(titles)) {
 	print(fileArray[colIndex,])
 	par(fig=c((colIndex-1) / length(titles), colIndex / length(titles), footerRatio, 1), new=TRUE)
 	plot.results(fileArray[colIndex,], isFirst=isFirst, main=titles[colIndex],
-			colors=colors, lineTypes=lineTypes)
+			colors=colors, lineTypes=lineTypes, pixels.in.plot.size=pixelsInSize)
 	colIndex = colIndex + 1
 	if (isFirst) {
 		isFirst = FALSE
