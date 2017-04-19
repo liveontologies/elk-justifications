@@ -239,8 +239,9 @@ while (colIndex <= length(titles)) {
 }
 par(fig=c(0, 1, 0, footerRatio), new=TRUE)
 plot.new()
-legend("center", legends, col=rep(colors, length.out=length(legends)), lty=rep(lineTypes, length.out=length(legends)),
-		lwd=2, horiz=TRUE, bty="n")
+legend("center", c(legends, "minimum"), col=c(rep(colors, length.out=length(legends)), "black"),
+		lty=c(rep(lineTypes, length.out=length(legends)), "solid"), lwd=c(rep(2, length.out=length(legends)), 1),
+		horiz=TRUE, bty="n")
 
 
 dev.off()
