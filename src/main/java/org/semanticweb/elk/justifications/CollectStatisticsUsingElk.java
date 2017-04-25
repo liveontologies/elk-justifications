@@ -80,7 +80,7 @@ public class CollectStatisticsUsingElk {
 					(System.currentTimeMillis() - start)/1000.0);
 			
 			stats = new PrintWriter(recordFile);
-			stats.println("conclusion,"
+			stats.println("query,"
 					+ "nAxiomsInAllProofs,"
 					+ "nConclusionsInAllProofs,"
 					+ "nInferencesInAllProofs,"
@@ -111,6 +111,10 @@ public class CollectStatisticsUsingElk {
 						});
 				
 				LOG.debug("Collecting statistics for {}", conclusion);
+				
+				stats.print("\"");
+				stats.print(line);
+				stats.print("\"");
 				
 				collectStatistics(conclusion, reasoner, stats);
 				
@@ -149,10 +153,6 @@ public class CollectStatisticsUsingElk {
 	private static void collectStatistics(final ElkSubClassOfAxiom conclusion,
 			final Reasoner reasoner, final PrintWriter stats)
 					throws ElkException {
-		
-		stats.print("\"");
-		stats.print(conclusion);
-		stats.print("\"");
 		
 		final Conclusion expression = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner, conclusion);
