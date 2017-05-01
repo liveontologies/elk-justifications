@@ -18,6 +18,9 @@ public abstract class BaseJustificationExperiment<C, A>
 	private MinimalSubsetsFromInferences.Factory<C, A> factory_;
 
 	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
+	private volatile C goal_;
+	private volatile InferenceSet<C> inferenceSet_;
+	private volatile InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 	private final JustificationCounter justificationCounter_ = new JustificationCounter();
 
@@ -57,22 +60,24 @@ public abstract class BaseJustificationExperiment<C, A>
 	}
 
 	@Override
-	public void before() {
+	public String before(final String query) throws ExperimentException {
 		justificationCounter_.reset();
 		if (computation_ != null) {
 			Stats.resetStats(computation_);
 		}
+
+		goal_ = decodeQuery(query);
+		inferenceSet_ = newInferenceSet(goal_);
+		justifier_ = newJustifier();
+
+		return query;
 	}
 
 	@Override
-	public void run(final String query, final InterruptMonitor monitor)
-			throws ExperimentException {
+	public void run(final InterruptMonitor monitor) throws ExperimentException {
 
-		final C goal = decodeQuery(query);
-		final InferenceSet<C> inferenceSet = newInferenceSet(goal);
-		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
-		computation_ = factory_.create(inferenceSet, justifier, monitor);
-		computation_.newEnumerator(goal).enumerate(justificationCounter_);
+		computation_ = factory_.create(inferenceSet_, justifier_, monitor);
+		computation_.newEnumerator(goal_).enumerate(justificationCounter_);
 
 	}
 

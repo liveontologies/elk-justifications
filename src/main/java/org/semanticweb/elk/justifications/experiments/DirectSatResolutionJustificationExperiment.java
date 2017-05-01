@@ -6,11 +6,9 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
@@ -29,69 +27,62 @@ public class DirectSatResolutionJustificationExperiment
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(DirectSatResolutionJustificationExperiment.class);
 
-	private static final String LITERAL_GROUP_ = "literal";
-	private static final String SUB_GROUP_ = "sub";
-	private static final String SUP_GROUP_ = "sup";
-	private static final Pattern ZZZ_RE_ = Pattern.compile("(?<"
-			+ LITERAL_GROUP_ + ">\\d+)\\s+\\(\\s*implies\\s+(?<" + SUB_GROUP_
-			+ ">[^\\s]+)\\s+(?<" + SUP_GROUP_ + ">[^\\s]+)\\s*\\)\\s*");
-
-	public static final String ZZZ_OPT = "zzz";
 	public static final String INPUT_DIR_OPT = "input";
-	public static final String NAME_OPT = "name";
+
+	public static final String ENCODING_NAME = "encoding";
+	public static final String SUFFIX_QUERY = ".query";
+	public static final String SUFFIX_QUESTION = ".question";
+	public static final String SUFFIX_CNF = ".cnf";
+	public static final String SUFFIX_ASSUMPTIONS = ".assumptions";
 
 	private File inputDir_ = null;
-	private String name_ = null;
 
+	private Iterator<File> queryDirIter_ = null;
+	private File queryDir_ = null;
 	private File cnfFile_ = null;
 	private File assumptionsFile_ = null;
 
-	private final Map<String, String> literalsPerQueries_ = new HashMap<String, String>();
-
 	@Override
 	protected void addArguments(final ArgumentParser parser) {
-		parser.addArgument(ZZZ_OPT)
-				.type(Arguments.fileType().verifyExists().verifyCanRead())
-				.help("file mapping conclusions to literals");
 		parser.addArgument(INPUT_DIR_OPT)
 				.type(Arguments.fileType().verifyExists().verifyIsDirectory())
 				.help("directory with the input");
-		parser.addArgument(NAME_OPT).help("name of the encoding");
 	}
 
 	@Override
 	protected void init(final Namespace options) throws ExperimentException {
-		final File zzzFile = options.get(ZZZ_OPT);
 		inputDir_ = options.get(INPUT_DIR_OPT);
-		name_ = options.getString(NAME_OPT);
+
+		final File[] queryDirs = inputDir_.listFiles();
+		Arrays.sort(queryDirs);
+		queryDirIter_ = Arrays.asList(queryDirs).iterator();
+
+	}
+
+	@Override
+	public String before(final String query) throws ExperimentException {
+
+		if (!queryDirIter_.hasNext()) {
+			throw new ExperimentException("No more queries!");
+		}
+		// else
+		queryDir_ = queryDirIter_.next();
+
+		super.before(query);
 
 		BufferedReader zzzReader = null;
 		try {
 
-			zzzReader = new BufferedReader(new FileReader(zzzFile));
+			zzzReader = new BufferedReader(new FileReader(
+					new File(queryDir_, ENCODING_NAME + SUFFIX_QUERY)));
 
-			LOGGER_.info("Indexing queries ...");
-			long start = System.currentTimeMillis();
-
-			String line;
-			while ((line = zzzReader.readLine()) != null) {
-
-				final Matcher m = ZZZ_RE_.matcher(line);
-				if (!m.matches()) {
-					continue;
-				}
-				// else
-
-				final String literal = m.group(LITERAL_GROUP_);
-				final String query = m.group(SUB_GROUP_) + " "
-						+ m.group(SUP_GROUP_);
-
-				literalsPerQueries_.put(query, literal);
-
+			final String line = zzzReader.readLine();
+			if (line == null) {
+				throw new ExperimentException(
+						"Could not read query file in: " + queryDir_);
 			}
-
-			LOGGER_.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
+			// else
+			return line;
 
 		} catch (final IOException e) {
 			throw new ExperimentException(e);
@@ -108,44 +99,34 @@ public class DirectSatResolutionJustificationExperiment
 		LOGGER_.info("Decoding query {} ...", query);
 		long start = System.currentTimeMillis();
 
-		final String literal = literalsPerQueries_.get(query);
-		if (literal == null) {
-			throw new ExperimentException("No literal for query " + query);
-		}
-		// else
-
-		final File literalDir = new File(inputDir_, literal);
-		final File queryFile = new File(literalDir, new StringBuilder(name_)
-				.append(".").append(literal).append(".query").toString());
+		final File queryFile = new File(queryDir_,
+				ENCODING_NAME + SUFFIX_QUESTION);
 
 		final String decoded;
 		BufferedReader queryReader = null;
 		try {
 			queryReader = new BufferedReader(new FileReader(queryFile));
-			decoded = queryReader.readLine();
-			if (decoded == null) {
+			final String line = queryReader.readLine();
+			if (line == null) {
 				throw new ExperimentException(
-						"Could not read query file for literal: " + literal
-								+ ", query: " + query);
+						"Could not read question file in: " + queryDir_);
 			}
+			decoded = line.split("\\s+")[0];
 		} catch (final IOException e) {
 			throw new ExperimentException(e);
 		} finally {
 			Utils.closeQuietly(queryReader);
 		}
 
-		cnfFile_ = new File(literalDir,
-				new StringBuilder(name_).append(".").append(literal).append(".")
-						.append(decoded).append(".coi.cnf").toString());
+		cnfFile_ = new File(queryDir_, ENCODING_NAME + SUFFIX_CNF);
 
-		assumptionsFile_ = new File(literalDir,
-				new StringBuilder(name_).append(".").append(literal).append(".")
-						.append(decoded).append(".module.axioms").toString());
+		assumptionsFile_ = new File(queryDir_,
+				ENCODING_NAME + SUFFIX_ASSUMPTIONS);
 
 		LOGGER_.info("... took {}s",
 				(System.currentTimeMillis() - start) / 1000.0);
 
-		return Integer.valueOf(decoded);
+		return -Integer.valueOf(decoded);
 	}
 
 	@Override

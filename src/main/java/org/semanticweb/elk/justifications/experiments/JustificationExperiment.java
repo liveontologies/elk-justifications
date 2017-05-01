@@ -6,9 +6,9 @@ public interface JustificationExperiment {
 
 	void init(String[] args) throws ExperimentException;
 
-	void before() throws ExperimentException;
+	String before(String query) throws ExperimentException;
 
-	void run(String query, InterruptMonitor monitor) throws ExperimentException;
+	void run(InterruptMonitor monitor) throws ExperimentException;
 
 	void after() throws ExperimentException;
 

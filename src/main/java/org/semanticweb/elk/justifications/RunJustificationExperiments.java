@@ -241,13 +241,14 @@ public class RunJustificationExperiments {
 					}
 				}
 
+				final String quertToString = experiment.before(query);
+
 				record.newRecord();
-				record.put("query", query);
+				record.put("query", quertToString);
 				if (didSomeExperimentRun) {
 					record.flush();
 				}
 
-				experiment.before();
 				if (runGc) {
 					System.gc();
 				}
@@ -262,8 +263,7 @@ public class RunJustificationExperiments {
 					@Override
 					public void run() {
 						try {
-							experiment.run(query,
-									new TimeOutMonitor(stopTimeMillis));
+							experiment.run(new TimeOutMonitor(stopTimeMillis));
 						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
 						}

@@ -265,13 +265,14 @@ public class RunRepeatingExperiments {
 					}
 				}
 
+				final String quertToString = experiment.before(query);
+
 				record.newRecord();
-				record.put("query", query);
+				record.put("query", quertToString);
 				if (didSomeExperimentRun) {
 					record.flush();
 				}
 
-				experiment.before();
 				if (runGc) {
 					System.gc();
 				}
@@ -286,8 +287,7 @@ public class RunRepeatingExperiments {
 					@Override
 					public void run() {
 						try {
-							experiment.run(query,
-									new TimeOutMonitor(stopTimeMillis));
+							experiment.run(new TimeOutMonitor(stopTimeMillis));
 						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
 						}
@@ -369,13 +369,14 @@ public class RunRepeatingExperiments {
 				}
 			}
 
+			final String queryToString = experiment.before(query);
+
 			record.newRecord();
-			record.put("query", query);
+			record.put("query", queryToString);
 			if (didSomeExperimentRun) {
 				record.flush();
 			}
 
-			experiment.before();
 			if (runGc) {
 				System.gc();
 			}
@@ -390,8 +391,7 @@ public class RunRepeatingExperiments {
 				@Override
 				public void run() {
 					try {
-						experiment.run(query,
-								new TimeOutMonitor(stopTimeMillis));
+						experiment.run(new TimeOutMonitor(stopTimeMillis));
 					} catch (final ExperimentException e) {
 						throw new RuntimeException(e);
 					}

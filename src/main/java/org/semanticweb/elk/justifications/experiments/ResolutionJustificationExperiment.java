@@ -47,11 +47,15 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
 	private volatile String lastQuery_ = null;
+	private volatile C goal_;
+	private volatile InferenceSet<C> inferenceSet_;
+	private volatile InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 	private JustificationCounter justificationListener_;
 
 	// Statistics
 	private int minJustSizeize_, maxJustSize_;
+	private double inferenceSetTimeMillis_;
 	private double firstQuartileJustSize_, medianJustSize_, meanJustSize_,
 			thirdQuartileJustSize_;
 
@@ -124,25 +128,31 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	protected abstract void init(Namespace options) throws ExperimentException;
 
 	@Override
-	public void before() {
+	public String before(final String query) throws ExperimentException {
 		justificationListener_.reset();
 		resetStats();
 		if (computation_ != null) {
 			Stats.resetStats(computation_);
 		}
+
+		lastQuery_ = query;
+
+		final long startTimeNanos = System.nanoTime();
+		goal_ = decodeQuery(query);
+		inferenceSet_ = newInferenceSet(goal_);
+		justifier_ = newJustifier();
+		inferenceSetTimeMillis_ = (System.nanoTime() - startTimeNanos)
+				/ 1000000.0;
+
+		return query;
 	}
 
 	@Override
-	public void run(final String query, final InterruptMonitor monitor)
-			throws ExperimentException {
-		lastQuery_ = query;
+	public void run(final InterruptMonitor monitor) throws ExperimentException {
 
-		final C goal = decodeQuery(query);
-		final InferenceSet<C> inferenceSet = newInferenceSet(goal);
-		final InferenceJustifier<C, ? extends Set<? extends A>> justifier = newJustifier();
 		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
-				.create(inferenceSet, justifier, monitor, selectionFactory_);
-		computation_.newEnumerator(goal).enumerate(justificationListener_);
+				.create(inferenceSet_, justifier_, monitor, selectionFactory_);
+		computation_.newEnumerator(goal_).enumerate(justificationListener_);
 
 	}
 
@@ -268,6 +278,11 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	}
 
 	@Stat
+	public double inferenceSetTime() {
+		return inferenceSetTimeMillis_;
+	}
+
+	@Stat
 	public double firstQuartileJustSize() {
 		return firstQuartileJustSize_;
 	}
@@ -325,7 +340,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		final int half = numbers.size() / 2;
 		if (numbers.size() % 2 == 0) {
 			return median(numbers.subList(0, half));
-		} else { 
+		} else {
 			return median(numbers.subList(0, half + 1));
 		}
 	}
