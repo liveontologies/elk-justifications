@@ -10,8 +10,8 @@ plot.results = function(
 		timeout=60,
 		xlim=NULL,
 		ylim=c(0.001,timeout),
-		from.prop=10,
-		to.prop=3,
+		from.prop=15,
+		to.prop=2,
 		pixels.in.plot.size=NULL,
 		xlab="\\% of queries",
 		ylab="time in seconds",
@@ -204,17 +204,17 @@ lineTypes = c("44", "1343", "73", "2262")
 #tikz(file="plot-resolution-strategies.tex", width=length(titles)*size, height=size * (1 + footerRatio))
 #colors = c("red", "blue", "green3")
 #lineTypes = c("44", "73", "1343")
-#../src/scripts/plot_row.r go-plus galen snomed -- BottomUp results/final/17-04-11.go-plus.resolution.bottomup.dell.elk.record.csv results/final/17-04-11.galen7.resolution.bottomup.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.bottomup.dell.elk.record.csv TopDown results/final/17-04-11.go-plus.resolution.topdown.dell.elk.record.csv results/final/17-04-11.galen7.resolution.topdown.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.topdown.dell.elk.record.csv Threshold results/final/17-04-11.go-plus.resolution.threshold.dell.elk.record.csv results/final/17-04-11.galen7.resolution.threshold.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.threshold.dell.elk.record.csv
+#../src/scripts/plot_row.r '\textsc{GO-Plus}' '\textsc{Galen}' '\textsc{Snomed}' -- BottomUp results/final/17-04-11.go-plus.resolution.bottomup.dell.elk.record.csv results/final/17-04-11.galen7.resolution.bottomup.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.bottomup.dell.elk.record.csv TopDown results/final/17-04-11.go-plus.resolution.topdown.dell.elk.record.csv results/final/17-04-11.galen7.resolution.topdown.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.topdown.dell.elk.record.csv Threshold results/final/17-04-11.go-plus.resolution.threshold.dell.elk.record.csv results/final/17-04-11.galen7.resolution.threshold.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.threshold.dell.elk.record.csv
 
 #tikz(file="plot-sat-vs-elk-infs-el2mus.tex", width=length(titles)*size, height=size * (1 + footerRatio))
 #colors = c("red", "blue")
 #lineTypes = c("44", "73")
-#../src/scripts/plot_row.r go-plus galen snomed -- "el2mus elk" results/final/17-04-04.go-plus.el2mus.dell.elk.record.csv results/final/17-04-04.galen7.el2mus.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mus.dell.elk.record.csv "el2mus sat" results/final/17-03-28.go-plus.el2mus.dell.sat.record.csv results/final/17-03-15.galen7.el2mus.dell.sat.record.csv results/final/17-04-11.snomed2015.el2mus.dell.sat.record.csv
+#../src/scripts/plot_row.r '\textsc{GO-Plus}' '\textsc{Galen}' '\textsc{Snomed}' -- "EL2MUS tracing" results/final/17-04-04.go-plus.el2mus.dell.elk.record.csv results/final/17-04-04.galen7.el2mus.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mus.dell.elk.record.csv "EL2MUS x2" results/final/17-03-28.go-plus.el2mus.dell.sat.record.csv results/final/17-03-15.galen7.el2mus.dell.sat.record.csv results/final/17-04-11.snomed2015.el2mus.dell.sat.record.csv
 
 #tikz(file="plot-allalgs-elkinfs.tex", width=length(titles)*size, height=size * (1 + footerRatio))
 #colors = c("magenta", "red", "blue", "green3")
 #lineTypes = c("121242", "44", "73", "1343")
-#../src/scripts/plot_row.r go-plus galen snomed -- SATPin results/final/17-04-12.go-plus.SATPin.dell.elk.record.csv results/final/17-04-12.galen7.SATPin.dell.elk.record.csv results/final/17-04-12.snomed2015.SATPin.dell.elk.record.csv el2mcs results/final/17-04-04.go-plus.el2mcs.dell.elk.record.csv results/final/17-04-04.galen7.el2mcs.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mcs.dell.elk.record.csv el2mus results/final/17-04-04.go-plus.el2mus.dell.elk.record.csv results/final/17-04-04.galen7.el2mus.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mus.dell.elk.record.csv Threshold results/final/17-04-11.go-plus.resolution.threshold.dell.elk.record.csv results/final/17-04-11.galen7.resolution.threshold.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.threshold.dell.elk.record.csv
+#../src/scripts/plot_row.r '\textsc{GO-Plus}' '\textsc{Galen}' '\textsc{Snomed}' -- SATPin results/final/17-04-12.go-plus.SATPin.dell.elk.record.csv results/final/17-04-12.galen7.SATPin.dell.elk.record.csv results/final/17-04-12.snomed2015.SATPin.dell.elk.record.csv EL2MCS results/final/17-04-04.go-plus.el2mcs.dell.elk.record.csv results/final/17-04-04.galen7.el2mcs.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mcs.dell.elk.record.csv EL2MUS results/final/17-04-04.go-plus.el2mus.dell.elk.record.csv results/final/17-04-04.galen7.el2mus.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mus.dell.elk.record.csv Threshold results/final/17-04-11.go-plus.resolution.threshold.dell.elk.record.csv results/final/17-04-11.galen7.resolution.threshold.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.threshold.dell.elk.record.csv
 
 #tikz(file="plot-resolution.tex", width=length(titles)*size/2, height=size*2)
 
