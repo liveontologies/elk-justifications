@@ -70,13 +70,13 @@ public class DirectSatResolutionJustificationExperiment
 
 		super.before(query);
 
-		BufferedReader zzzReader = null;
+		BufferedReader queryReader = null;
 		try {
 
-			zzzReader = new BufferedReader(new FileReader(
+			queryReader = new BufferedReader(new FileReader(
 					new File(queryDir_, ENCODING_NAME + SUFFIX_QUERY)));
 
-			final String line = zzzReader.readLine();
+			final String line = queryReader.readLine();
 			if (line == null) {
 				throw new ExperimentException(
 						"Could not read query file in: " + queryDir_);
@@ -87,7 +87,7 @@ public class DirectSatResolutionJustificationExperiment
 		} catch (final IOException e) {
 			throw new ExperimentException(e);
 		} finally {
-			Utils.closeQuietly(zzzReader);
+			Utils.closeQuietly(queryReader);
 		}
 
 	}
