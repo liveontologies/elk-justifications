@@ -21,6 +21,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
 import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
+import org.liveontologies.puli.justifications.TopDownRepairComputation;
 
 @RunWith(Parameterized.class)
 public abstract class BaseJustificationComputationTest<C, A> {
