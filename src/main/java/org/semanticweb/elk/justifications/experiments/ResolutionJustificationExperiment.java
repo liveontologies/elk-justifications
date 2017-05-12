@@ -2,6 +2,8 @@ package org.semanticweb.elk.justifications.experiments;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -92,8 +94,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 			} else {
 				Utils.cleanDir(outputDir_);
 				this.justificationListener_ = new JustificationCollector();
-				this.indexWriter_ = new PrintWriter(
-						new File(outputDir_, INDEX_FILE_NAME));
+				this.indexWriter_ = new PrintWriter(new FileWriter(
+						new File(outputDir_, INDEX_FILE_NAME), true));
 				this.axiomIndex_ = new Utils.Index<>(new Utils.IndexRecorder<>(
 						new Utils.Counter(1), indexWriter_));
 			}
@@ -108,13 +110,11 @@ public abstract class ResolutionJustificationExperiment<C, A>
 			throw new ExperimentException(e);
 		} catch (final IllegalAccessException e) {
 			throw new ExperimentException(e);
-		} catch (final IllegalArgumentException e) {
-			throw new ExperimentException(e);
 		} catch (final InvocationTargetException e) {
 			throw new ExperimentException(e);
 		} catch (final InstantiationException e) {
 			throw new ExperimentException(e);
-		} catch (final FileNotFoundException e) {
+		} catch (final IOException e) {
 			throw new ExperimentException(e);
 		} catch (final ArgumentParserException e) {
 			parser.handleError(e);

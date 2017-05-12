@@ -42,6 +42,7 @@ public class RunJustificationExperiments {
 	public static final String GLOBAL_TIMEOUT_OPT = "g";
 	public static final String WARMUP_TIMEOUT_OPT = "w";
 	public static final String GC_OPT = "gc";
+	public static final String RESET_INTERVAL_OPT = "ri";
 	public static final String QUERIES_OPT = "queries";
 	public static final String EXPERIMENT_OPT = "exp";
 	public static final String EXPERIMENT_ARGS_OPT = "arg";
@@ -54,9 +55,11 @@ public class RunJustificationExperiments {
 		@Arg(dest = GLOBAL_TIMEOUT_OPT)
 		public Long globalTimeOutMillis;
 		@Arg(dest = WARMUP_TIMEOUT_OPT)
-		public Integer warmupTimeOut;
+		public Long warmupTimeOut;
 		@Arg(dest = GC_OPT)
 		public boolean runGc;
+		@Arg(dest = RESET_INTERVAL_OPT)
+		public Integer resetInterval;
 		@Arg(dest = QUERIES_OPT)
 		public File queryFile;
 		@Arg(dest = EXPERIMENT_OPT)
@@ -80,10 +83,12 @@ public class RunJustificationExperiments {
 				.help("timeout per query in milliseconds");
 		parser.addArgument("-" + GLOBAL_TIMEOUT_OPT).type(Long.class)
 				.help("global timeout in milliseconds");
-		parser.addArgument("-" + WARMUP_TIMEOUT_OPT).type(Integer.class)
+		parser.addArgument("-" + WARMUP_TIMEOUT_OPT).type(Long.class)
 				.help("how long should warm up in milliseconds");
 		parser.addArgument("--" + GC_OPT).action(Arguments.storeTrue())
 				.help("run garbage collector before every query");
+		parser.addArgument("--" + RESET_INTERVAL_OPT).type(Integer.class)
+				.help("after how many queries should the experiment be reset");
 		parser.addArgument(QUERIES_OPT)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())
 				.help("query file");
@@ -110,11 +115,14 @@ public class RunJustificationExperiments {
 			final long globalTimeOutMillis = opt.globalTimeOutMillis == null
 					? 0l : opt.globalTimeOutMillis;
 			LOGGER_.info("globalTimeOutMillis: {}", globalTimeOutMillis);
-			final int warmupTimeOut = opt.warmupTimeOut == null ? 0
+			final long warmupTimeOut = opt.warmupTimeOut == null ? 0l
 					: opt.warmupTimeOut;
 			LOGGER_.info("warmupTimeOut: {}", warmupTimeOut);
 			final boolean runGc = opt.runGc;
 			LOGGER_.info("runGc: {}", runGc);
+			final int resetInterval = opt.resetInterval == null
+					? Integer.MAX_VALUE : opt.resetInterval;
+			LOGGER_.info("resetInterval: {}", resetInterval);
 			final File queryFile = opt.queryFile;
 			LOGGER_.info("queryFile: {}", queryFile);
 			final String experimentClassName = opt.experimentClassName;
@@ -129,17 +137,13 @@ public class RunJustificationExperiments {
 
 			if (warmupTimeOut > 0) {
 				LOGGER_.info("Warm Up");
-				experiment.init(experimentArgs);
-				run(experiment, queryFile, timeOutMillis, warmupTimeOut, 0,
-						runGc, null);
-				experiment.dispose();
+				run(experiment, experimentArgs, queryFile, timeOutMillis,
+						warmupTimeOut, 0, runGc, resetInterval, null);
 			}
 
 			LOGGER_.info("Actual Experiment Run");
-			experiment.init(experimentArgs);
-			run(experiment, queryFile, timeOutMillis, globalTimeOutMillis, 0,
-					runGc, recordWriter);
-			experiment.dispose();
+			run(experiment, experimentArgs, queryFile, timeOutMillis,
+					globalTimeOutMillis, 0, runGc, resetInterval, recordWriter);
 
 		} catch (final ExperimentException e) {
 			LOGGER_.error(e.getMessage(), e);
@@ -198,10 +202,13 @@ public class RunJustificationExperiments {
 	}
 
 	private static void run(final JustificationExperiment experiment,
-			final File queryFile, final long timeOutMillis,
-			final long globalTimeOutMillis, final int maxIterations,
-			final boolean runGc, final PrintWriter recordWriter)
+			final String[] experimentArgs, final File queryFile,
+			final long timeOutMillis, final long globalTimeOutMillis,
+			final int maxIterations, final boolean runGc,
+			final int resetInterval, final PrintWriter recordWriter)
 			throws IOException, ExperimentException {
+
+		experiment.init(experimentArgs);
 
 		BufferedReader queryReader = null;
 
@@ -239,6 +246,11 @@ public class RunJustificationExperiments {
 					if (globalTimeLeftMillis <= 0l) {
 						break;
 					}
+				}
+
+				if (nIter % resetInterval == resetInterval - 1) {
+					experiment.dispose();
+					experiment.init(experimentArgs);
 				}
 
 				final String quertToString = experiment.before(query);
@@ -309,6 +321,7 @@ public class RunJustificationExperiments {
 
 		} finally {
 			Utils.closeQuietly(queryReader);
+			experiment.dispose();
 		}
 
 	}

@@ -35,7 +35,7 @@ public class ElkResolutionJustificationExperiment
 
 	public static final String ONTOLOGY_OPT = "ontology";
 
-	private Reasoner reasoner_;
+	private Reasoner reasoner_ = null;
 
 	@Override
 	protected void addArguments(final ArgumentParser parser) {
@@ -128,6 +128,22 @@ public class ElkResolutionJustificationExperiment
 	protected InferenceJustifier<Conclusion, ? extends Set<? extends ElkAxiom>> newJustifier()
 			throws ExperimentException {
 		return TracingInferenceJustifier.INSTANCE;
+	}
+
+	@Override
+	public void dispose() {
+		super.dispose();
+		if (reasoner_ != null) {
+			for (;;) {
+				try {
+					if (!reasoner_.shutdown())
+						throw new RuntimeException("Failed to shut down ELK!");
+					break;
+				} catch (InterruptedException e) {
+					continue;
+				}
+			}
+		}
 	}
 
 }
