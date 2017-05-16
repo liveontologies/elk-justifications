@@ -2,7 +2,6 @@ package org.semanticweb.elk.justifications;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -11,6 +10,7 @@ import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.PriorityComparators;
 
 public class MinimalSubsetCollector<C, A> {
 
@@ -45,8 +45,8 @@ public class MinimalSubsetCollector<C, A> {
 
 		};
 
-		enumeratorFactory_.newEnumerator(query).enumerate(SIZE_ORDER_,
-				listener);
+		enumeratorFactory_.newEnumerator(query).enumerate(listener,
+				PriorityComparators.<A> cardinality());
 
 		return sets;
 	}
@@ -69,14 +69,5 @@ public class MinimalSubsetCollector<C, A> {
 		}
 
 	}
-
-	private Comparator<? super Set<A>> SIZE_ORDER_ = new Comparator<Set<A>>() {
-
-		@Override
-		public int compare(final Set<A> just1, final Set<A> just2) {
-			return Integer.compare(just1.size(), just2.size());
-		}
-
-	};
 
 }

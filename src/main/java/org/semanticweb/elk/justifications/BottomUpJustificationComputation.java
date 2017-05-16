@@ -13,10 +13,10 @@ import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.ComparableWrapper;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.PriorityComparator;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -169,7 +169,7 @@ public class BottomUpJustificationComputation<C, A>
 		/**
 		 * newly computed justifications to be propagated
 		 */
-		private PriorityQueue<Job<C, A, ?>> toDoJustifications_;
+		private PriorityQueue<JobFactory<C, A, ?>.Job> toDoJustifications_;
 
 		/**
 		 * the justifications will be returned here, they come in increasing
@@ -179,7 +179,7 @@ public class BottomUpJustificationComputation<C, A>
 
 		private Listener<A> listener_ = null;
 
-		private ComparableWrapper.Factory<Set<A>, ?> wrapper_;
+		private JobFactory<C, A, ?> jobFactory_;
 
 		JustificationEnumerator(C conclusion) {
 			this.conclusion_ = conclusion;
@@ -187,18 +187,18 @@ public class BottomUpJustificationComputation<C, A>
 		}
 
 		@Override
-		public void enumerate(
-				final ComparableWrapper.Factory<Set<A>, ?> wrapper,
-				final Listener<A> listener) {
+		public void enumerate(final Listener<A> listener,
+				final PriorityComparator<? super Set<A>, ?> priorityComparator) {
 			Preconditions.checkNotNull(listener);
 			this.listener_ = listener;
-			if (wrapper == null) {
+			if (priorityComparator == null) {
 				enumerate(listener);
 				return;
 			}
 			// else
 
-			if (wrapper.equals(this.wrapper_)) {
+			if (jobFactory_ != null && jobFactory_.priorityComparator_
+					.equals(priorityComparator)) {
 				// Visit already computed justifications. They should be in the
 				// correct order.
 				for (final Justification<C, A> just : justifications_
@@ -207,16 +207,17 @@ public class BottomUpJustificationComputation<C, A>
 				}
 			} else {
 				// Reset everything.
-				this.wrapper_ = wrapper;
+				this.jobFactory_ = JobFactory.create(priorityComparator);
 				reset();
 			}
 
-			this.toDoJustifications_ = new PriorityQueue<Job<C, A, ?>>();
+			this.toDoJustifications_ = new PriorityQueue<JobFactory<C, A, ?>.Job>();
 
 			toDo(conclusion_);
 			initialize();
 			process();
 
+			this.listener_ = null;
 		}
 
 		/**
@@ -268,7 +269,7 @@ public class BottomUpJustificationComputation<C, A>
 					for (final Justification<C, A> just : blocked) {
 						LOGGER_.trace("unblocked {}", just);
 						// Don't produce, blocked justs were already produced.
-						toDoJustifications_.add(Job.create(wrapper_, just));
+						toDoJustifications_.add(jobFactory_.newJob(just));
 					}
 					blocked.clear();
 				}
@@ -288,7 +289,7 @@ public class BottomUpJustificationComputation<C, A>
 		 * process new justifications until the fixpoint
 		 */
 		private void process() {
-			Job<C, A, ?> job;
+			JobFactory<C, A, ?>.Job job;
 			while ((job = toDoJustifications_.poll()) != null) {
 				final Justification<C, A> just = job.justification;
 				if (isInterrupted()) {
@@ -358,38 +359,54 @@ public class BottomUpJustificationComputation<C, A>
 
 		private void produce(final Justification<C, A> justification) {
 			countJustificationCandidates_++;
-			toDoJustifications_.add(Job.create(wrapper_, justification));
+			toDoJustifications_.add(jobFactory_.newJob(justification));
 		}
 
 	}
 
-	private static class Job<C, A, W extends ComparableWrapper<Set<A>, W>>
-			implements Comparable<Job<C, A, W>> {
+	private static class JobFactory<C, A, P> {
 
-		private final W wrapped_;
+		private final PriorityComparator<? super Set<A>, P> priorityComparator_;
 
-		public final Justification<C, A> justification;
-
-		public Job(final W wrapped, final Justification<C, A> justification) {
-			this.wrapped_ = wrapped;
-			this.justification = justification;
+		private JobFactory(
+				final PriorityComparator<? super Set<A>, P> priorityComparator) {
+			this.priorityComparator_ = priorityComparator;
 		}
 
-		public static <C, A, W extends ComparableWrapper<Set<A>, W>> Job<C, A, W> create(
-				final ComparableWrapper.Factory<Set<A>, W> wrapper,
-				final Justification<C, A> justification) {
-			final W wrapped = wrapper.wrap(justification);
-			return new Job<C, A, W>(wrapped, justification);
+		public static <C, A, P> JobFactory<C, A, P> create(
+				final PriorityComparator<? super Set<A>, P> priorityComparator) {
+			return new JobFactory<>(priorityComparator);
 		}
 
-		@Override
-		public int compareTo(final Job<C, A, W> other) {
-			final int result = wrapped_.compareTo(other.wrapped_);
-			if (result != 0) {
-				return result;
+		public Job newJob(final Justification<C, A> justification) {
+			return new Job(priorityComparator_.getPriority(justification),
+					justification);
+		}
+
+		private class Job implements Comparable<Job> {
+
+			private final P priority_;
+
+			public final Justification<C, A> justification;
+
+			public Job(final P priority,
+					final Justification<C, A> justification) {
+				this.priority_ = priority;
+				this.justification = justification;
 			}
-			return Integer.compare(justification.getConclusion().hashCode(),
-					other.justification.getConclusion().hashCode());
+
+			@Override
+			public int compareTo(final Job other) {
+				final int result = priorityComparator_.compare(priority_,
+						other.priority_);
+				if (result != 0) {
+					return result;
+				}
+				// else
+				return Integer.compare(justification.getConclusion().hashCode(),
+						other.justification.getConclusion().hashCode());
+			}
+
 		}
 
 	}

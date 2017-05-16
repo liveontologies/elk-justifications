@@ -17,10 +17,10 @@ import org.liveontologies.puli.InferenceSet;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.ComparableWrapper;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.PriorityComparator;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
 import org.liveontologies.puli.statistics.Stat;
@@ -89,7 +89,7 @@ public class TopDownJustificationComputation<C, A>
 		/**
 		 * newly computed jobs to be propagated
 		 */
-		private Queue<Job<?>> toDoJobs_;
+		private Queue<JobFactory<C, A, ?>.Job> toDoJobs_;
 
 		/**
 		 * Used to minimize the jobs
@@ -100,18 +100,17 @@ public class TopDownJustificationComputation<C, A>
 
 		private Listener<A> listener_ = null;
 
-		private ComparableWrapper.Factory<Set<A>, ?> wrapper_;
+		private JobFactory<C, A, ?> jobFactory_;
 
 		JustificationEnumerator(final C query) {
 			this.conclusion_ = query;
 		}
 
 		@Override
-		public void enumerate(
-				final ComparableWrapper.Factory<Set<A>, ?> wrapper,
-				final Listener<A> listener) {
+		public void enumerate(final Listener<A> listener,
+				final PriorityComparator<? super Set<A>, ?> priorityComparator) {
 			Preconditions.checkNotNull(listener);
-			if (wrapper == null) {
+			if (priorityComparator == null) {
 				enumerate(listener);
 				return;
 			}
@@ -120,7 +119,7 @@ public class TopDownJustificationComputation<C, A>
 			this.toDoJobs_ = new PriorityQueue<>();
 			this.minimalJobs_.clear();
 			this.minimalJustifications_.clear();
-			this.wrapper_ = wrapper;
+			this.jobFactory_ = JobFactory.create(priorityComparator);
 			this.listener_ = listener;
 
 			initialize(conclusion_);
@@ -130,12 +129,11 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		private void initialize(final C goal) {
-			final Job<?> initialJob = newJob(wrapper_, goal);
-			produce(initialJob);
+			produce(jobFactory_.newJob(goal));
 		}
 
 		private void process() {
-			Job<?> job;
+			JobFactory<C, A, ?>.Job job;
 			while ((job = toDoJobs_.poll()) != null) {
 
 				if (minimalJustifications_.isMinimal(job.justification_)
@@ -151,7 +149,8 @@ public class TopDownJustificationComputation<C, A>
 						for (final Inference<C> inf : getInferences(
 								chooseConclusion(job.premises_))) {
 							expandedInferencesCount_++;
-							final Job<?> newJob = job.expand(inf);
+							final JobFactory<C, A, ?>.Job newJob = job
+									.expand(inf, getInferenceJustifier());
 							produce(newJob);
 						}
 					}
@@ -177,7 +176,7 @@ public class TopDownJustificationComputation<C, A>
 			return result;
 		}
 
-		private void produce(final Job<?> job) {
+		private void produce(final JobFactory<C, A, ?>.Job job) {
 			producedJobsCount_++;
 			toDoJobs_.add(job);
 		}
@@ -212,119 +211,135 @@ public class TopDownJustificationComputation<C, A>
 		return BloomTrieCollection2.class;
 	}
 
-	private <W extends ComparableWrapper<Set<A>, W>> Job<W> newJob(
-			final ComparableWrapper.Factory<Set<A>, W> wrapper, final C goal) {
-		return new Job<W>(Collections.singleton(goal),
-				Collections.<A> emptySet(), wrapper);
-	}
+	private static class JobFactory<C, A, P> {
 
-	/**
-	 * A set of premises and justification that can be used for deriving the
-	 * goal conclusion.
-	 * 
-	 * @author Peter Skocovsky
-	 * @author Yevgeny Kazakov
-	 */
-	private class Job<W extends ComparableWrapper<Set<A>, W>>
-			extends AbstractSet<Object> implements Comparable<Job<W>> {
+		private final PriorityComparator<? super Set<A>, P> priorityComparator_;
 
-		private final Set<C> premises_;
-		private final Set<A> justification_;
-		private final W wrapped_;
-		private final ComparableWrapper.Factory<Set<A>, W> wrapper_;
-
-		private Job(final Set<C> premises, final Set<A> justification,
-				final ComparableWrapper.Factory<Set<A>, W> wrapper) {
-			this.premises_ = premises;
-			this.justification_ = justification;
-			this.wrapped_ = wrapper.wrap(justification);
-			this.wrapper_ = wrapper;
+		private JobFactory(
+				final PriorityComparator<? super Set<A>, P> priorityComparator) {
+			this.priorityComparator_ = priorityComparator;
 		}
 
-		public Job<W> expand(final Inference<C> inference) {
-			final Set<C> newPremises = new HashSet<>(premises_);
-			newPremises.remove(inference.getConclusion());
-			newPremises.addAll(inference.getPremises());
-			Set<A> newJustification = justification_;
-			Set<? extends A> toExpand = getJustification(inference);
-			if (newJustification.containsAll(toExpand)) {
-				newJustification = justification_;
-			} else {
-				newJustification = new HashSet<A>(justification_.size());
-				newJustification.addAll(justification_);
-				newJustification.addAll(toExpand);
+		public static <C, A, P> JobFactory<C, A, P> create(
+				final PriorityComparator<? super Set<A>, P> priorityComparator) {
+			return new JobFactory<>(priorityComparator);
+		}
+
+		private Job newJob(final C goal) {
+			return new Job(Collections.singleton(goal),
+					Collections.<A> emptySet());
+		}
+
+		/**
+		 * A set of premises and justification that can be used for deriving the
+		 * goal conclusion.
+		 * 
+		 * @author Peter Skocovsky
+		 * @author Yevgeny Kazakov
+		 */
+		private class Job extends AbstractSet<Object>
+				implements Comparable<Job> {
+
+			private final Set<C> premises_;
+			private final Set<A> justification_;
+			private final P priority_;
+
+			private Job(final Set<C> premises, final Set<A> justification) {
+				this.premises_ = premises;
+				this.justification_ = justification;
+				this.priority_ = priorityComparator_.getPriority(justification);
 			}
-			return new Job<W>(newPremises, newJustification, wrapper_);
-		}
 
-		@Override
-		public Iterator<Object> iterator() {
-			return Iterators.concat(premises_.iterator(),
-					Iterators.transform(justification_.iterator(),
-							new Function<A, Distinguisher>() {
-
-								@Override
-								public Distinguisher apply(final A axiom) {
-									return new Distinguisher(axiom);
-								}
-
-							}));
-		}
-
-		@Override
-		public boolean containsAll(final Collection<?> c) {
-			if (c instanceof TopDownJustificationComputation.Job) {
-				@SuppressWarnings("unchecked")
-				final Job<?> other = (Job<?>) c;
-				return premises_.containsAll(other.premises_)
-						&& justification_.containsAll(other.justification_);
+			public Job expand(final Inference<C> inference,
+					final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+				final Set<C> newPremises = new HashSet<>(premises_);
+				newPremises.remove(inference.getConclusion());
+				newPremises.addAll(inference.getPremises());
+				Set<A> newJustification = justification_;
+				Set<? extends A> toExpand = justifier
+						.getJustification(inference);
+				if (newJustification.containsAll(toExpand)) {
+					newJustification = justification_;
+				} else {
+					newJustification = new HashSet<A>(justification_.size());
+					newJustification.addAll(justification_);
+					newJustification.addAll(toExpand);
+				}
+				return new Job(newPremises, newJustification);
 			}
-			// else
-			return super.containsAll(c);
-		}
 
-		@Override
-		public boolean contains(final Object o) {
-			if (o instanceof TopDownJustificationComputation.Distinguisher) {
-				@SuppressWarnings("unchecked")
-				final Distinguisher distinguisher = (Distinguisher) o;
-				return justification_.contains(distinguisher.getDelegate());
-			} else {
-				return premises_.contains(o);
+			@Override
+			public Iterator<Object> iterator() {
+				return Iterators.concat(premises_.iterator(),
+						Iterators.transform(justification_.iterator(),
+								new Function<A, Distinguisher>() {
+
+									@Override
+									public Distinguisher apply(final A axiom) {
+										return new Distinguisher(axiom);
+									}
+
+								}));
 			}
-		}
 
-		@Override
-		public boolean remove(final Object o) {
-			if (o instanceof TopDownJustificationComputation.Distinguisher) {
-				@SuppressWarnings("unchecked")
-				final Distinguisher distinguisher = (Distinguisher) o;
-				return justification_.remove(distinguisher.getDelegate());
-			} else {
-				return premises_.remove(o);
+			@Override
+			public boolean containsAll(final Collection<?> c) {
+				if (c instanceof JobFactory.Job) {
+					final JobFactory<?, ?, ?>.Job other = (JobFactory<?, ?, ?>.Job) c;
+					return premises_.containsAll(other.premises_)
+							&& justification_.containsAll(other.justification_);
+				}
+				// else
+				return super.containsAll(c);
 			}
-		}
 
-		@Override
-		public int size() {
-			return premises_.size() + justification_.size();
-		}
-
-		@Override
-		public int compareTo(final Job<W> other) {
-			final int result = wrapped_.compareTo(other.wrapped_);
-			if (result != 0) {
-				return result;
+			@Override
+			public boolean contains(final Object o) {
+				if (o instanceof JobFactory.Distinguisher) {
+					@SuppressWarnings("unchecked")
+					final Distinguisher distinguisher = (Distinguisher) o;
+					return justification_.contains(distinguisher.getDelegate());
+				} else {
+					return premises_.contains(o);
+				}
 			}
-			return Integer.compare(premises_.size(), other.premises_.size());
+
+			@Override
+			public boolean remove(final Object o) {
+				if (o instanceof JobFactory.Distinguisher) {
+					@SuppressWarnings("unchecked")
+					final Distinguisher distinguisher = (Distinguisher) o;
+					return justification_.remove(distinguisher.getDelegate());
+				} else {
+					return premises_.remove(o);
+				}
+			}
+
+			@Override
+			public int size() {
+				return premises_.size() + justification_.size();
+			}
+
+			@Override
+			public int compareTo(final Job other) {
+				final int result = priorityComparator_.compare(priority_,
+						other.priority_);
+				if (result != 0) {
+					return result;
+				}
+				// else
+				return Integer.compare(premises_.size(),
+						other.premises_.size());
+			}
+
 		}
 
-	}
+		private class Distinguisher extends Delegator<A> {
 
-	private class Distinguisher extends Delegator<A> {
+			public Distinguisher(final A delegate) {
+				super(delegate);
+			}
 
-		public Distinguisher(final A delegate) {
-			super(delegate);
 		}
 
 	}
