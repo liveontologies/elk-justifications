@@ -13,7 +13,7 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.Inferences;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -21,10 +21,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
-public class DirectSatEncodingInferenceSetAdapter
-		implements InferenceSet<Integer> {
+public class DirectSatEncodingProofAdapter implements Proof<Integer> {
 
-	public static DirectSatEncodingInferenceSetAdapter load(
+	public static DirectSatEncodingProofAdapter load(
 			final InputStream assumptions, final InputStream cnf)
 			throws IOException, NumberFormatException {
 
@@ -98,7 +97,7 @@ public class DirectSatEncodingInferenceSetAdapter
 			inferences.put(conclusion, inference);
 		}
 
-		return new DirectSatEncodingInferenceSetAdapter(inferences);
+		return new DirectSatEncodingProofAdapter(inferences);
 	}
 
 	private static void readAxioms(final BufferedReader axiomReader,
@@ -141,7 +140,7 @@ public class DirectSatEncodingInferenceSetAdapter
 
 	private final Multimap<Integer, Inference<Integer>> inferences_;
 
-	private DirectSatEncodingInferenceSetAdapter(
+	private DirectSatEncodingProofAdapter(
 			final Multimap<Integer, Inference<Integer>> inferences) {
 		this.inferences_ = inferences;
 	}

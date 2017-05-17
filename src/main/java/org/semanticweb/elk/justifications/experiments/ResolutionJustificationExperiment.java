@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
@@ -50,14 +50,14 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
 	private volatile String lastQuery_ = null;
 	private volatile C goal_;
-	private volatile InferenceSet<C> inferenceSet_;
+	private volatile Proof<C> proof_;
 	private volatile InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 	private JustificationCounter justificationListener_;
 
 	// Statistics
 	private int minJustSizeize_, maxJustSize_;
-	private double inferenceSetTimeMillis_;
+	private double obtainingInferencesTimeMillis_;
 	private double firstQuartileJustSize_, medianJustSize_, meanJustSize_,
 			thirdQuartileJustSize_;
 
@@ -139,9 +139,9 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 		final long startTimeNanos = System.nanoTime();
 		goal_ = decodeQuery(query);
-		inferenceSet_ = newInferenceSet(goal_);
+		proof_ = newProof(goal_);
 		justifier_ = newJustifier();
-		inferenceSetTimeMillis_ = (System.nanoTime() - startTimeNanos)
+		obtainingInferencesTimeMillis_ = (System.nanoTime() - startTimeNanos)
 				/ 1000000.0;
 
 		return query;
@@ -151,15 +151,14 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	public void run(final InterruptMonitor monitor) throws ExperimentException {
 
 		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
-				.create(inferenceSet_, justifier_, monitor, selectionFactory_);
+				.create(proof_, justifier_, monitor, selectionFactory_);
 		computation_.newEnumerator(goal_).enumerate(justificationListener_);
 
 	}
 
 	protected abstract C decodeQuery(String query) throws ExperimentException;
 
-	protected abstract InferenceSet<C> newInferenceSet(C query)
-			throws ExperimentException;
+	protected abstract Proof<C> newProof(C query) throws ExperimentException;
 
 	protected abstract InferenceJustifier<C, ? extends Set<? extends A>> newJustifier()
 			throws ExperimentException;
@@ -278,8 +277,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	}
 
 	@Stat
-	public double inferenceSetTime() {
-		return inferenceSetTimeMillis_;
+	public double obtainingInferencesTime() {
+		return obtainingInferencesTimeMillis_;
 	}
 
 	@Stat

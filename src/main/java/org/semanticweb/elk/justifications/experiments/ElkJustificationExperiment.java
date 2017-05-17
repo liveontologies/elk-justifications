@@ -6,7 +6,7 @@ import java.io.InputStream;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.Utils;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -89,7 +89,7 @@ public class ElkJustificationExperiment extends
 	}
 
 	@Override
-	protected InferenceSet<Conclusion> newInferenceSet(final Conclusion query)
+	protected Proof<Conclusion> newProof(final Conclusion query)
 			throws ExperimentException {
 		try {
 

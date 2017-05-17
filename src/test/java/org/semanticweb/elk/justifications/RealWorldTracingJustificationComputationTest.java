@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 
@@ -21,7 +21,7 @@ public class RealWorldTracingJustificationComputationTest
 	@Parameters
 	public static Collection<Object[]> parameters() throws URISyntaxException {
 
-		final List<MinimalSubsetsFromInferences.Factory<?, ?>> computations = getJustificationComputationFactories();
+		final List<MinimalSubsetsFromProofs.Factory<?, ?>> computations = getJustificationComputationFactories();
 
 		final Collection<Object[]> galenParams = BaseJustificationComputationTest
 				.getParameters(computations, "test_input/full-galen_cel",
@@ -47,7 +47,7 @@ public class RealWorldTracingJustificationComputationTest
 	}
 
 	public RealWorldTracingJustificationComputationTest(
-			final MinimalSubsetsFromInferences.Factory<Conclusion, ElkAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<Conclusion, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
 		super(factory, ontoFile, entailFilesPerJustFile);

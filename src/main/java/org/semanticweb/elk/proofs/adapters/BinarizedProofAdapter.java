@@ -9,20 +9,20 @@ import java.util.Set;
 import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.Inferences;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 
 /**
- * An inference set containing inferences with at most two premises, obtained
- * from original inference set by binarization. Premises and conclusions of the
- * binarized inferences are lists of premises and conclusions of the original
- * inferences. It is guaranteed that if one can derive a conclusion {@code C}
- * using a set of axioms in justificaiton of inferences, then using the same
- * justification one can derive the conlcusion {@code [C]}, that is, the
- * singleton list of {@code [C]}.
+ * A proof containing inferences with at most two premises, obtained from
+ * original proof by binarization. Premises and conclusions of the binarized
+ * inferences are lists of premises and conclusions of the original inferences.
+ * It is guaranteed that if one can derive a conclusion {@code C} using a set of
+ * axioms in justificaiton of inferences, then using the same justification one
+ * can derive the conlcusion {@code [C]}, that is, the singleton list of
+ * {@code [C]}.
  * 
  * @author Yevgeny Kazakov
  *
@@ -30,11 +30,11 @@ import com.google.common.collect.Collections2;
  *            the type of conclusion and premises used by the original
  *            inferences
  */
-class BinarizedInferenceSetAdapter<C> implements InferenceSet<List<C>> {
+class BinarizedProofAdapter<C> implements Proof<List<C>> {
 
-	private final InferenceSet<C> original_;
+	private final Proof<C> original_;
 
-	BinarizedInferenceSetAdapter(final InferenceSet<C> original) {
+	BinarizedProofAdapter(final Proof<C> original) {
 		this.original_ = original;
 	}
 

@@ -5,8 +5,8 @@ import java.io.IOException;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.Proof;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.proofs.ProofPrinter;
 
 /**
@@ -27,32 +27,32 @@ public class ProofJustificationPrinter<C, A> extends ProofPrinter<C, A> {
 	private final int sizeLimit_;
 
 	ProofJustificationPrinter(
-			final MinimalSubsetsFromInferences.Factory<C, A> factory,
-			final InferenceSet<C> inferenceSet,
+			final MinimalSubsetsFromProofs.Factory<C, A> factory,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			int sizeLimit) {
-		super(inferenceSet, justifier);
-		this.collector_ = new MinimalSubsetCollector<>(factory, inferenceSet,
+		super(proof, justifier);
+		this.collector_ = new MinimalSubsetCollector<>(factory, proof,
 				justifier);
 		this.sizeLimit_ = sizeLimit;
 	}
 
 	public static <C, A> void print(
-			final MinimalSubsetsFromInferences.Factory<C, A> factory,
-			final InferenceSet<C> inferenceSet,
+			final MinimalSubsetsFromProofs.Factory<C, A> factory,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion, int sizeLimit) throws IOException {
-		ProofPrinter<C, A> pp = new ProofJustificationPrinter<>(factory,
-				inferenceSet, justifier, sizeLimit);
+		ProofPrinter<C, A> pp = new ProofJustificationPrinter<>(factory, proof,
+				justifier, sizeLimit);
 		pp.printProof(conclusion);
 	}
 
 	public static <C, A> void print(
-			final MinimalSubsetsFromInferences.Factory<C, A> factory,
-			final InferenceSet<C> inferenceSet,
+			final MinimalSubsetsFromProofs.Factory<C, A> factory,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) throws IOException {
-		print(factory, inferenceSet, justifier, conclusion, Integer.MAX_VALUE);
+		print(factory, proof, justifier, conclusion, Integer.MAX_VALUE);
 	}
 
 	@Override

@@ -9,9 +9,9 @@ import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.InferenceSets;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.Proof;
+import org.liveontologies.puli.Proofs;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAxiom;
@@ -29,7 +29,7 @@ public abstract class OwlJustificationComputationTest
 	private final OWLProver prover_;
 
 	public OwlJustificationComputationTest(
-			final MinimalSubsetsFromInferences.Factory<OWLAxiom, OWLAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<OWLAxiom, OWLAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws OWLOntologyCreationException {
 		super(factory, ontoFile, entailFilesPerJustFile);
@@ -47,14 +47,14 @@ public abstract class OwlJustificationComputationTest
 				.loadOntologyFromOntologyDocument(entailFile).getLogicalAxioms()
 				.iterator().next();
 
-		final InferenceSet<OWLAxiom> inferenceSet = InferenceSets
+		final Proof<OWLAxiom> proof = Proofs
 				.addAssertedInferences(prover_.getProof(entailment),
 						prover_.getRootOntology().getAxioms(Imports.EXCLUDED));
-		final InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> justifier = InferenceSets
+		final InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> justifier = Proofs
 				.justifyAssertedInferences();
 
 		final MinimalSubsetCollector<OWLAxiom, OWLAxiom> collector = new MinimalSubsetCollector<>(
-				getFactory(), inferenceSet, justifier);
+				getFactory(), proof, justifier);
 
 		return new HashSet<>(collector.collect(entailment));
 	}

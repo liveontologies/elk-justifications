@@ -5,8 +5,8 @@ import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
-import org.liveontologies.puli.InferenceSets;
+import org.liveontologies.puli.Proof;
+import org.liveontologies.puli.Proofs;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.IRI;
@@ -114,17 +114,16 @@ public class OwlResolutionJustificationExperiment
 	}
 
 	@Override
-	protected InferenceSet<OWLAxiom> newInferenceSet(final OWLAxiom query)
+	protected Proof<OWLAxiom> newProof(final OWLAxiom query)
 			throws ExperimentException {
-		return InferenceSets.addAssertedInferences(
-				getReasoner().getProof(query),
+		return Proofs.addAssertedInferences(getReasoner().getProof(query),
 				getReasoner().getRootOntology().getAxioms(Imports.EXCLUDED));
 	}
 
 	@Override
 	protected InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> newJustifier()
 			throws ExperimentException {
-		return InferenceSets.justifyAssertedInferences();
+		return Proofs.justifyAssertedInferences();
 	}
 
 }

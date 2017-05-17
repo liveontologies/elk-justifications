@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +35,9 @@ public class StronglyConnectedComponentsComputation<C> {
 			.getLogger(StronglyConnectedComponentsComputation.class);
 
 	/**
-	 * the inference set which induces the graph
+	 * the proof which induces the graph
 	 */
-	private InferenceSet<C> inferences_;
+	private Proof<C> inferences_;
 
 	/**
 	 * conclusions on the current path, assume to alternate with elements of
@@ -84,7 +84,7 @@ public class StronglyConnectedComponentsComputation<C> {
 	 */
 	private final Map<C, Integer> lowlink_ = new HashMap<C, Integer>();
 
-	public StronglyConnectedComponentsComputation(final InferenceSet<C> root,
+	public StronglyConnectedComponentsComputation(final Proof<C> root,
 			C conclusion) {
 		this.inferences_ = root;
 		toDo(conclusion);
@@ -98,17 +98,17 @@ public class StronglyConnectedComponentsComputation<C> {
 	 * 
 	 * @param inferences
 	 * @param root
-	 * @return the {@link StronglyConnectedComponents} in which the
-	 *         components are listed in the inference order: conclusions of
-	 *         inferences appear in the same or letter components than the
-	 *         premises of the inferences; root appears in the last component
+	 * @return the {@link StronglyConnectedComponents} in which the components
+	 *         are listed in the inference order: conclusions of inferences
+	 *         appear in the same or letter components than the premises of the
+	 *         inferences; root appears in the last component
 	 */
 	public static <C> StronglyConnectedComponents<C> computeComponents(
-			final InferenceSet<C> inferences, C root) {
+			final Proof<C> inferences, C root) {
 		StronglyConnectedComponentsComputation<C> computation = new StronglyConnectedComponentsComputation<>(
 				inferences, root);
-		return new StronglyConnectedComponents<>(
-				computation.components_, computation.index_);
+		return new StronglyConnectedComponents<>(computation.components_,
+				computation.index_);
 	}
 
 	private void toDo(C conclusion) {

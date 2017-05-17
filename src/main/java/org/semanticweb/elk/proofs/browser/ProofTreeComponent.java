@@ -26,14 +26,14 @@ import javax.swing.tree.TreePath;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 
 import com.google.common.collect.HashMultimap;
 
-public class InferenceSetTreeComponent<C, A> extends JTree {
+public class ProofTreeComponent<C, A> extends JTree {
 	private static final long serialVersionUID = 8406872780618425810L;
 
-	private final InferenceSet<C> inferenceSet_;
+	private final Proof<C> proof_;
 	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 	private final C conclusion_;
 
@@ -42,19 +42,17 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 	private final HashMultimap<Object, TreePath> visibleNodes_;
 
-	public InferenceSetTreeComponent(
-			final InferenceSet<C> inferenceSet,
+	public ProofTreeComponent(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion) {
-		this(inferenceSet, justifier, conclusion, null, null);
+		this(proof, justifier, conclusion, null, null);
 	}
 
-	public InferenceSetTreeComponent(
-			final InferenceSet<C> inferenceSet,
+	public ProofTreeComponent(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
-		this.inferenceSet_ = inferenceSet;
+		this.proof_ = proof;
 		this.justifier_ = justifier;
 		this.conclusion_ = conclusion;
 		this.nodeDecorator_ = nodeDecorator;
@@ -62,7 +60,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 		this.visibleNodes_ = HashMultimap.create();
 
-		setModel(new TreeModelInferenceSetAdapter());
+		setModel(new TreeModelProofAdapter());
 
 		setEditable(true);
 
@@ -243,7 +241,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 
 	}
 
-	private class TreeModelInferenceSetAdapter implements TreeModel {
+	private class TreeModelProofAdapter implements TreeModel {
 
 		@Override
 		public Object getRoot() {
@@ -275,7 +273,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends Inference<C>> inferences = inferenceSet_
+					final Collection<? extends Inference<C>> inferences = proof_
 							.getInferences((C) parent);
 					int i = 0;
 					for (final Inference<C> inf : inferences) {
@@ -295,7 +293,8 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 		public int getChildCount(final Object parent) {
 			if (parent instanceof Inference) {
 				final Inference<C> inf = (Inference<C>) parent;
-				return inf.getPremises().size() + justifier_.getJustification(inf).size();
+				return inf.getPremises().size()
+						+ justifier_.getJustification(inf).size();
 			} else {
 				try {
 					/*
@@ -304,7 +303,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Iterator<? extends Inference<C>> inferenceIterator = inferenceSet_
+					final Iterator<? extends Inference<C>> inferenceIterator = proof_
 							.getInferences((C) parent).iterator();
 					int i = 0;
 					while (inferenceIterator.hasNext()) {
@@ -333,7 +332,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends Inference<C>> inferences = inferenceSet_
+					final Collection<? extends Inference<C>> inferences = proof_
 							.getInferences((C) node);
 					return !inferences.iterator().hasNext();
 				} catch (final ClassCastException e) {
@@ -371,7 +370,7 @@ public class InferenceSetTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends Inference<C>> inferences = inferenceSet_
+					final Collection<? extends Inference<C>> inferences = proof_
 							.getInferences((C) parent);
 					int i = 0;
 					for (final Inference<C> inf : inferences) {

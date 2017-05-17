@@ -18,14 +18,14 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.exceptions.ElkRuntimeException;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.entailments.model.Entailment;
 import org.semanticweb.elk.reasoner.entailments.model.EntailmentInference;
-import org.semanticweb.elk.reasoner.entailments.model.EntailmentInferenceSet;
+import org.semanticweb.elk.reasoner.entailments.model.EntailmentProof;
 import org.semanticweb.elk.reasoner.entailments.model.HasReason;
 import org.semanticweb.elk.reasoner.query.ElkQueryException;
 import org.semanticweb.elk.reasoner.query.EntailmentQueryResult;
@@ -91,7 +91,7 @@ public final class Utils {
 	}
 
 	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
-			final InferenceSet<C> inferenceSet,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final Function<Inference<C>, IO> perInference,
 			final Function<C, CO> perConclusion,
@@ -112,7 +112,7 @@ public final class Utils {
 
 			perConclusion.apply(next);
 
-			for (final Inference<C> inf : inferenceSet.getInferences(next)) {
+			for (final Inference<C> inf : proof.getInferences(next)) {
 				perInference.apply(inf);
 
 				for (final A axiom : justifier.getJustification(inf)) {
@@ -299,7 +299,7 @@ public final class Utils {
 	}
 
 	private static void collectReasons(final Entailment goal,
-			final EntailmentInferenceSet evidence,
+			final EntailmentProof evidence,
 			final Collection<Conclusion> result) {
 
 		final Set<Entailment> done = new ArrayHashSet<Entailment>();

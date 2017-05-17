@@ -16,7 +16,7 @@ import javax.swing.tree.TreePath;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.BottomUpJustificationComputation;
 import org.semanticweb.elk.justifications.MinimalSubsetCollector;
@@ -79,7 +79,7 @@ public class ProofBrowser {
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner,
 							conclusion);
-			final InferenceSet<Conclusion> inferenceSet =
+			final Proof<Conclusion> proof =
 					reasoner.explainConclusion(expression);
 			final TracingInferenceJustifier justifier =
 					TracingInferenceJustifier.INSTANCE;
@@ -88,7 +88,7 @@ public class ProofBrowser {
 					new MinimalSubsetCollector<Conclusion, ElkAxiom>(
 							BottomUpJustificationComputation
 							.<Conclusion, ElkAxiom> getFactory(),
-							inferenceSet, justifier);
+							proof, justifier);
 			
 			for (int size = startingSizeLimit; size <= Integer.MAX_VALUE; size++) {
 				
@@ -168,7 +168,7 @@ public class ProofBrowser {
 					}
 				};
 				
-				showProofBrowser(inferenceSet, justifier, expression,
+				showProofBrowser(proof, justifier, expression,
 						"size " + sizeLimit, decorator, toolTipProvider);
 				
 				try {
@@ -207,23 +207,23 @@ public class ProofBrowser {
 	}
 	
 	public static <C, A> void showProofBrowser(
-			final InferenceSet<C> inferenceSet,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion) {
-		showProofBrowser(inferenceSet, justifier, conclusion, null, null, null);
+		showProofBrowser(proof, justifier, conclusion, null, null, null);
 	}
 	
 	public static <C, A> void showProofBrowser(
-			final InferenceSet<C> inferenceSet,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
-		showProofBrowser(inferenceSet, justifier, conclusion, null,
+		showProofBrowser(proof, justifier, conclusion, null,
 				nodeDecorator, toolTipProvider);
 	}
 	
 	public static <C, A> void showProofBrowser(
-			final InferenceSet<C> inferenceSet,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final C conclusion, final String title,
 			final TreeNodeLabelProvider nodeDecorator,
@@ -246,8 +246,8 @@ public class ProofBrowser {
 				}
 				
 				final JScrollPane scrollPane =
-						new JScrollPane(new InferenceSetTreeComponent<C, A>(
-								inferenceSet, justifier, conclusion,
+						new JScrollPane(new ProofTreeComponent<C, A>(
+								proof, justifier, conclusion,
 								nodeDecorator, toolTipProvider));
 				frame.getContentPane().add(scrollPane);
 				

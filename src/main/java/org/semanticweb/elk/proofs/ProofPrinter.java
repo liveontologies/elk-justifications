@@ -11,7 +11,7 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 
 /**
  * A simple pretty printer for proofs using ASCII characters. Due to potential
@@ -31,7 +31,7 @@ public class ProofPrinter<C, A> {
 	/**
 	 * the set of inferences from which the proofs are formed
 	 */
-	private final InferenceSet<C> inferences_;
+	private final Proof<C> inferences_;
 
 	/**
 	 * provides justifications for inferences
@@ -63,17 +63,17 @@ public class ProofPrinter<C, A> {
 	 */
 	private final BufferedWriter writer_;
 
-	protected ProofPrinter(final InferenceSet<C> inferenceSet,
+	protected ProofPrinter(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			BufferedWriter writer) {
-		this.inferences_ = inferenceSet;
+		this.inferences_ = proof;
 		this.justifier_ = justifier;
 		this.writer_ = writer;
 	}
 
-	protected ProofPrinter(final InferenceSet<C> inferenceSet,
+	protected ProofPrinter(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
-		this(inferenceSet, justifier,
+		this(proof, justifier,
 				new BufferedWriter(new OutputStreamWriter(System.out)));
 	}
 
@@ -83,10 +83,10 @@ public class ProofPrinter<C, A> {
 		writer_.flush();
 	}
 
-	public static <C, A> void print(final InferenceSet<C> inferenceSet,
+	public static <C, A> void print(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) throws IOException {
-		ProofPrinter<C, A> pp = new ProofPrinter<>(inferenceSet, justifier);
+		ProofPrinter<C, A> pp = new ProofPrinter<>(proof, justifier);
 		pp.printProof(conclusion);
 	}
 

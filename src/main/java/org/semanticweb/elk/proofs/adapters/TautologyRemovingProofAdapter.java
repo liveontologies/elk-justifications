@@ -7,10 +7,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.DelegatingInferenceSet;
+import org.liveontologies.puli.DelegatingProof;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,12 +18,11 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
 /**
- * An inference set obtained from the given inference set by removing all
- * inferences that derive "tautologies" from non-tautologies. A conclusion
- * counts as a tautology if it is derivable by inferences with the empty
- * justification, i.e., the (only) justification for this conclusion is the
- * empty one. In the resulting inference set, tautologies are derived only from
- * tautologies (by a single inference).
+ * A proof obtained from the given proof by removing all inferences that derive
+ * "tautologies" from non-tautologies. A conclusion counts as a tautology if it
+ * is derivable by inferences with the empty justification, i.e., the (only)
+ * justification for this conclusion is the empty one. In the resulting proof,
+ * tautologies are derived only from tautologies (by a single inference).
  * 
  * @author Yevgeny Kazakov
  *
@@ -33,11 +32,10 @@ import com.google.common.collect.Multimap;
  *            the type of axioms used by the inferences
  * 
  */
-class TautologyRemovingInferenceSetAdapter<C, A>
-		extends DelegatingInferenceSet<C, InferenceSet<C>> {
+class TautologyRemovingProofAdapter<C, A> extends DelegatingProof<C, Proof<C>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(TautologyRemovingInferenceSetAdapter.class);
+			.getLogger(TautologyRemovingProofAdapter.class);
 
 	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
@@ -69,9 +67,9 @@ class TautologyRemovingInferenceSetAdapter<C, A>
 	 */
 	private final Set<C> doneInit_ = new HashSet<C>();
 
-	TautologyRemovingInferenceSetAdapter(final InferenceSet<C> inferenceSet,
+	TautologyRemovingProofAdapter(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
-		super(inferenceSet);
+		super(proof);
 		this.justifier_ = justifier;
 	}
 

@@ -10,19 +10,19 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-import org.liveontologies.puli.BaseInferenceSet;
-import org.liveontologies.puli.GenericInferenceSet;
+import org.liveontologies.puli.BaseProof;
+import org.liveontologies.puli.GenericProof;
 import org.liveontologies.puli.Inference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An inference set obtained from the given inference set by eliminating cyclic
- * inferences of length 1 and 2. An inference is cyclic of length 1 if one of
- * the premises of the inferences is the same as its conclusion. An inference is
- * cyclic of length 2 if there is a premise such that all inferences in the
- * original inference set that produce this premise use the conclusion of the
- * inference as one of the premises.
+ * A proof obtained from the given proof by eliminating cyclic inferences of
+ * length 1 and 2. An inference is cyclic of length 1 if one of the premises of
+ * the inferences is the same as its conclusion. An inference is cyclic of
+ * length 2 if there is a premise such that all inferences in the original proof
+ * that produce this premise use the conclusion of the inference as one of the
+ * premises.
  * 
  * @author Yevgeny Kazakov
  *
@@ -34,15 +34,16 @@ import org.slf4j.LoggerFactory;
  *            the type of axioms used by the inferences
  * 
  */
-class CycleRemovingInferenceSetAdapter<C, I extends Inference<C>> extends BaseInferenceSet<C, I> {
+class CycleRemovingProofAdapter<C, I extends Inference<C>>
+		extends BaseProof<C, I> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(CycleRemovingInferenceSetAdapter.class);
+			.getLogger(CycleRemovingProofAdapter.class);
 
 	/**
 	 * inferences that are filtered
 	 */
-	private final GenericInferenceSet<C, I> originalInferences_;
+	private final GenericProof<C, I> originalInferences_;
 
 	/**
 	 * conclusions for which to process inferences recursively
@@ -63,12 +64,11 @@ class CycleRemovingInferenceSetAdapter<C, I extends Inference<C>> extends BaseIn
 
 	/**
 	 * the inferences that are (no longer) blocked as a result of adding other
-	 * (unblocked) inferences to this inference set
+	 * (unblocked) inferences to this proof
 	 */
 	private final Queue<I> unblocked_ = new LinkedList<I>();
 
-	CycleRemovingInferenceSetAdapter(
-			final GenericInferenceSet<C, I> originalInferences) {
+	CycleRemovingProofAdapter(final GenericProof<C, I> originalInferences) {
 		this.originalInferences_ = originalInferences;
 	}
 
@@ -88,8 +88,7 @@ class CycleRemovingInferenceSetAdapter<C, I extends Inference<C>> extends BaseIn
 	private void process() {
 		C conclusion;
 		while ((conclusion = toDoConclusions_.poll()) != null) {
-			for (final I inf : originalInferences_
-					.getInferences(conclusion)) {
+			for (final I inf : originalInferences_.getInferences(conclusion)) {
 				process(inf);
 			}
 		}
@@ -102,8 +101,7 @@ class CycleRemovingInferenceSetAdapter<C, I extends Inference<C>> extends BaseIn
 		checkBlocked(next);
 		while ((next = unblocked_.poll()) != null) {
 			produce(next);
-			final List<I> blockedByNext = blocked_
-					.remove(next.getConclusion());
+			final List<I> blockedByNext = blocked_.remove(next.getConclusion());
 			if (blockedByNext == null) {
 				continue;
 			}

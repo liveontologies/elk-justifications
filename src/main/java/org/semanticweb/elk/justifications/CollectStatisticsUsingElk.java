@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -27,7 +27,7 @@ import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
 import org.semanticweb.elk.proofs.TracingInferenceJustifier;
-import org.semanticweb.elk.proofs.adapters.InferenceSets;
+import org.semanticweb.elk.proofs.adapters.Proofs;
 import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
@@ -156,7 +156,7 @@ public class CollectStatisticsUsingElk {
 		
 		final Conclusion expression = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner, conclusion);
-		final InferenceSet<Conclusion> inferenceSet =
+		final Proof<Conclusion> proof =
 				reasoner.explainConclusion(expression);
 		final TracingInferenceJustifier justifier =
 				TracingInferenceJustifier.INSTANCE;
@@ -168,7 +168,7 @@ public class CollectStatisticsUsingElk {
 		final Set<Inference<Conclusion>> inferences =
 				new HashSet<Inference<Conclusion>>();
 		
-		Utils.traverseProofs(expression, inferenceSet, justifier,
+		Utils.traverseProofs(expression, proof, justifier,
 				new Function<Inference<Conclusion>, Void>() {
 					@Override
 					public Void apply(
@@ -202,14 +202,14 @@ public class CollectStatisticsUsingElk {
 		stats.flush();
 		
 		final boolean hasCycle =
-				InferenceSets.hasCycle(inferenceSet, expression);
+				Proofs.hasCycle(proof, expression);
 		stats.print(",");
 		stats.print(hasCycle);
 		stats.flush();
 		
 		final StronglyConnectedComponents<Conclusion> components =
 				StronglyConnectedComponentsComputation.computeComponents(
-						inferenceSet, expression);
+						proof, expression);
 		
 		final List<List<Conclusion>> comps = components.getComponents();
 		final List<Conclusion> maxComp =

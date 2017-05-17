@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.justifications.PriorityComparators;
 
 public class MinimalSubsetCollector<C, A> {
@@ -19,11 +19,10 @@ public class MinimalSubsetCollector<C, A> {
 	private final CancellableMonitor monitor_ = new CancellableMonitor();
 
 	public MinimalSubsetCollector(
-			final MinimalSubsetsFromInferences.Factory<C, A> factory,
-			final InferenceSet<C> inferenceSet,
+			final MinimalSubsetsFromProofs.Factory<C, A> factory,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
-		this.enumeratorFactory_ = factory.create(inferenceSet, justifier,
-				monitor_);
+		this.enumeratorFactory_ = factory.create(proof, justifier, monitor_);
 	}
 
 	public Collection<? extends Set<A>> collect(final C query,

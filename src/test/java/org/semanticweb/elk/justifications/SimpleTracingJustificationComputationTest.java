@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 
@@ -21,7 +21,7 @@ public class SimpleTracingJustificationComputationTest
 	}
 
 	public SimpleTracingJustificationComputationTest(
-			final MinimalSubsetsFromInferences.Factory<Conclusion, ElkAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<Conclusion, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
 		super(factory, ontoFile, entailFilesPerJustFile);

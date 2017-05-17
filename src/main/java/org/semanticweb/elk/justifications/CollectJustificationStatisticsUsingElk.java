@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
@@ -142,7 +142,7 @@ public class CollectJustificationStatisticsUsingElk {
 							final Conclusion expression = Utils
 									.getFirstDerivedConclusionForSubsumption(
 											reasoner, conclusion);
-							final InferenceSet<Conclusion> inferenceSet =
+							final Proof<Conclusion> proof =
 									reasoner.explainConclusion(expression);
 							final TracingInferenceJustifier justifier =
 									TracingInferenceJustifier.INSTANCE;
@@ -151,7 +151,7 @@ public class CollectJustificationStatisticsUsingElk {
 									new MinimalSubsetCollector<Conclusion, ElkAxiom>(
 											BottomUpJustificationComputation
 											.<Conclusion, ElkAxiom> getFactory(),
-											inferenceSet, justifier);
+											proof, justifier);
 							
 							final int sizeLimit = justificationSizeLimit <= 0
 									? Integer.MAX_VALUE
@@ -160,7 +160,7 @@ public class CollectJustificationStatisticsUsingElk {
 							final List<Long> productSum = Arrays.asList(0l);
 							final List<Long> minProductSum = Arrays.asList(0l);
 							final List<Long> minSum = Arrays.asList(0l);
-							Utils.traverseProofs(expression, inferenceSet,
+							Utils.traverseProofs(expression, proof,
 									justifier,
 									new Function<Inference<Conclusion>, Void>() {
 										@Override

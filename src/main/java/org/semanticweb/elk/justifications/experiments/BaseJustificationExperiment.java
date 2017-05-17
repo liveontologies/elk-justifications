@@ -5,21 +5,21 @@ import java.lang.reflect.Method;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stats;
 
 public abstract class BaseJustificationExperiment<C, A>
 		implements JustificationExperiment {
 
-	private MinimalSubsetsFromInferences.Factory<C, A> factory_;
+	private MinimalSubsetsFromProofs.Factory<C, A> factory_;
 
 	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
 	private volatile C goal_;
-	private volatile InferenceSet<C> inferenceSet_;
+	private volatile Proof<C> proof_;
 	private volatile InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
 	private final JustificationCounter justificationCounter_ = new JustificationCounter();
@@ -40,7 +40,7 @@ public abstract class BaseJustificationExperiment<C, A>
 					.forName(computationClassName);
 			final Method getFactory = computationClass.getMethod("getFactory");
 			@SuppressWarnings("unchecked")
-			final MinimalSubsetsFromInferences.Factory<C, A> factory = (MinimalSubsetsFromInferences.Factory<C, A>) getFactory
+			final MinimalSubsetsFromProofs.Factory<C, A> factory = (MinimalSubsetsFromProofs.Factory<C, A>) getFactory
 					.invoke(null);
 			factory_ = factory;
 		} catch (final ClassNotFoundException e) {
@@ -67,7 +67,7 @@ public abstract class BaseJustificationExperiment<C, A>
 		}
 
 		goal_ = decodeQuery(query);
-		inferenceSet_ = newInferenceSet(goal_);
+		proof_ = newProof(goal_);
 		justifier_ = newJustifier();
 
 		return query;
@@ -76,15 +76,14 @@ public abstract class BaseJustificationExperiment<C, A>
 	@Override
 	public void run(final InterruptMonitor monitor) throws ExperimentException {
 
-		computation_ = factory_.create(inferenceSet_, justifier_, monitor);
+		computation_ = factory_.create(proof_, justifier_, monitor);
 		computation_.newEnumerator(goal_).enumerate(justificationCounter_);
 
 	}
 
 	protected abstract C decodeQuery(String query) throws ExperimentException;
 
-	protected abstract InferenceSet<C> newInferenceSet(C query)
-			throws ExperimentException;
+	protected abstract Proof<C> newProof(C query) throws ExperimentException;
 
 	protected abstract InferenceJustifier<C, ? extends Set<? extends A>> newJustifier()
 			throws ExperimentException;

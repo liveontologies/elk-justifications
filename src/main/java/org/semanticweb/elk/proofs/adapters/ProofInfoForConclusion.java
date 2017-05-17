@@ -9,23 +9,23 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A convenience class for collecting basic information about the inferences
- * that used for deriving a given conclusion within a given inference set.
+ * that are used for deriving a given conclusion within a given proof.
  * 
  * @author Yevgeny Kazakov
  *
  * @param <C>
  * @param <A>
  */
-public class InferenceSetInfoForConclusion<C, A> {
+public class ProofInfoForConclusion<C, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(InferenceSetInfoForConclusion.class);
+			.getLogger(ProofInfoForConclusion.class);
 
 	private final Set<C> usedConclusions_ = new HashSet<>();
 	private final Set<A> usedAxioms_ = new HashSet<>();
@@ -33,13 +33,13 @@ public class InferenceSetInfoForConclusion<C, A> {
 
 	private final Queue<C> toDo_ = new LinkedList<C>();
 
-	private final InferenceSet<C> inferences_;
+	private final Proof<C> inferences_;
 	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
 
-	InferenceSetInfoForConclusion(final InferenceSet<C> inferenceSet,
+	ProofInfoForConclusion(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			C conclusion) {
-		this.inferences_ = inferenceSet;
+		this.inferences_ = proof;
 		this.justifier_ = justifier;
 		toDo(conclusion);
 		process();

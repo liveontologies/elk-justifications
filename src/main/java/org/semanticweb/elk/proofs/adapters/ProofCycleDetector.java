@@ -7,29 +7,29 @@ import java.util.LinkedList;
 import java.util.Set;
 
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A convenience class for checking whether there are cyclic proofs for given
- * conclusions in the given inference set. A proof is cyclic if some conclusion
- * in the proof can be derived from itself. Cycle detection is performed by
- * descending over inferences in depth-first manner.
+ * conclusions in the given proof. A proof is cyclic if some conclusion in the
+ * proof can be derived from itself. Cycle detection is performed by descending
+ * over inferences in depth-first manner.
  * 
  * @author Yevgeny Kazakov
  *
  * @param <C>
  */
-public class InferenceSetCycleDetector<C> {
+public class ProofCycleDetector<C> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(InferenceSetCycleDetector.class);
+			.getLogger(ProofCycleDetector.class);
 
 	/**
 	 * inferences that are filtered
 	 */
-	private final InferenceSet<C> originalInferences_;
+	private final Proof<C> originalInferences_;
 
 	/**
 	 * verified conclusions with cyclic proofs will be collected here
@@ -57,16 +57,16 @@ public class InferenceSetCycleDetector<C> {
 	 */
 	private final Deque<InferenceRecord<C>> inferenceStack_ = new LinkedList<InferenceRecord<C>>();
 
-	InferenceSetCycleDetector(final InferenceSet<C> originalInferences) {
+	ProofCycleDetector(final Proof<C> originalInferences) {
 		this.originalInferences_ = originalInferences;
 	}
 
 	/**
 	 * @param conclusion
 	 * @return {@code true} if there exists a cyclic proof for the conclusion in
-	 *         this inference set and {@code false} otherwise; a proof is cyclic
-	 *         if some of the premises in the proof can be derived from itself
-	 *         using the inferences in this inference set
+	 *         this proof and {@code false} otherwise; a proof is cyclic if some
+	 *         of the premises in the proof can be derived from itself using the
+	 *         inferences in this proof
 	 */
 	public boolean hasCyclicProofFor(C conclusion) {
 		if (visitedNonCyclic_.contains(conclusion)) {
@@ -170,10 +170,9 @@ public class InferenceSetCycleDetector<C> {
 
 		private final Iterator<? extends Inference<C>> inferenceIterator_;
 
-		ConclusionRecord(final InferenceSet<C> inferenceSet,
-				final C conclusion) {
+		ConclusionRecord(final Proof<C> proof, final C conclusion) {
 			this.conclusion_ = conclusion;
-			this.inferenceIterator_ = inferenceSet.getInferences(conclusion)
+			this.inferenceIterator_ = proof.getInferences(conclusion)
 					.iterator();
 		}
 

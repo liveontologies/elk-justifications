@@ -13,13 +13,13 @@ import java.util.Set;
 import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.collections.BloomTrieCollection2;
 import org.liveontologies.puli.collections.Collection2;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.justifications.PriorityComparator;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
@@ -39,12 +39,12 @@ import com.google.common.collect.Iterators;
  *            the type of axioms used by the inferences
  */
 public class TopDownJustificationComputation<C, A>
-		extends MinimalSubsetsFromInferences<C, A> {
+		extends MinimalSubsetsFromProofs<C, A> {
 
 	private static final TopDownJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
+	public static <C, A> MinimalSubsetsFromProofs.Factory<C, A> getFactory() {
 		return (Factory<C, A>) FACTORY_;
 	}
 
@@ -57,16 +57,15 @@ public class TopDownJustificationComputation<C, A>
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
 			expansionCount_ = 0, expandedInferencesCount_ = 0;
 
-	private TopDownJustificationComputation(final InferenceSet<C> inferenceSet,
+	private TopDownJustificationComputation(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferenceSet, justifier, monitor);
+		super(proof, justifier, monitor);
 		this.rank_ = new Comparator<C>() {
 			@Override
 			public int compare(final C first, final C second) {
-				int result = Integer.compare(
-						inferenceSet.getInferences(first).size(),
-						inferenceSet.getInferences(second).size());
+				int result = Integer.compare(proof.getInferences(first).size(),
+						proof.getInferences(second).size());
 				if (result != 0) {
 					return result;
 				}
@@ -355,15 +354,15 @@ public class TopDownJustificationComputation<C, A>
 	 *            the type of axioms used by the inferences
 	 */
 	private static class Factory<C, A>
-			implements MinimalSubsetsFromInferences.Factory<C, A> {
+			implements MinimalSubsetsFromProofs.Factory<C, A> {
 
 		@Override
 		public MinimalSubsetEnumerator.Factory<C, A> create(
-				final InferenceSet<C> inferenceSet,
+				final Proof<C> proof,
 				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
-			return new TopDownJustificationComputation<>(inferenceSet,
-					justifier, monitor);
+			return new TopDownJustificationComputation<>(proof, justifier,
+					monitor);
 		}
 
 	}

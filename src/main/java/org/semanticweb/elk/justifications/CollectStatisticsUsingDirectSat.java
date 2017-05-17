@@ -17,9 +17,9 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
-import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
-import org.semanticweb.elk.proofs.adapters.InferenceSets;
+import org.liveontologies.puli.Proof;
+import org.semanticweb.elk.proofs.adapters.DirectSatEncodingProofAdapter;
+import org.semanticweb.elk.proofs.adapters.Proofs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,7 @@ public class CollectStatisticsUsingDirectSat {
 			Utils.recursiveDelete(recordFile);
 		}
 
-		final InferenceJustifier<Integer, ? extends Set<? extends Integer>> justifier = DirectSatEncodingInferenceSetAdapter.JUSTIFIER;
+		final InferenceJustifier<Integer, ? extends Set<? extends Integer>> justifier = DirectSatEncodingProofAdapter.JUSTIFIER;
 
 		final File[] queryDirs = new File(inputDirName).listFiles();
 		Arrays.sort(queryDirs);
@@ -104,10 +104,10 @@ public class CollectStatisticsUsingDirectSat {
 					assumptions = new FileInputStream(new File(queryDir,
 							ENCODING_NAME + SUFFIX_ASSUMPTIONS));
 
-					final InferenceSet<Integer> inferenceSet = DirectSatEncodingInferenceSetAdapter
+					final Proof<Integer> proof = DirectSatEncodingProofAdapter
 							.load(assumptions, cnf);
 
-					collectStatistics(question, inferenceSet, justifier, stats);
+					collectStatistics(question, proof, justifier, stats);
 
 				} catch (final IOException e) {
 					LOG.error("Error while reading the query dir!", e);
@@ -131,7 +131,7 @@ public class CollectStatisticsUsingDirectSat {
 	}
 
 	private static <C, A> void collectStatistics(final C expression,
-			final InferenceSet<C> inferenceSet,
+			final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final PrintWriter stats) {
 
@@ -139,7 +139,7 @@ public class CollectStatisticsUsingDirectSat {
 		final Set<C> lemmaExprs = new HashSet<C>();
 		final Set<Inference<C>> inferences = new HashSet<Inference<C>>();
 
-		Utils.traverseProofs(expression, inferenceSet, justifier,
+		Utils.traverseProofs(expression, proof, justifier,
 				new Function<Inference<C>, Void>() {
 					@Override
 					public Void apply(final Inference<C> inf) {
@@ -168,14 +168,13 @@ public class CollectStatisticsUsingDirectSat {
 		stats.print(inferences.size());
 		stats.flush();
 
-		final boolean hasCycle = InferenceSets.hasCycle(inferenceSet,
-				expression);
+		final boolean hasCycle = Proofs.hasCycle(proof, expression);
 		stats.print(",");
 		stats.print(hasCycle);
 		stats.flush();
 
 		final StronglyConnectedComponents<C> components = StronglyConnectedComponentsComputation
-				.computeComponents(inferenceSet, expression);
+				.computeComponents(proof, expression);
 
 		final List<List<C>> comps = components.getComponents();
 		final List<C> maxComp = Collections.max(comps, SIZE_COMPARATOR);

@@ -8,7 +8,7 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +20,7 @@ public class ConclusionDepthComputation<C> {
 	private final static Logger LOGGER_ = LoggerFactory
 			.getLogger(ConclusionDepthComputation.class);
 
-	private final InferenceSet<C> inferences_;
+	private final Proof<C> inferences_;
 
 	private final Map<C, Integer> depth_ = new HashMap<>();
 
@@ -33,7 +33,7 @@ public class ConclusionDepthComputation<C> {
 
 	private final Set<C> done_ = new HashSet<>();
 
-	public ConclusionDepthComputation(InferenceSet<C> inferences) {
+	public ConclusionDepthComputation(Proof<C> inferences) {
 		this.inferences_ = inferences;
 	}
 

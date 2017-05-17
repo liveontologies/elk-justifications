@@ -6,9 +6,9 @@ import java.io.InputStream;
 import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.justifications.Utils;
-import org.semanticweb.elk.proofs.adapters.DirectSatEncodingInferenceSetAdapter;
+import org.semanticweb.elk.proofs.adapters.DirectSatEncodingProofAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,7 @@ public class DirectSatJustificationExperiment
 	}
 
 	@Override
-	protected InferenceSet<Integer> newInferenceSet(final Integer query)
+	protected Proof<Integer> newProof(final Integer query)
 			throws ExperimentException {
 
 		InputStream cnf = null;
@@ -59,7 +59,7 @@ public class DirectSatJustificationExperiment
 
 			LOG.info("Loading CNF ...");
 			final long start = System.currentTimeMillis();
-			final InferenceSet<Integer> result = DirectSatEncodingInferenceSetAdapter
+			final Proof<Integer> result = DirectSatEncodingProofAdapter
 					.load(assumptions, cnf);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
@@ -78,7 +78,7 @@ public class DirectSatJustificationExperiment
 	@Override
 	protected InferenceJustifier<Integer, ? extends Set<? extends Integer>> newJustifier()
 			throws ExperimentException {
-		return DirectSatEncodingInferenceSetAdapter.JUSTIFIER;
+		return DirectSatEncodingProofAdapter.JUSTIFIER;
 	}
 
 }

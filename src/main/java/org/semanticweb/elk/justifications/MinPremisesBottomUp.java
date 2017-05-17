@@ -12,11 +12,11 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.justifications.AbstractMinimalSubsetEnumerator;
 import org.liveontologies.puli.justifications.InterruptMonitor;
 import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromInferences;
+import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.justifications.PriorityComparator;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.ResetStats;
@@ -38,8 +38,7 @@ import com.google.common.collect.Multimap;
  * @param <C>
  * @param <A>
  */
-public class MinPremisesBottomUp<C, A>
-		extends MinimalSubsetsFromInferences<C, A> {
+public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(MinPremisesBottomUp.class);
@@ -70,10 +69,10 @@ public class MinPremisesBottomUp<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0, countBlocked_ = 0;
 
-	private MinPremisesBottomUp(final InferenceSet<C> inferenceSet,
+	private MinPremisesBottomUp(final Proof<C> proof,
 			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
-		super(inferenceSet, justifier, monitor);
+		super(proof, justifier, monitor);
 	}
 
 	private void reset() {
@@ -139,7 +138,7 @@ public class MinPremisesBottomUp<C, A>
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> MinimalSubsetsFromInferences.Factory<C, A> getFactory() {
+	public static <C, A> MinimalSubsetsFromProofs.Factory<C, A> getFactory() {
 		return (Factory<C, A>) FACTORY_;
 	}
 
@@ -461,14 +460,14 @@ public class MinPremisesBottomUp<C, A>
 	 *            the type of axioms used by the inferences
 	 */
 	private static class Factory<C, A>
-			implements MinimalSubsetsFromInferences.Factory<C, A> {
+			implements MinimalSubsetsFromProofs.Factory<C, A> {
 
 		@Override
 		public MinimalSubsetEnumerator.Factory<C, A> create(
-				final InferenceSet<C> inferenceSet,
+				final Proof<C> proof,
 				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
-			return new MinPremisesBottomUp<>(inferenceSet, justifier, monitor);
+			return new MinPremisesBottomUp<>(proof, justifier, monitor);
 		}
 
 	}

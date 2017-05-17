@@ -20,7 +20,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceSet;
+import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
@@ -75,7 +75,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		final ArgumentParser parser = ArgumentParsers
 				.newArgumentParser(
 						DirectSatEncodingUsingElkCsvQuery.class.getSimpleName())
-				.description("Export inference sets into *.wcnf files.");
+				.description("Export proofs into *.wcnf files.");
 		parser.addArgument(ONTOLOGY_OPT)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())
 				.help("ontology file");
@@ -196,14 +196,14 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner, query);
-			final InferenceSet<Conclusion> inferenceSet = reasoner
+			final Proof<Conclusion> proof = reasoner
 					.explainConclusion(expression);
 			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 			final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
 			final Set<Conclusion> conclusions = new HashSet<Conclusion>();
 
-			Utils.traverseProofs(expression, inferenceSet, justifier,
+			Utils.traverseProofs(expression, proof, justifier,
 					Functions.<Inference<Conclusion>> identity(),
 					new Function<Conclusion, Void>() {
 						@Override
@@ -232,7 +232,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			}
 
 			// cnf
-			Utils.traverseProofs(expression, inferenceSet, justifier,
+			Utils.traverseProofs(expression, proof, justifier,
 					new Function<Inference<Conclusion>, Void>() {
 						@Override
 						public Void apply(final Inference<Conclusion> inf) {
