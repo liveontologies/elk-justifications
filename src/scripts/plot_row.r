@@ -194,6 +194,8 @@ if (length(files) != length(titles)) {
 #size = 5
 size = 1.61
 footerRatio = 0.15
+#size = 1.61*1.7
+#footerRatio = 0.15/1.7
 
 pdf(width=length(titles)*size, height=size * (1 + footerRatio))
 colors = c("red", "green3", "blue", "magenta")
@@ -202,6 +204,7 @@ lineTypes = c("44", "1343", "73", "2262")
 #library(tikzDevice)
 
 #tikz(file="plot-resolution-strategies.tex", width=length(titles)*size, height=size * (1 + footerRatio))
+#tikz(file="plot-resolution-strategies.tex", width=length(titles)*size, height=size)
 #colors = c("red", "blue", "green3")
 #lineTypes = c("44", "73", "1343")
 #../src/scripts/plot_row.r '\textsc{GO-Plus}' '\textsc{Galen}' '\textsc{Snomed}' -- BottomUp results/final/17-04-11.go-plus.resolution.bottomup.dell.elk.record.csv results/final/17-04-11.galen7.resolution.bottomup.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.bottomup.dell.elk.record.csv TopDown results/final/17-04-11.go-plus.resolution.topdown.dell.elk.record.csv results/final/17-04-11.galen7.resolution.topdown.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.topdown.dell.elk.record.csv Threshold results/final/17-04-11.go-plus.resolution.threshold.dell.elk.record.csv results/final/17-04-11.galen7.resolution.threshold.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.threshold.dell.elk.record.csv
@@ -216,6 +219,7 @@ lineTypes = c("44", "1343", "73", "2262")
 #../src/scripts/plot_row.r '\textsc{GO-Plus}' '\textsc{Galen}' '\textsc{Snomed}' -- "EL2MUS \ensuremath{\mathsf{elk}}" results/final/17-04-04.go-plus.el2mus.dell.elk.record.csv results/final/17-04-04.galen7.el2mus.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mus.dell.elk.record.csv "EL2MUS \ensuremath{\mathsf{sat}}" results/final/17-03-28.go-plus.el2mus.dell.sat.record.csv results/final/17-03-15.galen7.el2mus.dell.sat.record.csv results/final/17-04-11.snomed2015.el2mus.dell.sat.record.csv
 
 #tikz(file="plot-allalgs-elkinfs.tex", width=length(titles)*size, height=size * (1 + footerRatio))
+#tikz(file="plot-allalgs-elkinfs.tex", width=length(titles)*size, height=size)
 #colors = c("magenta", "red", "blue", "green3")
 #lineTypes = c("121242", "44", "73", "1343")
 #../src/scripts/plot_row.r '\textsc{GO-Plus}' '\textsc{Galen}' '\textsc{Snomed}' -- SATPin results/final/17-04-12.go-plus.SATPin.dell.elk.record.csv results/final/17-04-12.galen7.SATPin.dell.elk.record.csv results/final/17-04-12.snomed2015.SATPin.dell.elk.record.csv EL2MCS results/final/17-04-04.go-plus.el2mcs.dell.elk.record.csv results/final/17-04-04.galen7.el2mcs.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mcs.dell.elk.record.csv EL2MUS results/final/17-04-04.go-plus.el2mus.dell.elk.record.csv results/final/17-04-04.galen7.el2mus.dell.elk.record.csv results/final/17-04-11.snomed2015.el2mus.dell.elk.record.csv Threshold results/final/17-04-11.go-plus.resolution.threshold.dell.elk.record.csv results/final/17-04-11.galen7.resolution.threshold.dell.elk.record.csv results/final/17-04-11.snomed2015.resolution.threshold.dell.elk.record.csv
@@ -236,6 +240,7 @@ while (colIndex <= length(titles)) {
 	print(titles[colIndex])
 	print(fileArray[colIndex,])
 	par(fig=c((colIndex-1) / length(titles), colIndex / length(titles), footerRatio, 1), new=TRUE)
+#	par(fig=c((colIndex-1) / length(titles), colIndex / length(titles), 0, 1), new=TRUE)
 	plot.results(fileArray[colIndex,], isFirst=isFirst, main=titles[colIndex],
 			colors=colors, lineTypes=lineTypes, pixels.in.plot.size=pixelsInSize)
 	colIndex = colIndex + 1
