@@ -84,9 +84,10 @@ public class CollectStatisticsUsingElk {
 					+ "nAxiomsInAllProofs,"
 					+ "nConclusionsInAllProofs,"
 					+ "nInferencesInAllProofs,"
-					+ "isCycleInInferenceGraph,"
-					+ "sizeOfMaxComponentInInferenceGraph,"
-					+ "nNonSingletonComponentsInInferenceGraph");
+//					+ "isCycleInInferenceGraph,"
+//					+ "sizeOfMaxComponentInInferenceGraph,"
+//					+ "nNonSingletonComponentsInInferenceGraph,"
+					+ "time");
 			
 			conclusionReader =
 					new BufferedReader(new FileReader(conclusionsFileName));
@@ -110,7 +111,7 @@ public class CollectStatisticsUsingElk {
 
 						});
 				
-				LOG.debug("Collecting statistics for {}", conclusion);
+				LOG.info("Collecting statistics for {} ...", conclusion);
 				
 				stats.print("\"");
 				stats.print(line);
@@ -153,6 +154,8 @@ public class CollectStatisticsUsingElk {
 	private static void collectStatistics(final ElkSubClassOfAxiom conclusion,
 			final Reasoner reasoner, final PrintWriter stats)
 					throws ElkException {
+		
+		final long startNanos = System.nanoTime();
 		
 		final Conclusion expression = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner, conclusion);
@@ -201,31 +204,36 @@ public class CollectStatisticsUsingElk {
 		stats.print(inferences.size());
 		stats.flush();
 		
-		final boolean hasCycle =
-				Proofs.hasCycle(proof, expression);
-		stats.print(",");
-		stats.print(hasCycle);
-		stats.flush();
+//		final boolean hasCycle =
+//				Proofs.hasCycle(proof, expression);
+//		stats.print(",");
+//		stats.print(hasCycle);
+//		stats.flush();
+//		
+//		final StronglyConnectedComponents<Conclusion> components =
+//				StronglyConnectedComponentsComputation.computeComponents(
+//						proof, expression);
+//		
+//		final List<List<Conclusion>> comps = components.getComponents();
+//		final List<Conclusion> maxComp =
+//				Collections.max(comps, SIZE_COMPARATOR);
+//		stats.print(",");
+//		stats.print(maxComp.size());
+//		
+//		final Collection<List<Conclusion>> nonSingletonComps =
+//				Collections2.filter(comps, new Predicate<List<Conclusion>>() {
+//			@Override
+//			public boolean apply(final List<Conclusion> comp) {
+//				return comp.size() > 1;
+//			}
+//		});
+//		stats.print(",");
+//		stats.print(nonSingletonComps.size());
 		
-		final StronglyConnectedComponents<Conclusion> components =
-				StronglyConnectedComponentsComputation.computeComponents(
-						proof, expression);
-		
-		final List<List<Conclusion>> comps = components.getComponents();
-		final List<Conclusion> maxComp =
-				Collections.max(comps, SIZE_COMPARATOR);
+		final long runTimeNanos = System.nanoTime() - startNanos;
+		LOG.info("... took {}s", runTimeNanos / 1000000000.0);
 		stats.print(",");
-		stats.print(maxComp.size());
-		
-		final Collection<List<Conclusion>> nonSingletonComps =
-				Collections2.filter(comps, new Predicate<List<Conclusion>>() {
-			@Override
-			public boolean apply(final List<Conclusion> comp) {
-				return comp.size() > 1;
-			}
-		});
-		stats.print(",");
-		stats.print(nonSingletonComps.size());
+		stats.print(runTimeNanos / 1000000.0);
 		
 		stats.println();
 		stats.flush();

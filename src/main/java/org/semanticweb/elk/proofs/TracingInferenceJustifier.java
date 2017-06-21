@@ -37,7 +37,6 @@ public class TracingInferenceJustifier
 		// else
 		final TracingInference tracingInference = (TracingInference) inference;
 		final Set<ElkAxiom> result = new HashSet<ElkAxiom>();
-		new ElkAxiomCollector(result);
 		tracingInference.accept(new TracingInferencePremiseVisitor<>(
 				CONCLUSION_FACTORY_, DUMMY_CONCLUSION_VISITOR_,
 				new ElkAxiomCollector(result)));
