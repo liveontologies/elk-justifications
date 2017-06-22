@@ -21,6 +21,7 @@ import org.liveontologies.puli.justifications.ResolutionJustificationComputation
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stat;
 import org.liveontologies.puli.statistics.Stats;
+import org.semanticweb.elk.justifications.RunJustificationExperiments;
 import org.semanticweb.elk.justifications.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private volatile C goal_;
 	private volatile Proof<C> proof_;
 	private volatile InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
+	private volatile long runStartTimeNanos_;
 
 	private JustificationCounter justificationListener_;
 
@@ -60,6 +62,12 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private double obtainingInferencesTimeMillis_;
 	private double firstQuartileJustSize_, medianJustSize_, meanJustSize_,
 			thirdQuartileJustSize_;
+	@Stat
+	public String just1Time;
+	@Stat
+	public String just2Time;
+	@Stat
+	public String justHalfTime;
 
 	@Override
 	public final void init(final String[] args) throws ExperimentException {
@@ -142,13 +150,14 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		proof_ = newProof(goal_);
 		justifier_ = newJustifier();
 		obtainingInferencesTimeMillis_ = (System.nanoTime() - startTimeNanos)
-				/ 1000000.0;
+				/ RunJustificationExperiments.NANOS_IN_MILLIS;
 
 		return query;
 	}
 
 	@Override
 	public void run(final InterruptMonitor monitor) throws ExperimentException {
+		runStartTimeNanos_ = System.nanoTime();
 
 		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
 				.create(proof_, justifier_, monitor, selectionFactory_);
@@ -166,7 +175,26 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	@Override
 	public void after() throws ExperimentException {
 
-		computeStats(justificationListener_.getSizes());
+		computeJustStats(justificationListener_.getSizes());
+
+		final List<Long> justTimes = justificationListener_.getTimes();
+		if (justTimes != null && justTimes.size() >= 1) {
+			just1Time = "" + ((justTimes.get(0) - runStartTimeNanos_)
+					/ RunJustificationExperiments.NANOS_IN_MILLIS);
+			if (justTimes.size() >= 2) {
+				just2Time = "" + ((justTimes.get(1) - runStartTimeNanos_)
+						/ RunJustificationExperiments.NANOS_IN_MILLIS);
+			}
+			final int halfIndex;
+			final int size = justTimes.size();
+			if (size % 2 == 0) {
+				halfIndex = size / 2 - 1;
+			} else {
+				halfIndex = size / 2;
+			}
+			justHalfTime = "" + ((justTimes.get(halfIndex) - runStartTimeNanos_)
+					/ RunJustificationExperiments.NANOS_IN_MILLIS);
+		}
 
 		if (outputDir_ == null) {
 			return;
@@ -208,7 +236,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		return justificationListener_.getCount();
 	}
 
-	@NestedStats
+	@NestedStats(name = "ResolutionJustificationComputation")
 	public MinimalSubsetEnumerator.Factory<C, A> getJustificationComputation() {
 		return computation_;
 	}
@@ -218,9 +246,11 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 		private volatile int count_ = 0;
 		private final List<Integer> justSizes_ = new ArrayList<>();
+		private final List<Long> justTimes_ = new ArrayList<>();
 
 		@Override
 		public void newMinimalSubset(final Set<A> justification) {
+			justTimes_.add(System.nanoTime());
 			count_++;
 			justSizes_.add(justification.size());
 		}
@@ -237,9 +267,14 @@ public abstract class ResolutionJustificationExperiment<C, A>
 			return justSizes_;
 		}
 
+		public List<Long> getTimes() {
+			return justTimes_;
+		}
+
 		public void reset() {
 			count_ = 0;
 			justSizes_.clear();
+			justTimes_.clear();
 		}
 
 	}
@@ -304,9 +339,10 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private void resetStats() {
 		minJustSizeize_ = maxJustSize_ = 0;
 		firstQuartileJustSize_ = medianJustSize_ = meanJustSize_ = thirdQuartileJustSize_ = 0.0;
+		just1Time = just2Time = justHalfTime = "";
 	}
 
-	private void computeStats(final List<Integer> sizes) {
+	private void computeJustStats(final List<Integer> sizes) {
 
 		if (sizes == null || sizes.isEmpty()) {
 			resetStats();

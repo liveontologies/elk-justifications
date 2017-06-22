@@ -312,8 +312,7 @@ public class RunJustificationExperiments {
 				final Map<String, Object> stats = Stats.copyIntoMap(experiment,
 						new TreeMap<String, Object>());
 				for (final Map.Entry<String, Object> entry : stats.entrySet()) {
-					record.put(shortenStatName(entry.getKey()),
-							entry.getValue());
+					record.put(entry.getKey(), entry.getValue());
 				}
 				record.flush();
 
@@ -338,21 +337,6 @@ public class RunJustificationExperiments {
 			LOGGER_.info("killing the thread {}", thread.getName());
 			thread.stop();
 		}
-	}
-
-	private static String shortenStatName(final String fullName) {
-		final int lastIndexOfDot = fullName.lastIndexOf('.');
-		if (lastIndexOfDot < 0) {
-			return fullName;
-		}
-		// else
-		final int secondLastIndexOfDot = fullName.substring(0, lastIndexOfDot)
-				.lastIndexOf('.');
-		if (secondLastIndexOfDot < 0) {
-			return fullName;
-		}
-		// else
-		return fullName.substring(secondLastIndexOfDot + 1);
 	}
 
 	/**
