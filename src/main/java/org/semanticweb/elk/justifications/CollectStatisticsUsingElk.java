@@ -84,9 +84,9 @@ public class CollectStatisticsUsingElk {
 					+ "nAxiomsInAllProofs,"
 					+ "nConclusionsInAllProofs,"
 					+ "nInferencesInAllProofs,"
-//					+ "isCycleInInferenceGraph,"
-//					+ "sizeOfMaxComponentInInferenceGraph,"
-//					+ "nNonSingletonComponentsInInferenceGraph,"
+					+ "isCycleInInferenceGraph,"
+					+ "sizeOfMaxComponentInInferenceGraph,"
+					+ "nNonSingletonComponentsInInferenceGraph,"
 					+ "time");
 			
 			conclusionReader =
@@ -204,31 +204,31 @@ public class CollectStatisticsUsingElk {
 		stats.print(inferences.size());
 		stats.flush();
 		
-//		final boolean hasCycle =
-//				Proofs.hasCycle(proof, expression);
-//		stats.print(",");
-//		stats.print(hasCycle);
-//		stats.flush();
-//		
-//		final StronglyConnectedComponents<Conclusion> components =
-//				StronglyConnectedComponentsComputation.computeComponents(
-//						proof, expression);
-//		
-//		final List<List<Conclusion>> comps = components.getComponents();
-//		final List<Conclusion> maxComp =
-//				Collections.max(comps, SIZE_COMPARATOR);
-//		stats.print(",");
-//		stats.print(maxComp.size());
-//		
-//		final Collection<List<Conclusion>> nonSingletonComps =
-//				Collections2.filter(comps, new Predicate<List<Conclusion>>() {
-//			@Override
-//			public boolean apply(final List<Conclusion> comp) {
-//				return comp.size() > 1;
-//			}
-//		});
-//		stats.print(",");
-//		stats.print(nonSingletonComps.size());
+		final boolean hasCycle =
+				Proofs.hasCycle(proof, expression);
+		stats.print(",");
+		stats.print(hasCycle);
+		stats.flush();
+		
+		final StronglyConnectedComponents<Conclusion> components =
+				StronglyConnectedComponentsComputation.computeComponents(
+						proof, expression);
+		
+		final List<List<Conclusion>> comps = components.getComponents();
+		final List<Conclusion> maxComp =
+				Collections.max(comps, SIZE_COMPARATOR);
+		stats.print(",");
+		stats.print(maxComp.size());
+		
+		final Collection<List<Conclusion>> nonSingletonComps =
+				Collections2.filter(comps, new Predicate<List<Conclusion>>() {
+			@Override
+			public boolean apply(final List<Conclusion> comp) {
+				return comp.size() > 1;
+			}
+		});
+		stats.print(",");
+		stats.print(nonSingletonComps.size());
 		
 		final long runTimeNanos = System.nanoTime() - startNanos;
 		LOG.info("... took {}s", runTimeNanos / 1000000000.0);

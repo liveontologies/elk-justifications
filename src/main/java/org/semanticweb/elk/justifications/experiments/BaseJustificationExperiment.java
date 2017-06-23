@@ -13,7 +13,7 @@ import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stats;
 
 public abstract class BaseJustificationExperiment<C, A>
-		implements JustificationExperiment {
+		extends AbstractJustificationExperiment {
 
 	private MinimalSubsetsFromProofs.Factory<C, A> factory_;
 
@@ -115,6 +115,7 @@ public abstract class BaseJustificationExperiment<C, A>
 
 		@Override
 		public void newMinimalSubset(final Set<A> justification) {
+			fireNewJustification();
 			count_++;
 		}
 

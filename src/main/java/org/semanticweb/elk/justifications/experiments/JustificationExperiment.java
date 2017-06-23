@@ -16,4 +16,12 @@ public interface JustificationExperiment {
 
 	int getJustificationCount();
 
+	void addJustificationListener(Listener listener);
+
+	void removeJustificationListener(Listener listener);
+
+	public static interface Listener {
+		void newJustification();
+	}
+
 }

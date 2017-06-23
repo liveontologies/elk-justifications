@@ -32,7 +32,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
 public abstract class ResolutionJustificationExperiment<C, A>
-		implements JustificationExperiment {
+		extends AbstractJustificationExperiment {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(ResolutionJustificationExperiment.class);
@@ -250,6 +250,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 		@Override
 		public void newMinimalSubset(final Set<A> justification) {
+			fireNewJustification();
 			justTimes_.add(System.nanoTime());
 			count_++;
 			justSizes_.add(justification.size());

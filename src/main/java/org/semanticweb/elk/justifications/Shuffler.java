@@ -19,7 +19,6 @@ public class Shuffler {
 			System.err.println("Insufficient arguments!");
 			System.exit(1);
 		}
-		Long.valueOf(args[0]);
 		final Random random = new Random(Long.valueOf(args[0]));
 		
 		FileInputStream fin = null;

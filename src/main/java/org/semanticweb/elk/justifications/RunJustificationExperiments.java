@@ -42,6 +42,7 @@ public class RunJustificationExperiments {
 	public static final String GLOBAL_TIMEOUT_OPT = "g";
 	public static final String WARMUP_TIMEOUT_OPT = "w";
 	public static final String GC_OPT = "gc";
+	public static final String ONE_JUST_OPT = "only1just";
 	public static final String RESET_INTERVAL_OPT = "ri";
 	public static final String QUERIES_OPT = "queries";
 	public static final String EXPERIMENT_OPT = "exp";
@@ -58,6 +59,8 @@ public class RunJustificationExperiments {
 		public Long warmupTimeOut;
 		@Arg(dest = GC_OPT)
 		public boolean runGc;
+		@Arg(dest = ONE_JUST_OPT)
+		public boolean onlyOneJustification;
 		@Arg(dest = RESET_INTERVAL_OPT)
 		public Integer resetInterval;
 		@Arg(dest = QUERIES_OPT)
@@ -87,6 +90,8 @@ public class RunJustificationExperiments {
 				.help("how long should warm up in milliseconds");
 		parser.addArgument("--" + GC_OPT).action(Arguments.storeTrue())
 				.help("run garbage collector before every query");
+		parser.addArgument("--" + ONE_JUST_OPT).action(Arguments.storeTrue())
+				.help("compute only one justification");
 		parser.addArgument("--" + RESET_INTERVAL_OPT).type(Integer.class)
 				.help("after how many queries should the experiment be reset");
 		parser.addArgument(QUERIES_OPT)
@@ -120,6 +125,8 @@ public class RunJustificationExperiments {
 			LOGGER_.info("warmupTimeOut: {}", warmupTimeOut);
 			final boolean runGc = opt.runGc;
 			LOGGER_.info("runGc: {}", runGc);
+			final boolean onlyOneJustification = opt.onlyOneJustification;
+			LOGGER_.info("onlyOneJustification: {}", onlyOneJustification);
 			final int resetInterval = opt.resetInterval == null
 					? Integer.MAX_VALUE : opt.resetInterval;
 			LOGGER_.info("resetInterval: {}", resetInterval);
@@ -138,12 +145,14 @@ public class RunJustificationExperiments {
 			if (warmupTimeOut > 0) {
 				LOGGER_.info("Warm Up");
 				run(experiment, experimentArgs, queryFile, timeOutMillis,
-						warmupTimeOut, 0, runGc, resetInterval, null);
+						warmupTimeOut, 0, runGc, onlyOneJustification,
+						resetInterval, null);
 			}
 
 			LOGGER_.info("Actual Experiment Run");
 			run(experiment, experimentArgs, queryFile, timeOutMillis,
-					globalTimeOutMillis, 0, runGc, resetInterval, recordWriter);
+					globalTimeOutMillis, 0, runGc, onlyOneJustification,
+					resetInterval, recordWriter);
 
 		} catch (final ExperimentException e) {
 			LOGGER_.error(e.getMessage(), e);
@@ -205,7 +214,8 @@ public class RunJustificationExperiments {
 			final String[] experimentArgs, final File queryFile,
 			final long timeOutMillis, final long globalTimeOutMillis,
 			final int maxIterations, final boolean runGc,
-			final int resetInterval, final PrintWriter recordWriter)
+			final boolean onlyOneJustification, final int resetInterval,
+			final PrintWriter recordWriter)
 			throws IOException, ExperimentException {
 
 		experiment.init(experimentArgs);
@@ -270,12 +280,17 @@ public class RunJustificationExperiments {
 						? localStartTimeMillis + timeOutMillis : Long.MAX_VALUE;
 
 				final long stopTimeMillis = localStopTimeMillis;
+				final TimeOutMonitor monitor = new TimeOutMonitor(
+						stopTimeMillis);
+				if (onlyOneJustification) {
+					experiment.addJustificationListener(monitor);
+				}
 
 				final Runnable runnable = new Runnable() {
 					@Override
 					public void run() {
 						try {
-							experiment.run(new TimeOutMonitor(stopTimeMillis));
+							experiment.run(monitor);
 						} catch (final ExperimentException e) {
 							throw new RuntimeException(e);
 						}
@@ -293,6 +308,9 @@ public class RunJustificationExperiments {
 							e);
 				}
 				final long runTimeNanos = System.nanoTime() - startTimeNanos;
+				if (onlyOneJustification) {
+					experiment.removeJustificationListener(monitor);
+				}
 				final int nJust = experiment.getJustificationCount();
 				didSomeExperimentRun = true;
 				killIfAlive(worker);
@@ -346,7 +364,8 @@ public class RunJustificationExperiments {
 	 * 
 	 * @author Peter Skocovsky
 	 */
-	private static class TimeOutMonitor implements InterruptMonitor {
+	private static class TimeOutMonitor
+			implements InterruptMonitor, JustificationExperiment.Listener {
 
 		private final long stopTimeMillis_;
 
@@ -362,6 +381,11 @@ public class RunJustificationExperiments {
 				cancelled = true;
 			}
 			return cancelled;
+		}
+
+		@Override
+		public void newJustification() {
+			cancelled = true;
 		}
 
 	}
