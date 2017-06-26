@@ -6,8 +6,8 @@ import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
+import org.liveontologies.puli.ProofPrinter;
 import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
-import org.semanticweb.elk.proofs.ProofPrinter;
 
 /**
  * A simple pretty printer of proofs together with justification numbers for
