@@ -1,3 +1,3 @@
-# elk-justifications
+# pinpointing-experiments
 
-Extracting justifications from proofs provided by ELK.
+Experiments for extracting justifications from proofs.

@@ -8,12 +8,12 @@
 	<packaging>jar</packaging>
 
 	<name>Axiom Pinpointing Experiments</name>
-	<url>https://github.com/liveontologies/elk-justifications</url>
+	<url>https://github.com/liveontologies/pinpointing-experiments</url>
 
 	<scm>
-		<connection>scm:git:https://github.com/liveontologies/elk-justifications.git</connection>
-		<developerConnection>scm:git:git@github.com:liveontologies/elk-justifications.git</developerConnection>
-		<url>https://github.com/liveontologies/elk-justifications</url>
+		<connection>scm:git:https://github.com/liveontologies/pinpointing-experiments.git</connection>
+		<developerConnection>scm:git:git@github.com:liveontologies/pinpointing-experiments.git</developerConnection>
+		<url>https://github.com/liveontologies/pinpointing-experiments</url>
 		<tag>HEAD</tag>
 	</scm>
 
