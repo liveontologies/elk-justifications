@@ -19,9 +19,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
-import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
-import org.liveontologies.puli.justifications.TopDownRepairComputation;
+import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
+import org.liveontologies.puli.pinpointing.ResolutionJustificationComputation;
+import org.liveontologies.puli.pinpointing.TopDownRepairComputation;
 
 @RunWith(Parameterized.class)
 public abstract class BaseJustificationComputationTest<C, A> {

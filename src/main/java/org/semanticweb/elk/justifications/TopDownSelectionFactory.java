@@ -1,6 +1,6 @@
 package org.semanticweb.elk.justifications;
 
-import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
+import org.liveontologies.puli.pinpointing.ResolutionJustificationComputation;
 
 public class TopDownSelectionFactory<C, A>
 		implements ResolutionJustificationComputation.SelectionFactory<C, A> {

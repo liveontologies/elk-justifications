@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.pinpointing.InterruptMonitor;
 import org.liveontologies.puli.statistics.Stats;
 import org.semanticweb.elk.justifications.experiments.ExperimentException;
 import org.semanticweb.elk.justifications.experiments.JustificationExperiment;

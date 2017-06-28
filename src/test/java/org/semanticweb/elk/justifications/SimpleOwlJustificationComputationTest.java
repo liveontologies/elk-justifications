@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
+import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 

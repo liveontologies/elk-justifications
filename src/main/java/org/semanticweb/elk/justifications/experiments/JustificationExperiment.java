@@ -1,6 +1,6 @@
 package org.semanticweb.elk.justifications.experiments;
 
-import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.pinpointing.InterruptMonitor;
 
 public interface JustificationExperiment {
 

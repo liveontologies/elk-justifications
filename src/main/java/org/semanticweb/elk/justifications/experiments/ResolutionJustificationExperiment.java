@@ -15,9 +15,9 @@ import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
-import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.ResolutionJustificationComputation;
+import org.liveontologies.puli.pinpointing.InterruptMonitor;
+import org.liveontologies.puli.pinpointing.MinimalSubsetEnumerator;
+import org.liveontologies.puli.pinpointing.ResolutionJustificationComputation;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.liveontologies.puli.statistics.Stat;
 import org.liveontologies.puli.statistics.Stats;

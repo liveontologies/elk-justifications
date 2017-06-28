@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.Proof;
-import org.liveontologies.puli.justifications.InterruptMonitor;
+import org.liveontologies.puli.pinpointing.InterruptMonitor;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.justifications.experiments.CsvQueryDecoder;
 import org.semanticweb.elk.loading.AxiomLoader;

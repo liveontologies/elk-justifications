@@ -7,10 +7,10 @@ import java.util.Set;
 
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
-import org.liveontologies.puli.justifications.InterruptMonitor;
-import org.liveontologies.puli.justifications.MinimalSubsetEnumerator;
-import org.liveontologies.puli.justifications.MinimalSubsetsFromProofs;
-import org.liveontologies.puli.justifications.PriorityComparators;
+import org.liveontologies.puli.pinpointing.InterruptMonitor;
+import org.liveontologies.puli.pinpointing.MinimalSubsetEnumerator;
+import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
+import org.liveontologies.puli.pinpointing.PriorityComparators;
 
 public class MinimalSubsetCollector<C, A> {
 
