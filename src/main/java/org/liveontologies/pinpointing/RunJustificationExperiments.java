@@ -8,15 +8,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 import org.liveontologies.pinpointing.experiments.ExperimentException;
@@ -226,7 +219,7 @@ public class RunJustificationExperiments {
 
 			queryReader = new BufferedReader(new FileReader(queryFile));
 
-			final Record record = new Record(recordWriter);
+			final Recorder recorder = new Recorder(recordWriter);
 
 			final long globalStartTimeMillis = System.currentTimeMillis();
 			final long globalStopTimeMillis = globalTimeOutMillis > 0
@@ -265,10 +258,10 @@ public class RunJustificationExperiments {
 
 				final String quertToString = experiment.before(query);
 
-				record.newRecord();
+				final Recorder.RecordBuilder record = recorder.newRecord();
 				record.put("query", quertToString);
 				if (didSomeExperimentRun) {
-					record.flush();
+					recorder.flush();
 				}
 
 				if (runGc) {
@@ -332,7 +325,7 @@ public class RunJustificationExperiments {
 				for (final Map.Entry<String, Object> entry : stats.entrySet()) {
 					record.put(entry.getKey(), entry.getValue());
 				}
-				record.flush();
+				recorder.flush();
 
 			}
 
@@ -386,119 +379,6 @@ public class RunJustificationExperiments {
 		@Override
 		public void newJustification() {
 			cancelled = true;
-		}
-
-	}
-
-	private static class Record {
-
-		private final PrintWriter output_;
-
-		private final Set<String> names_ = new LinkedHashSet<>();
-		private final List<List<Object>> records_ = new ArrayList<>();
-
-		private final Map<String, Object> currentRecord_ = new HashMap<>();
-
-		private int recordIndex_ = 0;
-		private int valueIndex_ = 0;
-
-		public Record(final PrintWriter output) {
-			this.output_ = output;
-		}
-
-		public Object put(final String name, final Object value) {
-
-			LOGGER_.info("{}: {}", name, value);
-
-			names_.add(name);
-			return currentRecord_.put(name, value);
-		}
-
-		public void newRecord() {
-			if (currentRecord_.isEmpty()) {
-				return;
-			}
-			// else
-			final List<Object> record = new ArrayList<>(currentRecord_.size());
-			for (final String name : names_) {
-				final Object value = currentRecord_.get(name);
-				record.add(value);
-			}
-			records_.add(record);
-			currentRecord_.clear();
-		}
-
-		public void flush() {
-			if (output_ == null) {
-				return;
-			}
-			// else
-
-			if (recordIndex_ == 0 && valueIndex_ == 0) {
-				// Write header
-				final Iterator<String> iter = names_.iterator();
-				if (iter.hasNext()) {
-					output_.print(iter.next());
-					while (iter.hasNext()) {
-						output_.print(",");
-						output_.print(iter.next());
-					}
-				}
-				output_.println();
-			}
-
-			for (; recordIndex_ < records_.size(); recordIndex_++) {
-				final List<Object> record = records_.get(recordIndex_);
-				for (; valueIndex_ < record.size(); valueIndex_++) {
-					if (valueIndex_ != 0) {
-						output_.print(",");
-					}
-					output_.print(valueToString(record.get(valueIndex_)));
-				}
-				valueIndex_ = 0;
-				output_.println();
-			}
-
-			final List<Object> record = new ArrayList<>(currentRecord_.size());
-			for (final String name : names_) {
-				final Object value = currentRecord_.get(name);
-				record.add(value);
-			}
-			final ListIterator<Object> iter = record
-					.listIterator(record.size());
-			while (iter.hasPrevious()) {
-				final Object value = iter.previous();
-				if (value == null) {
-					iter.remove();
-				} else {
-					break;
-				}
-			}
-			for (; valueIndex_ < record.size(); valueIndex_++) {
-				if (valueIndex_ != 0) {
-					output_.print(",");
-				}
-				output_.print(valueToString(record.get(valueIndex_)));
-			}
-
-			output_.flush();
-		}
-
-		private String valueToString(final Object value) {
-			if (value == null) {
-				return "" + value;
-			}
-			// else
-			if (value instanceof String) {
-				final String string = (String) value;
-				return "\"" + string.replace("\"", "") + "\"";
-			}
-			// else
-			if (value instanceof Boolean) {
-				return (Boolean) value ? "TRUE" : "FALSE";
-			}
-			// else
-			return "" + value;
 		}
 
 	}

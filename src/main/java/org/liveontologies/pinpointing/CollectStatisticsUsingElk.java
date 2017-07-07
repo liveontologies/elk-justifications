@@ -11,15 +11,20 @@ import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.liveontologies.pinpointing.experiments.CsvQueryDecoder;
 import org.liveontologies.proofs.TracingInferenceJustifier;
 import org.liveontologies.proofs.adapters.Proofs;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.Proof;
+import org.liveontologies.puli.statistics.Stats;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
@@ -57,12 +62,26 @@ public class CollectStatisticsUsingElk {
 		if (recordFile.exists()) {
 			Utils.recursiveDelete(recordFile);
 		}
+		final File conclusionStatsFile;
+		if (args.length > 3) {
+			conclusionStatsFile = new File(args[3]);
+		} else {
+			conclusionStatsFile = null;
+		}
+		
+		final Map<Conclusion, Integer> conclusionCounters;
+		if (conclusionStatsFile == null) {
+			conclusionCounters = null;
+		} else {
+			conclusionCounters = new HashMap<>();
+		}
 		
 		final ElkObjectBaseFactory factory = new ElkObjectBaseFactory();
 		
 		InputStream ontologyIS = null;
 		BufferedReader conclusionReader = null;
 		PrintWriter stats = null;
+		PrintWriter conclusionStats = null;
 		
 		try {
 			
@@ -80,14 +99,7 @@ public class CollectStatisticsUsingElk {
 					(System.currentTimeMillis() - start)/1000.0);
 			
 			stats = new PrintWriter(recordFile);
-			stats.println("query,"
-					+ "nAxiomsInAllProofs,"
-					+ "nConclusionsInAllProofs,"
-					+ "nInferencesInAllProofs,"
-					+ "isCycleInInferenceGraph,"
-					+ "sizeOfMaxComponentInInferenceGraph,"
-					+ "nNonSingletonComponentsInInferenceGraph,"
-					+ "time");
+			final Recorder recorder = new Recorder(stats);
 			
 			conclusionReader =
 					new BufferedReader(new FileReader(conclusionsFileName));
@@ -113,12 +125,23 @@ public class CollectStatisticsUsingElk {
 				
 				LOG.info("Collecting statistics for {} ...", conclusion);
 				
-				stats.print("\"");
-				stats.print(line);
-				stats.print("\"");
+				final Recorder.RecordBuilder record = recorder.newRecord();
+				record.put("query", line);
 				
-				collectStatistics(conclusion, reasoner, stats);
+				collectStatistics(conclusion, reasoner, record,
+						conclusionCounters);
 				
+				recorder.flush();
+				
+			}
+			
+			conclusionStats = new PrintWriter(conclusionStatsFile);
+			conclusionStats.println("conclusion,nOccurrencesInDifferentProofs");
+			for (final Entry<Conclusion, Integer> e : conclusionCounters.entrySet()) {
+				conclusionStats.print("\"");
+				conclusionStats.print(e.getKey());
+				conclusionStats.print("\",");
+				conclusionStats.println(e.getValue());
 			}
 			
 		} catch (final FileNotFoundException e) {
@@ -134,25 +157,17 @@ public class CollectStatisticsUsingElk {
 			LOG.error("Error while reading the conclusion file!", e);
 			System.exit(2);
 		} finally {
-			if (ontologyIS != null) {
-				try {
-					ontologyIS.close();
-				} catch (final IOException e) {}
-			}
-			if (conclusionReader != null) {
-				try {
-					conclusionReader.close();
-				} catch (final IOException e) {}
-			}
-			if (stats != null) {
-				stats.close();
-			}
+			Utils.closeQuietly(ontologyIS);
+			Utils.closeQuietly(conclusionReader);
+			Utils.closeQuietly(stats);
+			Utils.closeQuietly(conclusionStats);
 		}
 		
 	}
 	
 	private static void collectStatistics(final ElkSubClassOfAxiom conclusion,
-			final Reasoner reasoner, final PrintWriter stats)
+			final Reasoner reasoner, final Recorder.RecordBuilder record,
+			final Map<Conclusion, Integer> conclusionCounters)
 					throws ElkException {
 		
 		final long startNanos = System.nanoTime();
@@ -184,6 +199,13 @@ public class CollectStatisticsUsingElk {
 					@Override
 					public Void apply(final Conclusion expr) {
 						lemmaExprs.add(expr);
+						if (conclusionCounters != null) {
+							Integer count = conclusionCounters.get(expr);
+							if (count == null) {
+								count = 0;
+							}
+							conclusionCounters.put(expr, count + 1);
+						}
 						return null;
 					}
 				},
@@ -196,19 +218,13 @@ public class CollectStatisticsUsingElk {
 				}
 		);
 		
-		stats.print(",");
-		stats.print(axiomExprs.size());
-		stats.print(",");
-		stats.print(lemmaExprs.size());
-		stats.print(",");
-		stats.print(inferences.size());
-		stats.flush();
+		record.put("nAxiomsInAllProofs", axiomExprs.size());
+		record.put("nConclusionsInAllProofs", lemmaExprs.size());
+		record.put("nInferencesInAllProofs", inferences.size());
 		
 		final boolean hasCycle =
 				Proofs.hasCycle(proof, expression);
-		stats.print(",");
-		stats.print(hasCycle);
-		stats.flush();
+		record.put("isCycleInInferenceGraph", hasCycle);
 		
 		final StronglyConnectedComponents<Conclusion> components =
 				StronglyConnectedComponentsComputation.computeComponents(
@@ -217,8 +233,7 @@ public class CollectStatisticsUsingElk {
 		final List<List<Conclusion>> comps = components.getComponents();
 		final List<Conclusion> maxComp =
 				Collections.max(comps, SIZE_COMPARATOR);
-		stats.print(",");
-		stats.print(maxComp.size());
+		record.put("sizeOfMaxComponentInInferenceGraph", maxComp.size());
 		
 		final Collection<List<Conclusion>> nonSingletonComps =
 				Collections2.filter(comps, new Predicate<List<Conclusion>>() {
@@ -227,16 +242,22 @@ public class CollectStatisticsUsingElk {
 				return comp.size() > 1;
 			}
 		});
-		stats.print(",");
-		stats.print(nonSingletonComps.size());
+		record.put("nNonSingletonComponentsInInferenceGraph", nonSingletonComps.size());
 		
 		final long runTimeNanos = System.nanoTime() - startNanos;
 		LOG.info("... took {}s", runTimeNanos / 1000000000.0);
-		stats.print(",");
-		stats.print(runTimeNanos / 1000000.0);
+		record.put("time", runTimeNanos / 1000000.0);
 		
-		stats.println();
-		stats.flush();
+		final Runtime runtime = Runtime.getRuntime();
+		final long totalMemory = runtime.totalMemory();
+		final long usedMemory = totalMemory - runtime.freeMemory();
+		record.put("usedMemory", usedMemory);
+		
+		final Map<String, Object> stats = Stats.copyIntoMap(reasoner,
+				new TreeMap<String, Object>());
+		for (final Map.Entry<String, Object> entry : stats.entrySet()) {
+			record.put(entry.getKey(), entry.getValue());
+		}
 		
 	}
 	
