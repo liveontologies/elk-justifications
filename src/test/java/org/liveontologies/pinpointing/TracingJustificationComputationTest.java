@@ -44,7 +44,7 @@ public abstract class TracingJustificationComputationTest
 		final Conclusion conclusion = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner_, entailment);
 		final MinimalSubsetCollector<Conclusion, ElkAxiom> collector = new MinimalSubsetCollector<>(
-				getFactory(), reasoner_.explainConclusion(conclusion),
+				getFactory(), reasoner_.getProof(),
 				TracingInferenceJustifier.INSTANCE);
 
 		return new HashSet<>(collector.collect(conclusion));

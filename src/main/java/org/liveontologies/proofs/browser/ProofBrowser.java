@@ -80,7 +80,7 @@ public class ProofBrowser {
 					.getFirstDerivedConclusionForSubsumption(reasoner,
 							conclusion);
 			final Proof<Conclusion> proof =
-					reasoner.explainConclusion(expression);
+					reasoner.getProof();
 			final TracingInferenceJustifier justifier =
 					TracingInferenceJustifier.INSTANCE;
 

@@ -143,7 +143,7 @@ public class CollectJustificationStatisticsUsingElk {
 									.getFirstDerivedConclusionForSubsumption(
 											reasoner, conclusion);
 							final Proof<Conclusion> proof =
-									reasoner.explainConclusion(expression);
+									reasoner.getProof();
 							final TracingInferenceJustifier justifier =
 									TracingInferenceJustifier.INSTANCE;
 

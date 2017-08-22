@@ -5,8 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -42,7 +40,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	public static final String INDEX_FILE_NAME = "axiom_index";
 
-	private ResolutionJustificationComputation.SelectionFactory<C, A> selectionFactory_;
+	private ResolutionJustificationComputation.SelectionType selectionType_;
 
 	private File outputDir_;
 	private PrintWriter indexWriter_;
@@ -75,7 +73,9 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		final ArgumentParser parser = ArgumentParsers
 				.newArgumentParser(getClass().getSimpleName()).description(
 						"Experiment using Resolutionun Justification Computation.");
-		parser.addArgument(SELECTION_OPT).help("selection class name");
+		parser.addArgument(SELECTION_OPT)
+				.type(ResolutionJustificationComputation.SelectionType.class)
+				.help("selection type");
 		parser.addArgument("-" + SAVE_OPT).type(File.class).help(
 				"if provided, save justification into specified directory");
 
@@ -85,14 +85,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 			final Namespace options = parser.parseArgs(args);
 
-			final String selectorClassName = options.get(SELECTION_OPT);
-
-			final Class<?> selectorClass = Class.forName(selectorClassName);
-			final Constructor<?> constructor = selectorClass.getConstructor();
-			final Object object = constructor.newInstance();
-			@SuppressWarnings("unchecked")
-			final ResolutionJustificationComputation.SelectionFactory<C, A> selectionFactory = (ResolutionJustificationComputation.SelectionFactory<C, A>) object;
-			this.selectionFactory_ = selectionFactory;
+			this.selectionType_ = options.<ResolutionJustificationComputation.SelectionType> get(
+					SELECTION_OPT);
 
 			this.outputDir_ = options.get(SAVE_OPT);
 			if (outputDir_ == null) {
@@ -110,17 +104,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 			init(options);
 
-		} catch (final ClassNotFoundException e) {
-			throw new ExperimentException(e);
-		} catch (final NoSuchMethodException e) {
-			throw new ExperimentException(e);
 		} catch (final SecurityException e) {
-			throw new ExperimentException(e);
-		} catch (final IllegalAccessException e) {
-			throw new ExperimentException(e);
-		} catch (final InvocationTargetException e) {
-			throw new ExperimentException(e);
-		} catch (final InstantiationException e) {
 			throw new ExperimentException(e);
 		} catch (final IOException e) {
 			throw new ExperimentException(e);
@@ -160,7 +144,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		runStartTimeNanos_ = System.nanoTime();
 
 		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
-				.create(proof_, justifier_, monitor, selectionFactory_);
+				.create(proof_, justifier_, monitor, selectionType_);
 		computation_.newEnumerator(goal_).enumerate(justificationListener_);
 
 	}

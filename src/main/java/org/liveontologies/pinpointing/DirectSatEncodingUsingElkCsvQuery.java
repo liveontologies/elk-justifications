@@ -197,7 +197,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner, query);
 			final Proof<Conclusion> proof = reasoner
-					.explainConclusion(expression);
+					.getProof();
 			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 			final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();

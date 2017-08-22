@@ -10,6 +10,7 @@ import org.liveontologies.pinpointing.Utils;
 import org.liveontologies.proofs.TracingInferenceJustifier;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
+import org.liveontologies.puli.statistics.NestedStats;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.Owl2StreamLoader;
@@ -80,6 +81,7 @@ public class ElkResolutionJustificationExperiment
 
 	}
 
+	@NestedStats(name = "elk")
 	public Reasoner getReasoner() {
 		return reasoner_;
 	}
@@ -115,13 +117,7 @@ public class ElkResolutionJustificationExperiment
 	@Override
 	protected Proof<Conclusion> newProof(final Conclusion query)
 			throws ExperimentException {
-		try {
-
-			return getReasoner().explainConclusion(query);
-
-		} catch (final ElkException e) {
-			throw new ExperimentException(e);
-		}
+		return getReasoner().getProof();
 	}
 
 	@Override

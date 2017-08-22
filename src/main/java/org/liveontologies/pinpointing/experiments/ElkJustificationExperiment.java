@@ -91,13 +91,7 @@ public class ElkJustificationExperiment extends
 	@Override
 	protected Proof<Conclusion> newProof(final Conclusion query)
 			throws ExperimentException {
-		try {
-
-			return getReasoner().explainConclusion(query);
-
-		} catch (final ElkException e) {
-			throw new ExperimentException(e);
-		}
+		return getReasoner().getProof();
 	}
 
 	@Override

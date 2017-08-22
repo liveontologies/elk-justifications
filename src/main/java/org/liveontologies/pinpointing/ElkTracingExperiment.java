@@ -167,6 +167,7 @@ public class ElkTracingExperiment {
 
 				if (statNames == null) {
 					statNames = new ArrayList<>(statistics.keySet());
+					Collections.sort(statNames);
 					for (final String name : statNames) {
 						stats.print(",");
 						stats.print(name);
@@ -293,7 +294,7 @@ public class ElkTracingExperiment {
 						.getFirstDerivedConclusionForSubsumption(reasoner,
 								query);
 				final Proof<Conclusion> proof = reasoner
-						.explainConclusion(conclusion);
+						.getProof();
 				final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 				final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
