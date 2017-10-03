@@ -13,6 +13,27 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Collects records and prints then into the provided {@link PrintWriter} when
+ * flushed.
+ * <p>
+ * A record is a set of name-value pairs. Calling {@link #newRecord()} starts
+ * entering a new record and finishes entering previous record if there was one.
+ * The new record can be populated using the returned {@link RecordBuilder}.
+ * When any method of a {@link RecordBuilder} is called after a new one is
+ * obtained with another call to {@link #newRecord()}, behavior is undefined.
+ * <p>
+ * Calling {@link #flush()} writes the entered records that were not printed yet
+ * into the {@link PrintWriter} provided to the constructor. The records are
+ * written in the CSV format (delimiter is "," and quote character is "\""). The
+ * first line are the names of the values in the records, so if a new name is
+ * introduces after the first call to {@link #flush()}, behavior is undefined.
+ * Also the record that is just being entered is written, so if its values are
+ * entered in a different order as for the previous records, behavior is
+ * undefined.
+ * 
+ * @author Peter Skocovsky
+ */
 public class Recorder {
 
 	public static interface RecordBuilder {

@@ -34,6 +34,16 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 
+/**
+ * Collects all subsumptions between atomic concepts entailed by the provided
+ * ontology and saves then into a file. The subsumptions may be restricted to
+ * the direct ones, obvious tautologies or subsumptions stated in the ontology
+ * may be filtered out. The order in which the subsumptions are collected may be
+ * controlled, or they may be sorted. Call {@link #main(String[])} with argument
+ * "-h" to see usage.
+ * 
+ * @author Peter Skocovsky
+ */
 public class ExtractSubsumptions {
 
 	private static final Logger LOGGER_ = LoggerFactory

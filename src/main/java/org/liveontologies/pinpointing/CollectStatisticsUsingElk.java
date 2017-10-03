@@ -64,7 +64,7 @@ public class CollectStatisticsUsingElk {
 	public static final String RECORD_OPT = "record";
 	public static final String CONCLUSION_STATS_OPT = "cstats";
 	public static final String QUERY_AGES_OPT = "qages";
-	public static final String CUCLE_OPT = "cycle";
+	public static final String CYCLE_OPT = "cycle";
 	public static final String COMPONENT_OPT = "component";
 
 	public static class Options {
@@ -78,7 +78,7 @@ public class CollectStatisticsUsingElk {
 		public File conclusionStatsFile;
 		@Arg(dest = QUERY_AGES_OPT)
 		public File queryAgesFile;
-		@Arg(dest = CUCLE_OPT)
+		@Arg(dest = CYCLE_OPT)
 		public boolean detectCycle;
 		@Arg(dest = COMPONENT_OPT)
 		public boolean countComponents;
@@ -101,7 +101,7 @@ public class CollectStatisticsUsingElk {
 				.help("collect conclusion statistics");
 		parser.addArgument("--" + QUERY_AGES_OPT).type(File.class)
 				.help("collect query ages");
-		parser.addArgument("--" + CUCLE_OPT).action(Arguments.storeTrue())
+		parser.addArgument("--" + CYCLE_OPT).action(Arguments.storeTrue())
 				.help("check whether inferences contain a cycle");
 		parser.addArgument("--" + COMPONENT_OPT).action(Arguments.storeTrue())
 				.help("count strongly connected components in inferences");

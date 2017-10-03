@@ -16,24 +16,68 @@ import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.model.OWLOntologyStorageException;
 
+import net.sourceforge.argparse4j.ArgumentParsers;
+import net.sourceforge.argparse4j.annotation.Arg;
+import net.sourceforge.argparse4j.impl.Arguments;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.ArgumentParserException;
+
+/**
+ * Obtains all minimal hitting sets of a collection of sets. This is done using
+ * {@link Utils#merge(Set, java.util.Collection)}. The input collection are
+ * files in input directory that are OWL ontologies. The output collection will
+ * be written into files in output directory (each file is one minimal hitting
+ * set). Call {@link #main(String[])} with argument "-h" to see usage.
+ * 
+ * @author Peter Skocovsky
+ */
 public class JustificationsToRepairs {
+
+	public static final String INPUT_OPT = "inputdir";
+	public static final String OUTPUT_OPT = "outputdir";
+
+	public static class Options {
+		@Arg(dest = INPUT_OPT)
+		public File inputDir;
+		@Arg(dest = OUTPUT_OPT)
+		public File outputDir;
+	}
 
 	public static void main(final String[] args)
 			throws OWLOntologyCreationException, IOException,
 			OWLOntologyStorageException {
 
-		final File justDir = new File(args[0]);
-		final File outDir = new File(args[1]);
-		Utils.cleanDir(outDir);
+		final ArgumentParser parser = ArgumentParsers
+				.newArgumentParser(
+						JustificationsToRepairs.class.getSimpleName())
+				.description(
+						"Obtains all minimal hitting sets of a collection of sets.");
+		parser.addArgument(INPUT_OPT)
+				.type(Arguments.fileType().verifyExists().verifyCanRead()
+						.verifyIsDirectory())
+				.help("input directory. Each file must be an OWL ontology. Its axioms are one of the input sets.");
+		parser.addArgument(OUTPUT_OPT).type(File.class).help(
+				"output directory. Each minimal hitting set will be written into one file as an OWL ontology.");
+
+		final Options opt = new Options();
+		try {
+			parser.parseArgs(args, opt);
+		} catch (final ArgumentParserException e) {
+			parser.handleError(e);
+			System.exit(2);
+		}
+		// else
+
+		Utils.cleanDir(opt.outputDir);
 
 		final OWLOntologyManager manager = OWLManager
 				.createOWLOntologyManager();
 
 		// Load justifications.
 		final Set<Set<? extends OWLAxiom>> justs = new HashSet<>();
-		final File[] justFiles = justDir.listFiles();
+		final File[] justFiles = opt.inputDir.listFiles();
 		if (justFiles == null) {
-			throw new RuntimeException("Cannot list files in " + justDir);
+			throw new RuntimeException("Cannot list files in " + opt.inputDir);
 		}
 		String name = "DeFaUlT";
 		for (final File justFile : justFiles) {
@@ -70,7 +114,7 @@ public class JustificationsToRepairs {
 		int index = 0;
 		for (final Set<OWLAxiom> repair : repairs) {
 			final OWLOntology repairOnt = manager.createOntology(repair);
-			final File repairFile = new File(outDir,
+			final File repairFile = new File(opt.outputDir,
 					String.format(
 							"%s.%0" + Utils.digitCount(maxIndex) + "d.repair",
 							name, index));
