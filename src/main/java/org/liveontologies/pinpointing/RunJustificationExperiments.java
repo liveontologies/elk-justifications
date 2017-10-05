@@ -111,7 +111,8 @@ public class RunJustificationExperiments {
 					: opt.timeOutMillis;
 			LOGGER_.info("timeOutMillis: {}", timeOutMillis);
 			final long globalTimeOutMillis = opt.globalTimeOutMillis == null
-					? 0l : opt.globalTimeOutMillis;
+					? 0l
+					: opt.globalTimeOutMillis;
 			LOGGER_.info("globalTimeOutMillis: {}", globalTimeOutMillis);
 			final long warmupTimeOut = opt.warmupTimeOut == null ? 0l
 					: opt.warmupTimeOut;
@@ -121,7 +122,8 @@ public class RunJustificationExperiments {
 			final boolean onlyOneJustification = opt.onlyOneJustification;
 			LOGGER_.info("onlyOneJustification: {}", onlyOneJustification);
 			final int resetInterval = opt.resetInterval == null
-					? Integer.MAX_VALUE : opt.resetInterval;
+					? Integer.MAX_VALUE
+					: opt.resetInterval;
 			LOGGER_.info("resetInterval: {}", resetInterval);
 			final File queryFile = opt.queryFile;
 			LOGGER_.info("queryFile: {}", queryFile);
@@ -256,10 +258,10 @@ public class RunJustificationExperiments {
 					experiment.init(experimentArgs);
 				}
 
-				final String quertToString = experiment.before(query);
+				experiment.before(query);
 
 				final Recorder.RecordBuilder record = recorder.newRecord();
-				record.put("query", quertToString);
+				record.put("query", query);
 				if (didSomeExperimentRun) {
 					recorder.flush();
 				}
@@ -270,14 +272,13 @@ public class RunJustificationExperiments {
 
 				final long localStartTimeMillis = System.currentTimeMillis();
 				final long localStopTimeMillis = timeOutMillis > 0
-						? localStartTimeMillis + timeOutMillis : Long.MAX_VALUE;
+						? localStartTimeMillis + timeOutMillis
+						: Long.MAX_VALUE;
 
 				final long stopTimeMillis = localStopTimeMillis;
 				final TimeOutMonitor monitor = new TimeOutMonitor(
-						stopTimeMillis);
-				if (onlyOneJustification) {
-					experiment.addJustificationListener(monitor);
-				}
+						stopTimeMillis, onlyOneJustification);
+				experiment.addJustificationListener(monitor);
 
 				final Runnable runnable = new Runnable() {
 					@Override
@@ -295,16 +296,15 @@ public class RunJustificationExperiments {
 				// wait for timeout
 				try {
 					worker.join(timeOutMillis > 0
-							? timeOutMillis + TIMEOUT_DELAY_MILLIS : 0);
+							? timeOutMillis + TIMEOUT_DELAY_MILLIS
+							: 0);
 				} catch (final InterruptedException e) {
 					LOGGER_.warn("Waiting for the worker thread interruptet!",
 							e);
 				}
 				final long runTimeNanos = System.nanoTime() - startTimeNanos;
-				if (onlyOneJustification) {
-					experiment.removeJustificationListener(monitor);
-				}
-				final int nJust = experiment.getJustificationCount();
+				experiment.removeJustificationListener(monitor);
+				final int nJust = monitor.getJustificationCount();
 				didSomeExperimentRun = true;
 				killIfAlive(worker);
 
@@ -361,11 +361,16 @@ public class RunJustificationExperiments {
 			implements InterruptMonitor, JustificationExperiment.Listener {
 
 		private final long stopTimeMillis_;
+		private final boolean onlyOneJustification_;
+
+		private int count_ = 0;
 
 		private volatile boolean cancelled = false;
 
-		public TimeOutMonitor(final long stopTimeMillis) {
+		public TimeOutMonitor(final long stopTimeMillis,
+				final boolean onlyOneJustification) {
 			this.stopTimeMillis_ = stopTimeMillis;
+			this.onlyOneJustification_ = onlyOneJustification;
 		}
 
 		@Override
@@ -378,7 +383,14 @@ public class RunJustificationExperiments {
 
 		@Override
 		public void newJustification() {
-			cancelled = true;
+			count_++;
+			if (onlyOneJustification_) {
+				cancelled = true;
+			}
+		}
+
+		public int getJustificationCount() {
+			return count_;
 		}
 
 	}

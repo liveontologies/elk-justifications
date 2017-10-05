@@ -120,7 +120,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	protected abstract void init(Namespace options) throws ExperimentException;
 
 	@Override
-	public String before(final String query) throws ExperimentException {
+	public void before(final String query) throws ExperimentException {
 		justificationListener_.reset();
 		resetStats();
 		if (computation_ != null) {
@@ -136,7 +136,6 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		obtainingInferencesTimeMillis_ = (System.nanoTime() - startTimeNanos)
 				/ RunJustificationExperiments.NANOS_IN_MILLIS;
 
-		return query;
 	}
 
 	@Override
@@ -215,11 +214,6 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		Utils.closeQuietly(indexWriter_);
 	}
 
-	@Override
-	public int getJustificationCount() {
-		return justificationListener_.getCount();
-	}
-
 	@NestedStats(name = "ResolutionJustificationComputation")
 	public MinimalSubsetEnumerator.Factory<C, A> getJustificationComputation() {
 		return computation_;
@@ -228,7 +222,6 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private class JustificationCounter
 			implements MinimalSubsetEnumerator.Listener<A> {
 
-		private volatile int count_ = 0;
 		private final List<Integer> justSizes_ = new ArrayList<>();
 		private final List<Long> justTimes_ = new ArrayList<>();
 
@@ -236,12 +229,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		public void newMinimalSubset(final Set<A> justification) {
 			fireNewJustification();
 			justTimes_.add(System.nanoTime());
-			count_++;
 			justSizes_.add(justification.size());
-		}
-
-		public int getCount() {
-			return count_;
 		}
 
 		public Collection<Set<A>> getJustifications() {
@@ -257,7 +245,6 @@ public abstract class ResolutionJustificationExperiment<C, A>
 		}
 
 		public void reset() {
-			count_ = 0;
 			justSizes_.clear();
 			justTimes_.clear();
 		}

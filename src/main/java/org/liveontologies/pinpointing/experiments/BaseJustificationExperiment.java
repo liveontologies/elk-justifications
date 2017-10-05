@@ -60,7 +60,7 @@ public abstract class BaseJustificationExperiment<C, A>
 	}
 
 	@Override
-	public String before(final String query) throws ExperimentException {
+	public void before(final String query) throws ExperimentException {
 		justificationCounter_.reset();
 		if (computation_ != null) {
 			Stats.resetStats(computation_);
@@ -70,7 +70,6 @@ public abstract class BaseJustificationExperiment<C, A>
 		proof_ = newProof(goal_);
 		justifier_ = newJustifier();
 
-		return query;
 	}
 
 	@Override
@@ -98,11 +97,6 @@ public abstract class BaseJustificationExperiment<C, A>
 		// Empty.
 	}
 
-	@Override
-	public int getJustificationCount() {
-		return justificationCounter_.getCount();
-	}
-
 	@NestedStats
 	public MinimalSubsetEnumerator.Factory<C, A> getJustificationComputation() {
 		return computation_;
@@ -111,20 +105,13 @@ public abstract class BaseJustificationExperiment<C, A>
 	private class JustificationCounter
 			implements MinimalSubsetEnumerator.Listener<A> {
 
-		private volatile int count_ = 0;
-
 		@Override
 		public void newMinimalSubset(final Set<A> justification) {
 			fireNewJustification();
-			count_++;
-		}
-
-		public int getCount() {
-			return count_;
 		}
 
 		public void reset() {
-			count_ = 0;
+			// Empty.
 		}
 
 	}
