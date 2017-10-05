@@ -6,10 +6,9 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Set;
 
+import org.liveontologies.pinpointing.DirectSatEncodingUsingElkCsvQuery;
 import org.liveontologies.pinpointing.Utils;
 import org.liveontologies.proofs.adapters.DirectSatEncodingProofAdapter;
 import org.liveontologies.puli.InferenceJustifier;
@@ -29,16 +28,8 @@ public class DirectSatResolutionJustificationExperiment
 
 	public static final String INPUT_DIR_OPT = "input";
 
-	public static final String ENCODING_NAME = "encoding";
-	public static final String SUFFIX_QUERY = ".query";
-	public static final String SUFFIX_QUESTION = ".question";
-	public static final String SUFFIX_CNF = ".cnf";
-	public static final String SUFFIX_ASSUMPTIONS = ".assumptions";
-
 	private File inputDir_ = null;
 
-	private Iterator<File> queryDirIter_ = null;
-	private File queryDir_ = null;
 	private File cnfFile_ = null;
 	private File assumptionsFile_ = null;
 
@@ -52,44 +43,6 @@ public class DirectSatResolutionJustificationExperiment
 	@Override
 	protected void init(final Namespace options) throws ExperimentException {
 		inputDir_ = options.get(INPUT_DIR_OPT);
-
-		final File[] queryDirs = inputDir_.listFiles();
-		Arrays.sort(queryDirs);
-		queryDirIter_ = Arrays.asList(queryDirs).iterator();
-
-	}
-
-	@Override
-	public String before(final String query) throws ExperimentException {
-
-		if (!queryDirIter_.hasNext()) {
-			throw new ExperimentException("No more queries!");
-		}
-		// else
-		queryDir_ = queryDirIter_.next();
-
-		super.before(query);
-
-		BufferedReader queryReader = null;
-		try {
-
-			queryReader = new BufferedReader(new FileReader(
-					new File(queryDir_, ENCODING_NAME + SUFFIX_QUERY)));
-
-			final String line = queryReader.readLine();
-			if (line == null) {
-				throw new ExperimentException(
-						"Could not read query file in: " + queryDir_);
-			}
-			// else
-			return line;
-
-		} catch (final IOException e) {
-			throw new ExperimentException(e);
-		} finally {
-			Utils.closeQuietly(queryReader);
-		}
-
 	}
 
 	@Override
@@ -99,34 +52,40 @@ public class DirectSatResolutionJustificationExperiment
 		LOGGER_.info("Decoding query {} ...", query);
 		long start = System.currentTimeMillis();
 
-		final File queryFile = new File(queryDir_,
-				ENCODING_NAME + SUFFIX_QUESTION);
+		final File queryDir = new File(inputDir_, Utils.toFileName(query));
+
+		final File qFile = new File(queryDir,
+				DirectSatEncodingUsingElkCsvQuery.FILE_NAME
+						+ DirectSatEncodingUsingElkCsvQuery.SUFFIX_Q);
 
 		final String decoded;
-		BufferedReader queryReader = null;
+		BufferedReader qReader = null;
 		try {
-			queryReader = new BufferedReader(new FileReader(queryFile));
-			final String line = queryReader.readLine();
+			qReader = new BufferedReader(new FileReader(qFile));
+			final String line = qReader.readLine();
 			if (line == null) {
 				throw new ExperimentException(
-						"Could not read question file in: " + queryDir_);
+						"Could not read question file in: " + queryDir);
 			}
 			decoded = line.split("\\s+")[0];
 		} catch (final IOException e) {
 			throw new ExperimentException(e);
 		} finally {
-			Utils.closeQuietly(queryReader);
+			Utils.closeQuietly(qReader);
 		}
 
-		cnfFile_ = new File(queryDir_, ENCODING_NAME + SUFFIX_CNF);
+		cnfFile_ = new File(queryDir,
+				DirectSatEncodingUsingElkCsvQuery.FILE_NAME
+						+ DirectSatEncodingUsingElkCsvQuery.SUFFIX_CNF);
 
-		assumptionsFile_ = new File(queryDir_,
-				ENCODING_NAME + SUFFIX_ASSUMPTIONS);
+		assumptionsFile_ = new File(queryDir,
+				DirectSatEncodingUsingElkCsvQuery.FILE_NAME
+						+ DirectSatEncodingUsingElkCsvQuery.SUFFIX_ASSUMPTIONS);
 
 		LOGGER_.info("... took {}s",
 				(System.currentTimeMillis() - start) / 1000.0);
 
-		return -Integer.valueOf(decoded);
+		return Integer.valueOf(decoded);
 	}
 
 	@Override

@@ -50,7 +50,51 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 
+/**
+ * Exports proofs to CNF files as produced by EL+SAT.
+ * <p>
+ * Proof of each query from the query file is exported into its query directory.
+ * This query directory will be placed inside of the output directory and its
+ * name will be derived from the query by {@link Utils#toFileName(Object)}.
+ * <p>
+ * Each conclusion and axiom occurring in a proof of a query is given a unique
+ * positive integer that is called its atom. The files placed into the directory
+ * of this query are:
+ * <ul>
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_H} - header of the CNF file.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_CNF} - inferences encoded as clauses
+ * where the premises are negated atom and the conclusion is positive atom.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_Q} - atom of the goal conclusion.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_QUESTION} - negated atom of the goal
+ * conclusion followed by 0.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_QUERY} - query as read from the query
+ * file.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_PPP} - atoms of axioms.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_PPP_G_U} - sorted atoms of axioms.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_ASSUMPTIONS} - atoms of axioms
+ * separated by " " and followed by 0.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_ZZZ} - conclusions with their atoms.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_ZZZ_GCI} - GCI axioms with their
+ * atoms.
+ * <li>{@value #FILE_NAME}+{@value #SUFFIX_ZZZ_RI} - RI axioms with their atoms.
+ * </ul>
+ * 
+ * @author Peter Skocovsky
+ */
 public class DirectSatEncodingUsingElkCsvQuery {
+
+	public static final String FILE_NAME = "encoding";
+	public static final String SUFFIX_H = ".h";
+	public static final String SUFFIX_CNF = ".cnf";
+	public static final String SUFFIX_Q = ".q";
+	public static final String SUFFIX_QUESTION = ".question";
+	public static final String SUFFIX_QUERY = ".query";
+	public static final String SUFFIX_PPP = ".ppp";
+	public static final String SUFFIX_PPP_G_U = ".ppp.g.u";
+	public static final String SUFFIX_ASSUMPTIONS = ".assumptions";
+	public static final String SUFFIX_ZZZ = ".zzz";
+	public static final String SUFFIX_ZZZ_GCI = ".zzz.gci";
+	public static final String SUFFIX_ZZZ_RI = ".zzz.ri";
 
 	private static final Logger LOG_ = LoggerFactory
 			.getLogger(DirectSatEncodingUsingElkCsvQuery.class);
@@ -75,7 +119,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		final ArgumentParser parser = ArgumentParsers
 				.newArgumentParser(
 						DirectSatEncodingUsingElkCsvQuery.class.getSimpleName())
-				.description("Export proofs into *.wcnf files.");
+				.description("Export proofs CNF files as produced by EL+SAT.");
 		parser.addArgument(ONTOLOGY_OPT)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())
 				.help("ontology file");
@@ -170,19 +214,24 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 				});
 
-		// final String conclName = Utils.toFileName(conclusion);
-		final String queryName = String.format(
-				"%0" + Integer.toString(queryCount).length() + "d", queryIndex);
+		final String queryName = Utils.toFileName(line);
+		// @formatter:off
+//		final String queryName = String.format(
+//				"%0" + Integer.toString(queryCount).length() + "d", queryIndex);
+		// @formatter:on
 		final File outDir = new File(outputDirectory, queryName);
-		final File hFile = new File(outDir, "encoding.h");
-		final File cnfFile = new File(outDir, "encoding.cnf");
-		final File questionFile = new File(outDir, "encoding.question");
-		final File queryFile = new File(outDir, "encoding.query");
-		final File pppFile = new File(outDir, "encoding.ppp");
-		final File pppguFile = new File(outDir, "encoding.ppp.g.u");
-		final File zzzFile = new File(outDir, "encoding.zzz");
-		final File zzzgciFile = new File(outDir, "encoding.zzz.gci");
-		final File zzzriFile = new File(outDir, "encoding.zzz.ri");
+		final File hFile = new File(outDir, FILE_NAME + SUFFIX_H);
+		final File cnfFile = new File(outDir, FILE_NAME + SUFFIX_CNF);
+		final File qFile = new File(outDir, FILE_NAME + SUFFIX_Q);
+		final File questionFile = new File(outDir, FILE_NAME + SUFFIX_QUESTION);
+		final File queryFile = new File(outDir, FILE_NAME + SUFFIX_QUERY);
+		final File pppFile = new File(outDir, FILE_NAME + SUFFIX_PPP);
+		final File pppguFile = new File(outDir, FILE_NAME + SUFFIX_PPP_G_U);
+		final File assumptionsFile = new File(outDir,
+				FILE_NAME + SUFFIX_ASSUMPTIONS);
+		final File zzzFile = new File(outDir, FILE_NAME + SUFFIX_ZZZ);
+		final File zzzgciFile = new File(outDir, FILE_NAME + SUFFIX_ZZZ_GCI);
+		final File zzzriFile = new File(outDir, FILE_NAME + SUFFIX_ZZZ_RI);
 		outDir.mkdirs();
 
 		PrintWriter cnfWriter = null;
@@ -196,8 +245,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner, query);
-			final Proof<Conclusion> proof = reasoner
-					.getProof();
+			final Proof<Conclusion> proof = reasoner.getProof();
 			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 			final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
@@ -274,8 +322,16 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			Collections.sort(orderedAxioms);
 			writeLines(orderedAxioms, pppguFile);
 
-			// question
+			// assumptions
+			writeSpaceSeparated0Terminated(orderedAxioms, assumptionsFile);
+
+			// q
 			writeLines(Collections.singleton(conclusionIndex.get(expression)),
+					qFile);
+
+			// question
+			writeSpaceSeparated0Terminated(
+					Collections.singleton(-conclusionIndex.get(expression)),
 					questionFile);
 
 			// query
@@ -322,6 +378,29 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			for (final Object line : lines) {
 				writer.println(line);
 			}
+
+		} finally {
+			if (writer != null) {
+				writer.close();
+			}
+		}
+
+	}
+
+	private static void writeSpaceSeparated0Terminated(
+			final Iterable<?> iterable, final File file)
+			throws FileNotFoundException {
+
+		PrintWriter writer = null;
+
+		try {
+			writer = new PrintWriter(file);
+
+			for (final Object object : iterable) {
+				writer.print(object);
+				writer.print(" ");
+			}
+			writer.print("0");
 
 		} finally {
 			if (writer != null) {
