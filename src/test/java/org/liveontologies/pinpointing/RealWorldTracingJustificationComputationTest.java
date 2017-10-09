@@ -12,6 +12,7 @@ import org.junit.runners.Parameterized.Parameters;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 
 import com.google.common.collect.Iterators;
 
@@ -21,7 +22,7 @@ public class RealWorldTracingJustificationComputationTest
 	@Parameters
 	public static Collection<Object[]> parameters() throws URISyntaxException {
 
-		final List<MinimalSubsetsFromProofs.Factory<?, ?>> computations = getJustificationComputationFactories();
+		final List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> computations = getJustificationComputationFactories();
 
 		final Collection<Object[]> galenParams = BaseJustificationComputationTest
 				.getParameters(computations, "test_input/full-galen_cel",
@@ -47,7 +48,7 @@ public class RealWorldTracingJustificationComputationTest
 	}
 
 	public RealWorldTracingJustificationComputationTest(
-			final MinimalSubsetsFromProofs.Factory<Conclusion, ElkAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<Conclusion, TracingInference, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
 		super(factory, ontoFile, entailFilesPerJustFile);

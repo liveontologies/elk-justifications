@@ -123,7 +123,7 @@ public class StronglyConnectedComponentsComputation<C, I extends Inference<? ext
 	}
 
 	private void toDo(final I inf) {
-		inferenceStack_.push(new InferenceRecord<>(inf));
+		inferenceStack_.push(new InferenceRecord<C, I>(inf));
 		LOGGER_.trace("{}: inference pushed", inf);
 	}
 

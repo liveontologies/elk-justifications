@@ -37,7 +37,7 @@ public class BinarizedJustificationComputation<C, I extends Inference<? extends 
 			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
 		super(proof, justifier, monitor);
-		enumeratorFactory_ = mainFactory.create(Proofs.binarize(proof),
+		enumeratorFactory_ = mainFactory.create(Proofs.<C, I> binarize(proof),
 				Proofs.<C, I, A> binarize(justifier), monitor);
 	}
 

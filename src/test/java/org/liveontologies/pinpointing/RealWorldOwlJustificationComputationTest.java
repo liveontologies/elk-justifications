@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
@@ -21,7 +22,7 @@ public class RealWorldOwlJustificationComputationTest
 	@Parameters
 	public static Collection<Object[]> parameters() throws URISyntaxException {
 
-		final List<MinimalSubsetsFromProofs.Factory<?, ?>> computations = getJustificationComputationFactories();
+		final List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> computations = getJustificationComputationFactories();
 
 		final Collection<Object[]> galenParams = BaseJustificationComputationTest
 				.getParameters(computations, "test_input/full-galen_cel",
@@ -47,7 +48,7 @@ public class RealWorldOwlJustificationComputationTest
 	}
 
 	public RealWorldOwlJustificationComputationTest(
-			final MinimalSubsetsFromProofs.Factory<OWLAxiom, OWLAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws OWLOntologyCreationException {
 		super(factory, ontoFile, entailFilesPerJustFile);

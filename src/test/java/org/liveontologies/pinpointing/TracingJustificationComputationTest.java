@@ -7,8 +7,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.liveontologies.pinpointing.MinimalSubsetCollector;
-import org.liveontologies.pinpointing.Utils;
 import org.liveontologies.proofs.TracingInferenceJustifier;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
@@ -17,14 +15,15 @@ import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.TestReasonerUtils;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 
-public abstract class TracingJustificationComputationTest
-		extends BaseJustificationComputationTest<Conclusion, ElkAxiom> {
+public abstract class TracingJustificationComputationTest extends
+		BaseJustificationComputationTest<Conclusion, TracingInference, ElkAxiom> {
 
 	private final Reasoner reasoner_;
 
 	public TracingJustificationComputationTest(
-			final MinimalSubsetsFromProofs.Factory<Conclusion, ElkAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<Conclusion, TracingInference, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
 		super(factory, ontoFile, entailFilesPerJustFile);
@@ -43,7 +42,7 @@ public abstract class TracingJustificationComputationTest
 
 		final Conclusion conclusion = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner_, entailment);
-		final MinimalSubsetCollector<Conclusion, ElkAxiom> collector = new MinimalSubsetCollector<>(
+		final MinimalSubsetCollector<Conclusion, TracingInference, ElkAxiom> collector = new MinimalSubsetCollector<>(
 				getFactory(), reasoner_.getProof(),
 				TracingInferenceJustifier.INSTANCE);
 
