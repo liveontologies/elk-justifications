@@ -35,17 +35,19 @@ import com.google.common.collect.Iterators;
  *
  * @param <C>
  *            the type of conclusion and premises used by the inferences
+ * @param <I>
+ *            the type of inferences used in the proof
  * @param <A>
  *            the type of axioms used by the inferences
  */
-public class TopDownJustificationComputation<C, A>
-		extends MinimalSubsetsFromProofs<C, A> {
+public class TopDownJustificationComputation<C, I extends Inference<? extends C>, A>
+		extends MinimalSubsetsFromProofs<C, I, A> {
 
-	private static final TopDownJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
+	private static final TopDownJustificationComputation.Factory<?, ?, ?> FACTORY_ = new Factory<>();
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> MinimalSubsetsFromProofs.Factory<C, A> getFactory() {
-		return (Factory<C, A>) FACTORY_;
+	public static <C, I extends Inference<? extends C>, A> MinimalSubsetsFromProofs.Factory<C, I, A> getFactory() {
+		return (Factory<C, I, A>) FACTORY_;
 	}
 
 	/**
@@ -57,8 +59,8 @@ public class TopDownJustificationComputation<C, A>
 	private int producedJobsCount_ = 0, nonMinimalJobsCount_ = 0,
 			expansionCount_ = 0, expandedInferencesCount_ = 0;
 
-	private TopDownJustificationComputation(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	private TopDownJustificationComputation(final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
 		super(proof, justifier, monitor);
 		this.rank_ = new Comparator<C>() {
@@ -88,7 +90,7 @@ public class TopDownJustificationComputation<C, A>
 		/**
 		 * newly computed jobs to be propagated
 		 */
-		private Queue<JobFactory<C, A, ?>.Job> toDoJobs_;
+		private Queue<JobFactory<C, I, A, ?>.Job> toDoJobs_;
 
 		/**
 		 * Used to minimize the jobs
@@ -99,7 +101,7 @@ public class TopDownJustificationComputation<C, A>
 
 		private Listener<A> listener_ = null;
 
-		private JobFactory<C, A, ?> jobFactory_;
+		private JobFactory<C, I, A, ?> jobFactory_;
 
 		JustificationEnumerator(final C query) {
 			this.conclusion_ = query;
@@ -132,7 +134,7 @@ public class TopDownJustificationComputation<C, A>
 		}
 
 		private void process() {
-			JobFactory<C, A, ?>.Job job;
+			JobFactory<C, I, A, ?>.Job job;
 			while ((job = toDoJobs_.poll()) != null) {
 
 				if (minimalJustifications_.isMinimal(job.justification_)
@@ -145,10 +147,10 @@ public class TopDownJustificationComputation<C, A>
 						}
 					} else {
 						expansionCount_++;
-						for (final Inference<C> inf : getInferences(
+						for (final I inf : getInferences(
 								chooseConclusion(job.premises_))) {
 							expandedInferencesCount_++;
-							final JobFactory<C, A, ?>.Job newJob = job
+							final JobFactory<C, I, A, ?>.Job newJob = job
 									.expand(inf, getInferenceJustifier());
 							produce(newJob);
 						}
@@ -175,7 +177,7 @@ public class TopDownJustificationComputation<C, A>
 			return result;
 		}
 
-		private void produce(final JobFactory<C, A, ?>.Job job) {
+		private void produce(final JobFactory<C, I, A, ?>.Job job) {
 			producedJobsCount_++;
 			toDoJobs_.add(job);
 		}
@@ -210,7 +212,7 @@ public class TopDownJustificationComputation<C, A>
 		return BloomTrieCollection2.class;
 	}
 
-	private static class JobFactory<C, A, P> {
+	private static class JobFactory<C, I extends Inference<? extends C>, A, P> {
 
 		private final PriorityComparator<? super Set<A>, P> priorityComparator_;
 
@@ -219,7 +221,7 @@ public class TopDownJustificationComputation<C, A>
 			this.priorityComparator_ = priorityComparator;
 		}
 
-		public static <C, A, P> JobFactory<C, A, P> create(
+		public static <C, I extends Inference<? extends C>, A, P> JobFactory<C, I, A, P> create(
 				final PriorityComparator<? super Set<A>, P> priorityComparator) {
 			return new JobFactory<>(priorityComparator);
 		}
@@ -249,8 +251,8 @@ public class TopDownJustificationComputation<C, A>
 				this.priority_ = priorityComparator_.getPriority(justification);
 			}
 
-			public Job expand(final Inference<C> inference,
-					final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+			public Job expand(final I inference,
+					final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier) {
 				final Set<C> newPremises = new HashSet<>(premises_);
 				newPremises.remove(inference.getConclusion());
 				newPremises.addAll(inference.getPremises());
@@ -284,7 +286,7 @@ public class TopDownJustificationComputation<C, A>
 			@Override
 			public boolean containsAll(final Collection<?> c) {
 				if (c instanceof JobFactory.Job) {
-					final JobFactory<?, ?, ?>.Job other = (JobFactory<?, ?, ?>.Job) c;
+					final JobFactory<?, ?, ?, ?>.Job other = (JobFactory<?, ?, ?, ?>.Job) c;
 					return premises_.containsAll(other.premises_)
 							&& justification_.containsAll(other.justification_);
 				}
@@ -350,16 +352,18 @@ public class TopDownJustificationComputation<C, A>
 	 *
 	 * @param <C>
 	 *            the type of conclusion and premises used by the inferences
+	 * @param <I>
+	 *            the type of inferences used in proofs
 	 * @param <A>
 	 *            the type of axioms used by the inferences
 	 */
-	private static class Factory<C, A>
-			implements MinimalSubsetsFromProofs.Factory<C, A> {
+	private static class Factory<C, I extends Inference<? extends C>, A>
+			implements MinimalSubsetsFromProofs.Factory<C, I, A> {
 
 		@Override
 		public MinimalSubsetEnumerator.Factory<C, A> create(
-				final Proof<C> proof,
-				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+				final Proof<? extends I> proof,
+				final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
 			return new TopDownJustificationComputation<>(proof, justifier,
 					monitor);

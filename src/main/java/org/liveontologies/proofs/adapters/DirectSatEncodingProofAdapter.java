@@ -13,15 +13,16 @@ import java.util.Set;
 
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.Inferences;
+import org.liveontologies.puli.Proof;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
-public class DirectSatEncodingProofAdapter implements Proof<Integer> {
+public class DirectSatEncodingProofAdapter
+		implements Proof<Inference<Integer>> {
 
 	public static DirectSatEncodingProofAdapter load(
 			final InputStream assumptions, final InputStream cnf)
@@ -33,7 +34,7 @@ public class DirectSatEncodingProofAdapter implements Proof<Integer> {
 				new InputStreamReader(assumptions));
 		readAxioms(axiomReader, axioms);
 
-		final ListMultimap<Integer, Inference<Integer>> inferences = ArrayListMultimap
+		final ListMultimap<Object, Inference<Integer>> inferences = ArrayListMultimap
 				.create();
 
 		final BufferedReader cnfReader = new BufferedReader(
@@ -138,16 +139,16 @@ public class DirectSatEncodingProofAdapter implements Proof<Integer> {
 
 	}
 
-	private final Multimap<Integer, Inference<Integer>> inferences_;
+	private final Multimap<Object, Inference<Integer>> inferences_;
 
 	private DirectSatEncodingProofAdapter(
-			final Multimap<Integer, Inference<Integer>> inferences) {
+			final Multimap<Object, Inference<Integer>> inferences) {
 		this.inferences_ = inferences;
 	}
 
 	@Override
 	public Collection<Inference<Integer>> getInferences(
-			final Integer conclusion) {
+			final Object conclusion) {
 		return inferences_.get(conclusion);
 	}
 
@@ -223,11 +224,11 @@ public class DirectSatEncodingProofAdapter implements Proof<Integer> {
 
 	}
 
-	public static final InferenceJustifier<Integer, Set<Integer>> JUSTIFIER = new InferenceJustifier<Integer, Set<Integer>>() {
+	public static final InferenceJustifier<Inference<? extends Integer>, ? extends Set<Integer>> JUSTIFIER = new InferenceJustifier<Inference<? extends Integer>, Set<Integer>>() {
 
 		@Override
 		public Set<Integer> getJustification(
-				final Inference<Integer> inference) {
+				final Inference<? extends Integer> inference) {
 
 			if (inference instanceof DirectSatEncodingInference) {
 				return ((DirectSatEncodingInference) inference)

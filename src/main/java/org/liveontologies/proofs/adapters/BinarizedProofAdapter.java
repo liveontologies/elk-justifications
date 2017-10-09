@@ -9,8 +9,8 @@ import java.util.Set;
 import org.liveontologies.puli.Delegator;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.Inferences;
+import org.liveontologies.puli.Proof;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
@@ -29,29 +29,53 @@ import com.google.common.collect.Collections2;
  * @param <C>
  *            the type of conclusion and premises used by the original
  *            inferences
+ * @param <I>
+ *            the type of inferences used in proofs
  */
-class BinarizedProofAdapter<C> implements Proof<List<C>> {
+class BinarizedProofAdapter<C, I extends Inference<? extends C>>
+		implements Proof<Inference<List<C>>> {
 
-	private final Proof<C> original_;
+	private final Proof<? extends I> original_;
 
-	BinarizedProofAdapter(final Proof<C> original) {
+	BinarizedProofAdapter(final Proof<? extends I> original) {
 		this.original_ = original;
 	}
 
 	@Override
 	public Collection<? extends Inference<List<C>>> getInferences(
-			final List<C> conclusion) {
-		switch (conclusion.size()) {
-		case 0:
-			return Collections.emptyList();
-		case 1:
-			C member = conclusion.get(0);
-			return Collections2.transform(original_.getInferences(member),
-					ToBinaryInference.<C> get());
-		default:
-			Inference<List<C>> inf = new BinaryListInference<C>(conclusion);
-			return Collections.singleton(inf);
+			final Object conclusion) {
+		if (conclusion instanceof List<?>) {
+			List<?> conclusionList = (List<?>) conclusion;
+			switch (conclusionList.size()) {
+			case 0:
+				return Collections.emptyList();
+			case 1:
+				Object member = conclusionList.get(0);
+				return Collections2.transform(original_.getInferences(member),
+						ToBinaryInference.<C, I> get());
+			default:
+				List<C> originalConclusions = new ArrayList<C>(
+						conclusionList.size());
+				for (int i = 0; i < conclusionList.size(); i++) {
+					C originalConclusion = null;
+					for (I inf : original_
+							.getInferences(conclusionList.get(i))) {
+						originalConclusion = inf.getConclusion();
+						break;
+					}
+					if (originalConclusion == null) {
+						return Collections.emptySet();
+					}
+					// else
+					originalConclusions.add(originalConclusion);
+				}
+				Inference<List<C>> inf = new BinaryListInference<C>(
+						originalConclusions);
+				return Collections.singleton(inf);
+			}
 		}
+		// else
+		return Collections.emptySet();
 	}
 
 	/**
@@ -97,33 +121,33 @@ class BinarizedProofAdapter<C> implements Proof<List<C>> {
 
 	}
 
-	private static class ToBinaryInference<C>
-			implements Function<Inference<C>, Inference<List<C>>> {
+	private static class ToBinaryInference<C, I extends Inference<? extends C>>
+			implements Function<I, Inference<List<C>>> {
 
-		private static final ToBinaryInference<?> INSTANCE_ = new ToBinaryInference<Object>();
+		private static final ToBinaryInference<?, ?> INSTANCE_ = new ToBinaryInference<>();
 
 		@Override
-		public Inference<List<C>> apply(final Inference<C> input) {
-			return new BinaryInferenceAdapter<C>(input);
+		public Inference<List<C>> apply(final I input) {
+			return new BinaryInferenceAdapter<C, I>(input);
 		}
 
 		@SuppressWarnings("unchecked")
-		static <C> Function<Inference<C>, Inference<List<C>>> get() {
-			return (ToBinaryInference<C>) INSTANCE_;
+		static <C, I extends Inference<? extends C>> Function<I, Inference<List<C>>> get() {
+			return (ToBinaryInference<C, I>) INSTANCE_;
 		}
 
 	}
 
-	private static class BinaryInferenceAdapter<C>
-			extends Delegator<Inference<C>> implements Inference<List<C>> {
+	private static class BinaryInferenceAdapter<C, I extends Inference<? extends C>>
+			extends Delegator<I> implements Inference<List<C>> {
 
-		BinaryInferenceAdapter(final Inference<C> original) {
+		BinaryInferenceAdapter(final I original) {
 			super(original);
 		}
 
 		@Override
 		public List<C> getConclusion() {
-			return Collections.singletonList(getDelegate().getConclusion());
+			return Collections.singletonList((C) getDelegate().getConclusion());
 		}
 
 		@Override
@@ -167,13 +191,13 @@ class BinarizedProofAdapter<C> implements Proof<List<C>> {
 
 	}
 
-	static class Justifier<C, A>
-			implements InferenceJustifier<List<C>, Set<? extends A>> {
+	static class Justifier<C, I extends Inference<? extends C>, A> implements
+			InferenceJustifier<Inference<List<C>>, Set<? extends A>> {
 
-		private final InferenceJustifier<C, ? extends Set<? extends A>> original_;
+		private final InferenceJustifier<? super I, ? extends Set<? extends A>> original_;
 
 		Justifier(
-				final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+				final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier) {
 			this.original_ = justifier;
 		}
 
@@ -184,7 +208,8 @@ class BinarizedProofAdapter<C> implements Proof<List<C>> {
 				return Collections.emptySet();
 			}
 			// else
-			final BinaryInferenceAdapter<C> binaryInference = (BinaryInferenceAdapter<C>) inference;
+			@SuppressWarnings("unchecked") // TODO: any way to avoid cast?
+			final BinaryInferenceAdapter<C, I> binaryInference = (BinaryInferenceAdapter<C, I>) inference;
 			return original_.getJustification(binaryInference.getDelegate());
 		}
 

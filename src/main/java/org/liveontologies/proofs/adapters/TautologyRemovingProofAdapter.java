@@ -26,68 +26,69 @@ import com.google.common.collect.Multimap;
  * 
  * @author Yevgeny Kazakov
  *
- * @param <C>
- *            the type of conclusion and premises used by the inferences
+ * @param <I>
+ *            the type of inferences used in the proof
  * @param <A>
  *            the type of axioms used by the inferences
  * 
  */
-class TautologyRemovingProofAdapter<C, A> extends DelegatingProof<C, Proof<C>> {
+class TautologyRemovingProofAdapter<I extends Inference<?>, A>
+		extends DelegatingProof<I, Proof<I>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(TautologyRemovingProofAdapter.class);
 
-	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
+	private final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier_;
 
 	/**
 	 * the set of tautologies detected so far
 	 */
-	private final Set<C> tautologies_ = new HashSet<C>();
+	private final Set<Object> tautologies_ = new HashSet<Object>();
 
 	/**
 	 * tautologies to propagate
 	 */
-	private final Queue<C> toDoTautologies_ = new LinkedList<C>();
+	private final Queue<Object> toDoTautologies_ = new LinkedList<Object>();
 
 	/**
 	 * index to retrieve inferences with empty justifications by their premises;
 	 * only such inferences can derive new tautologies
 	 */
-	private final Multimap<C, Inference<C>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<Object, I> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
 	 * a temporary queue for initialization of {@link #toDoTautologies_} and
 	 * {@link #inferencesByPremises_}
 	 */
-	private final Queue<C> toDoInit_ = new LinkedList<C>();
+	private final Queue<Object> toDoInit_ = new LinkedList<Object>();
 
 	/**
 	 * collects once they are inserted to {@link #toDoInit_} to avoid duplicates
 	 */
-	private final Set<C> doneInit_ = new HashSet<C>();
+	private final Set<Object> doneInit_ = new HashSet<Object>();
 
-	TautologyRemovingProofAdapter(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+	TautologyRemovingProofAdapter(final Proof<I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier) {
 		super(proof);
 		this.justifier_ = justifier;
 	}
 
 	@Override
-	public Collection<? extends Inference<C>> getInferences(C conclusion) {
+	public Collection<? extends I> getInferences(Object conclusion) {
 		toDoInit(conclusion);
 		initialize();
 		process();
-		Collection<? extends Inference<C>> inferences = getDelegate()
+		Collection<? extends I> inferences = getDelegate()
 				.getInferences(conclusion);
 		if (isATautology(conclusion)) {
 			// find one tautological inference
-			for (final Inference<C> inf : inferences) {
+			for (final I inf : inferences) {
 				if (!justifier_.getJustification(inf).isEmpty()) {
 					continue;
 				}
 				boolean inferenceIsATautology = true;
-				for (C premise : inf.getPremises()) {
+				for (Object premise : inf.getPremises()) {
 					if (!isATautology(premise)) {
 						inferenceIsATautology = false;
 						break;
@@ -105,20 +106,20 @@ class TautologyRemovingProofAdapter<C, A> extends DelegatingProof<C, Proof<C>> {
 		return inferences;
 	}
 
-	private void toDoInit(C conclusion) {
+	private void toDoInit(Object conclusion) {
 		if (doneInit_.add(conclusion)) {
 			toDoInit_.add(conclusion);
 		}
 	}
 
-	private void toDoTautology(C conclusion) {
+	private void toDoTautology(Object conclusion) {
 		if (tautologies_.add(conclusion)) {
 			toDoTautologies_.add(conclusion);
 			LOGGER_.trace("new tautology {}", conclusion);
 		}
 	}
 
-	private boolean isATautology(C conclusion) {
+	private boolean isATautology(Object conclusion) {
 		return tautologies_.contains(conclusion);
 	}
 
@@ -126,15 +127,14 @@ class TautologyRemovingProofAdapter<C, A> extends DelegatingProof<C, Proof<C>> {
 	 * initializes {@link #toDoTautologies_}
 	 */
 	private void initialize() {
-		C conclusion;
+		Object conclusion;
 		while ((conclusion = toDoInit_.poll()) != null) {
-			for (final Inference<C> inf : getDelegate()
-					.getInferences(conclusion)) {
+			for (final I inf : getDelegate().getInferences(conclusion)) {
 				LOGGER_.trace("recursing by {}", inf);
 				boolean noJustification = justifier_.getJustification(inf)
 						.isEmpty();
 				boolean conclusionIsATautology = noJustification;
-				for (C premise : inf.getPremises()) {
+				for (Object premise : inf.getPremises()) {
 					toDoInit(premise);
 					if (noJustification) {
 						inferencesByPremises_.put(premise, inf);
@@ -150,12 +150,11 @@ class TautologyRemovingProofAdapter<C, A> extends DelegatingProof<C, Proof<C>> {
 	}
 
 	private void process() {
-		C tautology;
+		Object tautology;
 		while ((tautology = toDoTautologies_.poll()) != null) {
-			for (final Inference<C> inf : inferencesByPremises_
-					.get(tautology)) {
+			for (final I inf : inferencesByPremises_.get(tautology)) {
 				boolean conclusionIsATautology = true;
-				for (C premise : inf.getPremises()) {
+				for (Object premise : inf.getPremises()) {
 					if (!isATautology(premise)) {
 						conclusionIsATautology = false;
 						break;

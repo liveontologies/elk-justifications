@@ -13,6 +13,7 @@ import java.util.Set;
 
 import org.liveontologies.pinpointing.RunJustificationExperiments;
 import org.liveontologies.pinpointing.Utils;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.pinpointing.InterruptMonitor;
@@ -29,7 +30,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-public abstract class ResolutionJustificationExperiment<C, A>
+public abstract class ResolutionJustificationExperiment<C, I extends Inference<? extends C>, A>
 		extends AbstractJustificationExperiment {
 
 	private static final Logger LOGGER_ = LoggerFactory
@@ -49,8 +50,8 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	private volatile MinimalSubsetEnumerator.Factory<C, A> computation_ = null;
 	private volatile String lastQuery_ = null;
 	private volatile C goal_;
-	private volatile Proof<C> proof_;
-	private volatile InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
+	private volatile Proof<? extends I> proof_;
+	private volatile InferenceJustifier<? super I, ? extends Set<? extends A>> justifier_;
 	private volatile long runStartTimeNanos_;
 
 	private JustificationCounter justificationListener_;
@@ -142,7 +143,7 @@ public abstract class ResolutionJustificationExperiment<C, A>
 	public void run(final InterruptMonitor monitor) throws ExperimentException {
 		runStartTimeNanos_ = System.nanoTime();
 
-		computation_ = ResolutionJustificationComputation.<C, A> getFactory()
+		computation_ = ResolutionJustificationComputation.<C, I, A> getFactory()
 				.create(proof_, justifier_, monitor, selectionType_);
 		computation_.newEnumerator(goal_).enumerate(justificationListener_);
 
@@ -150,9 +151,10 @@ public abstract class ResolutionJustificationExperiment<C, A>
 
 	protected abstract C decodeQuery(String query) throws ExperimentException;
 
-	protected abstract Proof<C> newProof(C query) throws ExperimentException;
+	protected abstract Proof<? extends I> newProof(C query)
+			throws ExperimentException;
 
-	protected abstract InferenceJustifier<C, ? extends Set<? extends A>> newJustifier()
+	protected abstract InferenceJustifier<? super I, ? extends Set<? extends A>> newJustifier()
 			throws ExperimentException;
 
 	@Override

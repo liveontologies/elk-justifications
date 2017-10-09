@@ -19,38 +19,34 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.liveontologies.pinpointing.BinarizedJustificationComputation;
-import org.liveontologies.pinpointing.BottomUpJustificationComputation;
-import org.liveontologies.pinpointing.MinPremisesBottomUp;
-import org.liveontologies.pinpointing.TopDownJustificationComputation;
-import org.liveontologies.pinpointing.Utils;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.pinpointing.ResolutionJustificationComputation;
 import org.liveontologies.puli.pinpointing.TopDownRepairComputation;
 
 @RunWith(Parameterized.class)
-public abstract class BaseJustificationComputationTest<C, A> {
+public abstract class BaseJustificationComputationTest<C, I extends Inference<? extends C>, A> {
 
-	public static List<MinimalSubsetsFromProofs.Factory<?, ?>> getJustificationComputationFactories() {
-		final List<MinimalSubsetsFromProofs.Factory<?, ?>> computations = new ArrayList<MinimalSubsetsFromProofs.Factory<?, ?>>();
+	public static List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> getJustificationComputationFactories() {
+		final List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> computations = new ArrayList<MinimalSubsetsFromProofs.Factory<?, ?, ?>>();
 		computations.add(BottomUpJustificationComputation.getFactory());
 		computations.add(BinarizedJustificationComputation
 				.getFactory(BottomUpJustificationComputation
-						.<List<Object>, Object> getFactory()));
+						.<List<Object>, Inference<List<Object>>, Object> getFactory()));
 		computations.add(MinPremisesBottomUp.getFactory());
 		computations.add(TopDownJustificationComputation.getFactory());
 		computations.add(ResolutionJustificationComputation.getFactory());
 		return computations;
 	}
 
-	public static List<MinimalSubsetsFromProofs.Factory<?, ?>> getRepairComputationFactories() {
-		final List<MinimalSubsetsFromProofs.Factory<?, ?>> computations = new ArrayList<MinimalSubsetsFromProofs.Factory<?, ?>>();
+	public static List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> getRepairComputationFactories() {
+		final List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> computations = new ArrayList<MinimalSubsetsFromProofs.Factory<?, ?, ?>>();
 		computations.add(TopDownRepairComputation.getFactory());
 		return computations;
 	}
 
 	public static Collection<Object[]> getParameters(
-			final List<MinimalSubsetsFromProofs.Factory<?, ?>> computationFactories,
+			final List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> computationFactories,
 			final String testInputDir,
 			final String expectedOutputForEntailmentDirName)
 			throws URISyntaxException {
@@ -60,7 +56,7 @@ public abstract class BaseJustificationComputationTest<C, A> {
 				expectedOutputForEntailmentDirName);
 
 		final List<Object[]> result = new ArrayList<Object[]>();
-		for (final MinimalSubsetsFromProofs.Factory<?, ?> c : computationFactories) {
+		for (final MinimalSubsetsFromProofs.Factory<?, ?, ?> c : computationFactories) {
 			for (final Object[] files : inputFiles) {
 				final Object[] r = new Object[files.length + 1];
 				r[0] = c;
@@ -72,12 +68,12 @@ public abstract class BaseJustificationComputationTest<C, A> {
 		return result;
 	}
 
-	private final MinimalSubsetsFromProofs.Factory<C, A> factory_;
+	private final MinimalSubsetsFromProofs.Factory<C, I, A> factory_;
 	private final File ontoFile_;
 	private final Map<File, File[]> entailFilesPerJustFile_;
 
 	public BaseJustificationComputationTest(
-			final MinimalSubsetsFromProofs.Factory<C, A> factory,
+			final MinimalSubsetsFromProofs.Factory<C, I, A> factory,
 			final File ontoFile,
 			final Map<File, File[]> entailFilesPerJustFile) {
 		this.factory_ = factory;
@@ -85,7 +81,7 @@ public abstract class BaseJustificationComputationTest<C, A> {
 		this.entailFilesPerJustFile_ = entailFilesPerJustFile;
 	}
 
-	public MinimalSubsetsFromProofs.Factory<C, A> getFactory() {
+	public MinimalSubsetsFromProofs.Factory<C, I, A> getFactory() {
 		return factory_;
 	}
 
@@ -120,9 +116,9 @@ public abstract class BaseJustificationComputationTest<C, A> {
 	public void test() throws Exception {
 
 		// @formatter:off
-		Assume.assumeFalse("No expected output.\n"
-				+ "computation: " + factory_.getClass() + "\n"
-				+ "ontology: " + ontoFile_,
+		Assume.assumeFalse(
+				"No expected output.\n" + "computation: " + factory_.getClass()
+						+ "\n" + "ontology: " + ontoFile_,
 				entailFilesPerJustFile_.isEmpty());
 		// @formatter:on
 
@@ -146,10 +142,9 @@ public abstract class BaseJustificationComputationTest<C, A> {
 				actualMinusExpected.removeAll(expected);
 
 				// @formatter:off
-				final String inputsMessage =
-						"computation: " + factory_.getClass() + "\n"
-						+ "ontology: " + ontoFile_ + "\n"
-						+ "entailment: " + entry.getKey() + "\n"
+				final String inputsMessage = "computation: "
+						+ factory_.getClass() + "\n" + "ontology: " + ontoFile_
+						+ "\n" + "entailment: " + entry.getKey() + "\n"
 						+ "expected \\ actual: " + expectedMinusActual + "\n"
 						+ "actual \\ expected: " + actualMinusExpected;
 				// @formatter:on

@@ -8,10 +8,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
-import org.liveontologies.pinpointing.MinimalSubsetCollector;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceJustifiers;
 import org.liveontologies.puli.Proof;
-import org.liveontologies.puli.Proofs;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -19,10 +19,9 @@ import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
-import org.semanticweb.owlapi.model.parameters.Imports;
 
-public abstract class OwlJustificationComputationTest
-		extends BaseJustificationComputationTest<OWLAxiom, OWLAxiom> {
+public abstract class OwlJustificationComputationTest extends
+		BaseJustificationComputationTest<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> {
 
 	private static final OWLOntologyManager OWL_MANAGER_ = OWLManager
 			.createOWLOntologyManager();
@@ -30,7 +29,7 @@ public abstract class OwlJustificationComputationTest
 	private final OWLProver prover_;
 
 	public OwlJustificationComputationTest(
-			final MinimalSubsetsFromProofs.Factory<OWLAxiom, OWLAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws OWLOntologyCreationException {
 		super(factory, ontoFile, entailFilesPerJustFile);
@@ -48,13 +47,12 @@ public abstract class OwlJustificationComputationTest
 				.loadOntologyFromOntologyDocument(entailFile).getLogicalAxioms()
 				.iterator().next();
 
-		final Proof<OWLAxiom> proof = Proofs
-				.addAssertedInferences(prover_.getProof(entailment),
-						prover_.getRootOntology().getAxioms(Imports.EXCLUDED));
-		final InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> justifier = Proofs
+		final Proof<? extends Inference<OWLAxiom>> proof = prover_
+				.getProof(entailment);
+		final InferenceJustifier<Inference<OWLAxiom>, ? extends Set<? extends OWLAxiom>> justifier = InferenceJustifiers
 				.justifyAssertedInferences();
 
-		final MinimalSubsetCollector<OWLAxiom, OWLAxiom> collector = new MinimalSubsetCollector<>(
+		final MinimalSubsetCollector<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> collector = new MinimalSubsetCollector<>(
 				getFactory(), proof, justifier);
 
 		return new HashSet<>(collector.collect(entailment));

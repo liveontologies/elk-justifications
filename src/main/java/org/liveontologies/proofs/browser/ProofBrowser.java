@@ -33,106 +33,106 @@ import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProofBrowser {
-	
-	private static final Logger LOG =
-			LoggerFactory.getLogger(ProofBrowser.class);
-	
+
+	private static final Logger LOG = LoggerFactory
+			.getLogger(ProofBrowser.class);
+
 	public static void main(final String[] args) {
-		
+
 		if (args.length < 3) {
 			LOG.error("Insufficient arguments!");
 			System.exit(1);
 		}
-		
+
 		final int startingSizeLimit = Math.max(1, Integer.parseInt(args[0]));
 		final String ontologyFileName = args[1];
 		final String subFullIri = args[2];
 		final String supFullIri = args[3];
-		
+
 		final ElkObjectBaseFactory factory = new ElkObjectBaseFactory();
-		
+
 		InputStream ontologyIS = null;
-		
+
 		try {
-			
+
 			ontologyIS = new FileInputStream(ontologyFileName);
-			
+
 			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
 					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory().createReasoner(
-					loader);
-			
+			final Reasoner reasoner = new ReasonerFactory()
+					.createReasoner(loader);
+
 			LOG.info("Classifying ...");
 			long start = System.currentTimeMillis();
 			reasoner.getTaxonomy();
 			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start)/1000.0);
-			
+					(System.currentTimeMillis() - start) / 1000.0);
+
 			final ElkSubClassOfAxiom conclusion = factory.getSubClassOfAxiom(
 					factory.getClass(new ElkFullIri(subFullIri)),
 					factory.getClass(new ElkFullIri(supFullIri)));
-			
+
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner,
 							conclusion);
-			final Proof<Conclusion> proof =
-					reasoner.getProof();
-			final TracingInferenceJustifier justifier =
-					TracingInferenceJustifier.INSTANCE;
+			final Proof<TracingInference> proof = reasoner.getProof();
+			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
-			final MinimalSubsetCollector<Conclusion, ElkAxiom> collector =
-					new MinimalSubsetCollector<Conclusion, ElkAxiom>(
-							BottomUpJustificationComputation
-							.<Conclusion, ElkAxiom> getFactory(),
-							proof, justifier);
-			
+			final MinimalSubsetCollector<Conclusion, TracingInference, ElkAxiom> collector = new MinimalSubsetCollector<>(
+					BottomUpJustificationComputation
+							.<Conclusion, TracingInference, ElkAxiom> getFactory(),
+					proof, justifier);
+
 			for (int size = startingSizeLimit; size <= Integer.MAX_VALUE; size++) {
-				
+
 				final int sizeLimit = size;
-				
-				final Collection<? extends Set<ElkAxiom>> justs =
-						collector.collect(expression, sizeLimit);
-				
+
+				final Collection<? extends Set<ElkAxiom>> justs = collector
+						.collect(expression, sizeLimit);
+
 				final TreeNodeLabelProvider decorator = new TreeNodeLabelProvider() {
 					@Override
 					public String getLabel(final Object obj,
 							final TreePath path) {
-						
+
 						if (obj instanceof Conclusion) {
 							final Conclusion c = (Conclusion) obj;
-							final Collection<? extends Set<ElkAxiom>> js =
-									collector.collect(c, sizeLimit);
+							final Collection<? extends Set<ElkAxiom>> js = collector
+									.collect(c, sizeLimit);
 							return "[" + js.size() + "] ";
 						} else if (obj instanceof Inference) {
 							final Inference<?> inf = (Inference<?>) obj;
 							int product = 1;
 							for (final Object premise : inf.getPremises()) {
-								final Collection<? extends Set<ElkAxiom>> js =
-										collector.collect((Conclusion) premise, sizeLimit);
+								final Collection<? extends Set<ElkAxiom>> js = collector
+										.collect((Conclusion) premise,
+												sizeLimit);
 								product *= js.size();
 							}
 							return "<" + product + "> ";
 						}
-						
+
 						return "";
 					}
 				};
-				
+
 				final TreeNodeLabelProvider toolTipProvider = new TreeNodeLabelProvider() {
 					@Override
 					public String getLabel(final Object obj,
 							final TreePath path) {
-						
+
 						if (path == null || path.getPathCount() < 2
 								|| !(obj instanceof Conclusion)) {
 							return null;
 						}
 						final Conclusion premise = (Conclusion) obj;
-						final Object o = path.getPathComponent(path.getPathCount() - 2);
+						final Object o = path
+								.getPathComponent(path.getPathCount() - 2);
 						if (!(o instanceof Inference)) {
 							return null;
 						}
@@ -142,35 +142,35 @@ public class ProofBrowser {
 							return null;
 						}
 						final Conclusion concl = (Conclusion) c;
-						
-						final Collection<? extends Set<ElkAxiom>> premiseJs =
-								collector.collect(premise, sizeLimit);
-						final Collection<? extends Set<ElkAxiom>> conclJs =
-								collector.collect(concl, sizeLimit);
-						
+
+						final Collection<? extends Set<ElkAxiom>> premiseJs = collector
+								.collect(premise, sizeLimit);
+						final Collection<? extends Set<ElkAxiom>> conclJs = collector
+								.collect(concl, sizeLimit);
+
 						int countInf = 0;
 						for (final Set<ElkAxiom> just : premiseJs) {
 							if (Utils.isMinimal(just, conclJs)) {
 								countInf++;
 							}
 						}
-						
+
 						int countGoal = 0;
 						for (final Set<ElkAxiom> just : premiseJs) {
 							if (Utils.isMinimal(just, justs)) {
 								countGoal++;
 							}
 						}
-						
-						return "<html>minimal in inf conclusion: " + countInf +
-								"<br/>minimal in goal: " + countGoal +
-								"</html>";
+
+						return "<html>minimal in inf conclusion: " + countInf
+								+ "<br/>minimal in goal: " + countGoal
+								+ "</html>";
 					}
 				};
-				
+
 				showProofBrowser(proof, justifier, expression,
 						"size " + sizeLimit, decorator, toolTipProvider);
-				
+
 				try {
 					System.out.print("Press ENTER to continue: ");
 					for (;;) {
@@ -179,14 +179,14 @@ public class ProofBrowser {
 							break;
 						}
 					}
-					
+
 				} catch (final IOException e) {
 					LOG.error("Error during input!", e);
 					break;
 				}
-				
+
 			}
-			
+
 		} catch (final FileNotFoundException e) {
 			LOG.error("File Not Found!", e);
 			System.exit(2);
@@ -200,41 +200,43 @@ public class ProofBrowser {
 			if (ontologyIS != null) {
 				try {
 					ontologyIS.close();
-				} catch (final IOException e) {}
+				} catch (final IOException e) {
+				}
 			}
 		}
-		
+
 	}
-	
-	public static <C, A> void showProofBrowser(
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+
+	public static <C, I extends Inference<? extends C>, A> void showProofBrowser(
+			final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final C conclusion) {
 		showProofBrowser(proof, justifier, conclusion, null, null, null);
 	}
-	
-	public static <C, A> void showProofBrowser(
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+
+	public static <C, I extends Inference<? extends C>, A> void showProofBrowser(
+			final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
-		showProofBrowser(proof, justifier, conclusion, null,
-				nodeDecorator, toolTipProvider);
+		showProofBrowser(proof, justifier, conclusion, null, nodeDecorator,
+				toolTipProvider);
 	}
-	
-	public static <C, A> void showProofBrowser(
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+
+	public static <C, I extends Inference<? extends C>, A> void showProofBrowser(
+			final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final C conclusion, final String title,
 			final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
-		
-		final StringBuilder message = new StringBuilder("Change Look and Feel by adding one of the following properties:");
+
+		final StringBuilder message = new StringBuilder(
+				"Change Look and Feel by adding one of the following properties:");
 		for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
 			message.append("\nswing.defaultlaf=").append(info.getClassName());
 		}
 		LOG.info(message.toString());
-		
+
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
@@ -244,19 +246,18 @@ public class ProofBrowser {
 				} else {
 					frame = new JFrame("Proof Browser - " + title);
 				}
-				
-				final JScrollPane scrollPane =
-						new JScrollPane(new ProofTreeComponent<C, A>(
-								proof, justifier, conclusion,
-								nodeDecorator, toolTipProvider));
+
+				final JScrollPane scrollPane = new JScrollPane(
+						new ProofTreeComponent<C, I, A>(proof, justifier,
+								conclusion, nodeDecorator, toolTipProvider));
 				frame.getContentPane().add(scrollPane);
-				
+
 				frame.pack();
-//				frame.setSize(500, 500);
+				// frame.setSize(500, 500);
 				frame.setVisible(true);
 			}
 		});
-		
+
 	}
-	
+
 }

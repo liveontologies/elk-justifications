@@ -19,11 +19,12 @@ import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ElkJustificationExperiment extends
-		ReasonerJustificationExperiment<Conclusion, ElkAxiom, Reasoner> {
+		ReasonerJustificationExperiment<Conclusion, TracingInference, ElkAxiom, Reasoner> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(ElkJustificationExperiment.class);
@@ -89,13 +90,13 @@ public class ElkJustificationExperiment extends
 	}
 
 	@Override
-	protected Proof<Conclusion> newProof(final Conclusion query)
+	protected Proof<TracingInference> newProof(final Conclusion query)
 			throws ExperimentException {
 		return getReasoner().getProof();
 	}
 
 	@Override
-	protected InferenceJustifier<Conclusion, ? extends Set<? extends ElkAxiom>> newJustifier()
+	protected InferenceJustifier<TracingInference, Set<? extends ElkAxiom>> newJustifier()
 			throws ExperimentException {
 		return TracingInferenceJustifier.INSTANCE;
 	}

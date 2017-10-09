@@ -15,16 +15,16 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 
-public class ConclusionDepthComputation<C> {
+public class ConclusionDepthComputation<C, I extends Inference<? extends C>> {
 
 	private final static Logger LOGGER_ = LoggerFactory
 			.getLogger(ConclusionDepthComputation.class);
 
-	private final Proof<C> inferences_;
+	private final Proof<I> inferences_;
 
 	private final Map<C, Integer> depth_ = new HashMap<>();
 
-	private final ListMultimap<C, Inference<C>> inferencesByDeepestPremise_ = ArrayListMultimap
+	private final ListMultimap<C, I> inferencesByDeepestPremise_ = ArrayListMultimap
 			.create();
 
 	private final Queue<C> toDo_ = new ArrayDeque<>();
@@ -33,7 +33,7 @@ public class ConclusionDepthComputation<C> {
 
 	private final Set<C> done_ = new HashSet<>();
 
-	public ConclusionDepthComputation(Proof<C> inferences) {
+	public ConclusionDepthComputation(Proof<I> inferences) {
 		this.inferences_ = inferences;
 	}
 
@@ -56,7 +56,7 @@ public class ConclusionDepthComputation<C> {
 			if (next == null) {
 				break;
 			}
-			for (Inference<C> inf : inferences_.getInferences(next)) {
+			for (I inf : inferences_.getInferences(next)) {
 				processInference(inf);
 				for (C premise : inf.getPremises()) {
 					todo(premise);
@@ -74,14 +74,14 @@ public class ConclusionDepthComputation<C> {
 			}
 			// else
 			depth_.put(next.conclusion, next.depth);
-			for (Inference<C> inf : inferencesByDeepestPremise_
+			for (I inf : inferencesByDeepestPremise_
 					.removeAll(next.conclusion)) {
 				processInference(inf);
 			}
 		}
 	}
 
-	void processInference(Inference<C> inf) {
+	void processInference(I inf) {
 		C deepestPremise = null;
 		int maxPremiseDepth = 0;
 		for (C premise : inf.getPremises()) {

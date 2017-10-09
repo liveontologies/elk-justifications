@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.Set;
 
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.ProofPrinter;
@@ -15,27 +16,31 @@ import org.liveontologies.puli.ProofPrinter;
  * @author Yevgeny Kazakov
  *
  * @param <C>
- *            the type of the conclusions in proofs
+ *            the type of the conclusions in inferences
+ * @param <I>
+ *            the type of inferences in proofs
  * @param <A>
  *            the type of the axioms in proofs
  */
-public class ProofComponentsPrinter<C, A> extends ProofPrinter<C, A> {
+public class ProofComponentsPrinter<C, I extends Inference<? extends C>, A>
+		extends ProofPrinter<C, I, A> {
 
 	private final StronglyConnectedComponents<C> components_;
 
-	ProofComponentsPrinter(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	ProofComponentsPrinter(final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			C conclusion) {
 		super(proof, justifier);
 		this.components_ = StronglyConnectedComponentsComputation
 				.computeComponents(proof, conclusion);
 	}
 
-	public static <C, A> void print(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	public static <C, I extends Inference<? extends C>, A> void print(
+			final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			C conclusion) throws IOException {
-		ProofPrinter<C, A> pp = new ProofComponentsPrinter<>(proof, justifier,
-				conclusion);
+		ProofPrinter<C, I, A> pp = new ProofComponentsPrinter<>(proof,
+				justifier, conclusion);
 		pp.printProof(conclusion);
 	}
 

@@ -30,11 +30,12 @@ import org.liveontologies.puli.Proof;
 
 import com.google.common.collect.HashMultimap;
 
-public class ProofTreeComponent<C, A> extends JTree {
+public class ProofTreeComponent<C, I extends Inference<? extends C>, A>
+		extends JTree {
 	private static final long serialVersionUID = 8406872780618425810L;
 
-	private final Proof<C> proof_;
-	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
+	private final Proof<? extends I> proof_;
+	private final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier_;
 	private final C conclusion_;
 
 	private final TreeNodeLabelProvider nodeDecorator_;
@@ -42,14 +43,14 @@ public class ProofTreeComponent<C, A> extends JTree {
 
 	private final HashMultimap<Object, TreePath> visibleNodes_;
 
-	public ProofTreeComponent(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	public ProofTreeComponent(final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final C conclusion) {
 		this(proof, justifier, conclusion, null, null);
 	}
 
-	public ProofTreeComponent(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	public ProofTreeComponent(final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final C conclusion, final TreeNodeLabelProvider nodeDecorator,
 			final TreeNodeLabelProvider toolTipProvider) {
 		this.proof_ = proof;
@@ -248,10 +249,11 @@ public class ProofTreeComponent<C, A> extends JTree {
 			return conclusion_;
 		}
 
+		@SuppressWarnings("unchecked")
 		@Override
 		public Object getChild(final Object parent, final int index) {
 			if (parent instanceof Inference) {
-				final Inference<C> inf = (Inference<C>) parent;
+				final Inference<?> inf = (Inference<?>) parent;
 				int i = 0;
 				for (final Object premise : inf.getPremises()) {
 					if (i == index) {
@@ -259,7 +261,8 @@ public class ProofTreeComponent<C, A> extends JTree {
 					}
 					i++;
 				}
-				for (final Object axiom : justifier_.getJustification(inf)) {
+				for (final Object axiom : justifier_
+						.getJustification((I) inf)) {
 					if (i == index) {
 						return axiom;
 					}
@@ -272,11 +275,10 @@ public class ProofTreeComponent<C, A> extends JTree {
 					 * determined only by trying and catching
 					 * ClassCastException.
 					 */
-					@SuppressWarnings("unchecked")
-					final Collection<? extends Inference<C>> inferences = proof_
+					final Collection<? extends I> inferences = proof_
 							.getInferences((C) parent);
 					int i = 0;
-					for (final Inference<C> inf : inferences) {
+					for (final I inf : inferences) {
 						if (i == index) {
 							return inf;
 						}
@@ -292,7 +294,8 @@ public class ProofTreeComponent<C, A> extends JTree {
 		@Override
 		public int getChildCount(final Object parent) {
 			if (parent instanceof Inference) {
-				final Inference<C> inf = (Inference<C>) parent;
+				@SuppressWarnings("unchecked")
+				final I inf = (I) parent;
 				return inf.getPremises().size()
 						+ justifier_.getJustification(inf).size();
 			} else {
@@ -303,7 +306,7 @@ public class ProofTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Iterator<? extends Inference<C>> inferenceIterator = proof_
+					final Iterator<? extends I> inferenceIterator = proof_
 							.getInferences((C) parent).iterator();
 					int i = 0;
 					while (inferenceIterator.hasNext()) {
@@ -321,7 +324,8 @@ public class ProofTreeComponent<C, A> extends JTree {
 		@Override
 		public boolean isLeaf(final Object node) {
 			if (node instanceof Inference) {
-				final Inference<C> inf = (Inference<C>) node;
+				@SuppressWarnings("unchecked")
+				final I inf = (I) node;
 				return inf.getPremises().isEmpty()
 						&& justifier_.getJustification(inf).isEmpty();
 			} else {
@@ -332,7 +336,7 @@ public class ProofTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends Inference<C>> inferences = proof_
+					final Collection<? extends I> inferences = proof_
 							.getInferences((C) node);
 					return !inferences.iterator().hasNext();
 				} catch (final ClassCastException e) {
@@ -348,7 +352,8 @@ public class ProofTreeComponent<C, A> extends JTree {
 				return -1;
 			}
 			if (parent instanceof Inference) {
-				final Inference<C> inf = (Inference<C>) parent;
+				@SuppressWarnings("unchecked")
+				final I inf = (I) parent;
 				int i = 0;
 				for (final Object premise : inf.getPremises()) {
 					if (child.equals(premise)) {
@@ -370,10 +375,10 @@ public class ProofTreeComponent<C, A> extends JTree {
 					 * ClassCastException.
 					 */
 					@SuppressWarnings("unchecked")
-					final Collection<? extends Inference<C>> inferences = proof_
+					final Collection<? extends I> inferences = proof_
 							.getInferences((C) parent);
 					int i = 0;
-					for (final Inference<C> inf : inferences) {
+					for (final I inf : inferences) {
 						if (child.equals(inf)) {
 							return i;
 						}

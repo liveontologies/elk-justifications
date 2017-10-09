@@ -5,23 +5,25 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.pinpointing.InterruptMonitor;
 import org.liveontologies.puli.pinpointing.MinimalSubsetEnumerator;
+import org.liveontologies.puli.pinpointing.MinimalSubsetEnumerator.Factory;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.pinpointing.PriorityComparators;
 
-public class MinimalSubsetCollector<C, A> {
+public class MinimalSubsetCollector<C, I extends Inference<? extends C>, A> {
 
-	private final MinimalSubsetEnumerator.Factory<C, A> enumeratorFactory_;
+	private final Factory<C, A> enumeratorFactory_;
 
 	private final CancellableMonitor monitor_ = new CancellableMonitor();
 
 	public MinimalSubsetCollector(
-			final MinimalSubsetsFromProofs.Factory<C, A> factory,
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
+			final MinimalSubsetsFromProofs.Factory<C, I, A> factory,
+			final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier) {
 		this.enumeratorFactory_ = factory.create(proof, justifier, monitor_);
 	}
 

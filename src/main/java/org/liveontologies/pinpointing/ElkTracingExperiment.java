@@ -36,6 +36,7 @@ import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,10 +115,8 @@ public class ElkTracingExperiment {
 
 			stats = new PrintWriter(recordFile);
 			// @formatter:off
-			stats.print("query,"
-					+ "nAxiomsInAllProofs,"
-					+ "nConclusionsInAllProofs,"
-					+ "nInferencesInAllProofs,"
+			stats.print("query," + "nAxiomsInAllProofs,"
+					+ "nConclusionsInAllProofs," + "nInferencesInAllProofs,"
 					+ "time");
 			// @formatter:on
 			List<String> statNames = null;
@@ -156,12 +155,13 @@ public class ElkTracingExperiment {
 										+ record.nConclusionsInAllProofs);
 					}
 					// @formatter:off
-//					if (nInferencesInAllProofs != record.nInferencesInAllProofs) {
-//						throw new RuntimeException(
-//								"nInferencesInAllProofs differs "
-//										+ nInferencesInAllProofs + " "
-//										+ record.nInferencesInAllProofs);
-//					}
+					// if (nInferencesInAllProofs !=
+					// record.nInferencesInAllProofs) {
+					// throw new RuntimeException(
+					// "nInferencesInAllProofs differs "
+					// + nInferencesInAllProofs + " "
+					// + record.nInferencesInAllProofs);
+					// }
 					// @formatter:on
 				}
 
@@ -293,8 +293,7 @@ public class ElkTracingExperiment {
 				final Conclusion conclusion = Utils
 						.getFirstDerivedConclusionForSubsumption(reasoner,
 								query);
-				final Proof<Conclusion> proof = reasoner
-						.getProof();
+				final Proof<TracingInference> proof = reasoner.getProof();
 				final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 				final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
@@ -326,14 +325,9 @@ public class ElkTracingExperiment {
 				LOG.info("... took {}s", runTimeNanos / 1000000000.0);
 
 				// @formatter:off
-				producer.produce(new Record(
-						line,
-						axioms.size(),
-						conclusions.size(),
-						inferences.size(),
-						runTimeNanos / 1000000.0,
-						Stats.copyIntoMap(reasoner)
-					));
+				producer.produce(new Record(line, axioms.size(),
+						conclusions.size(), inferences.size(),
+						runTimeNanos / 1000000.0, Stats.copyIntoMap(reasoner)));
 				// @formatter:on
 
 			}

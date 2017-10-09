@@ -1,11 +1,9 @@
 package org.liveontologies.proofs;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
@@ -15,8 +13,8 @@ import org.semanticweb.elk.reasoner.tracing.DummyConclusionVisitor;
 import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.semanticweb.elk.reasoner.tracing.TracingInferencePremiseVisitor;
 
-public class TracingInferenceJustifier
-		implements InferenceJustifier<Conclusion, Set<? extends ElkAxiom>> {
+public class TracingInferenceJustifier implements
+		InferenceJustifier<TracingInference, Set<? extends ElkAxiom>> {
 
 	public static final TracingInferenceJustifier INSTANCE = new TracingInferenceJustifier();
 
@@ -30,14 +28,10 @@ public class TracingInferenceJustifier
 
 	@Override
 	public Set<? extends ElkAxiom> getJustification(
-			final Inference<Conclusion> inference) {
-		if (!(inference instanceof TracingInference)) {
-			return Collections.emptySet();
-		}
+			final TracingInference inference) {
 		// else
-		final TracingInference tracingInference = (TracingInference) inference;
 		final Set<ElkAxiom> result = new HashSet<ElkAxiom>();
-		tracingInference.accept(new TracingInferencePremiseVisitor<>(
+		inference.accept(new TracingInferencePremiseVisitor<>(
 				CONCLUSION_FACTORY_, DUMMY_CONCLUSION_VISITOR_,
 				new ElkAxiomCollector(result)));
 		return result;

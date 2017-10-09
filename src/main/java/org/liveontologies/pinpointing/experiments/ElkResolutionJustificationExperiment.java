@@ -21,6 +21,7 @@ import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +29,8 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-public class ElkResolutionJustificationExperiment
-		extends ResolutionJustificationExperiment<Conclusion, ElkAxiom> {
+public class ElkResolutionJustificationExperiment extends
+		ResolutionJustificationExperiment<Conclusion, TracingInference, ElkAxiom> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(ElkResolutionJustificationExperiment.class);
@@ -115,13 +116,13 @@ public class ElkResolutionJustificationExperiment
 	}
 
 	@Override
-	protected Proof<Conclusion> newProof(final Conclusion query)
+	protected Proof<TracingInference> newProof(final Conclusion query)
 			throws ExperimentException {
 		return getReasoner().getProof();
 	}
 
 	@Override
-	protected InferenceJustifier<Conclusion, ? extends Set<? extends ElkAxiom>> newJustifier()
+	protected InferenceJustifier<TracingInference, ? extends Set<? extends ElkAxiom>> newJustifier()
 			throws ExperimentException {
 		return TracingInferenceJustifier.INSTANCE;
 	}

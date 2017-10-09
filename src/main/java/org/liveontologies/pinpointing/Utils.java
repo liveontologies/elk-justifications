@@ -25,7 +25,6 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.entailments.model.Entailment;
 import org.semanticweb.elk.reasoner.entailments.model.EntailmentInference;
-import org.semanticweb.elk.reasoner.entailments.model.EntailmentProof;
 import org.semanticweb.elk.reasoner.entailments.model.HasReason;
 import org.semanticweb.elk.reasoner.query.ElkQueryException;
 import org.semanticweb.elk.reasoner.query.EntailmentQueryResult;
@@ -90,15 +89,15 @@ public final class Utils {
 		return (int) Math.floor(Math.log10(x) + 1);
 	}
 
-	public static <C, A, IO, CO, AO> void traverseProofs(final C expression,
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
-			final Function<Inference<C>, IO> perInference,
+	public static <C, I extends Inference<? extends C>, A, IO, CO, AO> void traverseProofs(
+			final C expression, final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
+			final Function<? super I, IO> perInference,
 			final Function<C, CO> perConclusion,
 			final Function<A, AO> perAxiom) {
 
-		final Queue<C> toDo = new LinkedList<C>();
-		final Set<C> done = new HashSet<C>();
+		final Queue<C> toDo = new LinkedList<>();
+		final Set<C> done = new HashSet<>();
 
 		toDo.add(expression);
 		done.add(expression);
@@ -112,7 +111,7 @@ public final class Utils {
 
 			perConclusion.apply(next);
 
-			for (final Inference<C> inf : proof.getInferences(next)) {
+			for (final I inf : proof.getInferences(next)) {
 				perInference.apply(inf);
 
 				for (final A axiom : justifier.getJustification(inf)) {
@@ -198,7 +197,7 @@ public final class Utils {
 		if (first.isEmpty() || second.isEmpty()) {
 			return Collections.emptyList();
 		}
-		List<Justification<C, T>> result = new ArrayList<Justification<C, T>>(
+		List<Justification<C, T>> result = new ArrayList<>(
 				first.size() * second.size());
 		for (Justification<C, T> firstSet : first) {
 			for (Justification<C, T> secondSet : second) {
@@ -299,7 +298,7 @@ public final class Utils {
 	}
 
 	private static void collectReasons(final Entailment goal,
-			final EntailmentProof evidence,
+			final Proof<EntailmentInference> evidence,
 			final Collection<Conclusion> result) {
 
 		final Set<Entailment> done = new ArrayHashSet<Entailment>();

@@ -36,14 +36,16 @@ import com.google.common.collect.Multimap;
  * @author Peter Skocovsky
  *
  * @param <C>
+ * @param <I>
  * @param <A>
  */
-public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
+public class MinPremisesBottomUp<C, I extends Inference<? extends C>, A>
+		extends MinimalSubsetsFromProofs<C, I, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(MinPremisesBottomUp.class);
 
-	private static final MinPremisesBottomUp.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
+	private static final MinPremisesBottomUp.Factory<?, ?, ?> FACTORY_ = new Factory<>();
 
 	/**
 	 * a map from conclusions to their justifications
@@ -54,14 +56,14 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, Inference<C>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, I> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	/**
 	 * a map from premises and inferences for which they are used to their
 	 * justifications
 	 */
-	private final Multimap<Pair<Inference<C>, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
+	private final Multimap<Pair<I, C>, Justification<C, A>> premiseJustifications_ = ArrayListMultimap
 			.create();
 
 	// Statistics
@@ -69,8 +71,8 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0, countBlocked_ = 0;
 
-	private MinPremisesBottomUp(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	private MinPremisesBottomUp(final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
 		super(proof, justifier, monitor);
 	}
@@ -138,8 +140,8 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> MinimalSubsetsFromProofs.Factory<C, A> getFactory() {
-		return (Factory<C, A>) FACTORY_;
+	public static <C, I extends Inference<? extends C>, A> MinimalSubsetsFromProofs.Factory<C, I, A> getFactory() {
+		return (Factory<C, I, A>) FACTORY_;
 	}
 
 	@SafeVarargs
@@ -238,7 +240,7 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 				LOGGER_.trace("{}: computation of justifiations initialized",
 						conclusion);
 				boolean derived = false;
-				for (final Inference<C> inf : getInferences(conclusion)) {
+				for (final I inf : getInferences(conclusion)) {
 					LOGGER_.trace("{}: new inference", inf);
 					derived = true;
 					countInferences_++;
@@ -247,8 +249,8 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 						toInitialize(premise);
 					}
 					if (inf.getPremises().isEmpty()) {
-						toDoJustifications_.add(jobFactory_
-								.newJob(createJustification(inf.getConclusion(),
+						toDoJustifications_.add(jobFactory_.newJob(
+								createJustification((C) inf.getConclusion(),
 										getJustification(inf))));
 						countJustificationCandidates_++;
 					}
@@ -306,11 +308,10 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 
 					// all justifications are computed,
 					// the inferences are not needed anymore
-					for (final Inference<C> inf : getInferences(conclusion)) {
+					for (final I inf : getInferences(conclusion)) {
 						for (C premise : inf.getPremises()) {
 							inferencesByPremises_.remove(premise, inf);
-							final Pair<Inference<C>, C> key = Pair.create(inf,
-									premise);
+							final Pair<I, C> key = Pair.create(inf, premise);
 							premiseJustifications_.removeAll(key);
 							premiseJustifications_.put(key,
 									just.copyTo(premise));
@@ -327,7 +328,7 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 					 * removed, there is no need to minimize their premise
 					 * justifications
 					 */
-					for (final Inference<C> inf : getInferences(conclusion)) {
+					for (final I inf : getInferences(conclusion)) {
 						final Justification<C, A> justLessInf = just
 								.removeElements(getJustification(inf));
 						for (final C premise : inf.getPremises()) {
@@ -350,14 +351,14 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 				 * where this conclusion is the premise iff it is minimal w.r.t.
 				 * justifications of the inference conclusion
 				 */
-				final Collection<Inference<C>> inferences = inferencesByPremises_
+				final Collection<I> inferences = inferencesByPremises_
 						.get(conclusion);
 				if (inferences == null || inferences.isEmpty()) {
 					continue;
 				}
-				final List<Inference<C>> infsToPropagate = new ArrayList<>(
+				final List<I> infsToPropagate = new ArrayList<>(
 						inferences.size());
-				for (final Inference<C> inf : inferences) {
+				for (final I inf : inferences) {
 					final Collection<Justification<C, A>> premiseJusts = premiseJustifications_
 							.get(Pair.create(inf, conclusion));
 
@@ -374,7 +375,7 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 				/*
 				 * propagating justification over inferences
 				 */
-				for (final Inference<C> inf : infsToPropagate) {
+				for (final I inf : infsToPropagate) {
 
 					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
 					Justification<C, A> conclusionJust = just
@@ -456,16 +457,19 @@ public class MinPremisesBottomUp<C, A> extends MinimalSubsetsFromProofs<C, A> {
 	 *
 	 * @param <C>
 	 *            the type of conclusion and premises used by the inferences
+	 * 
+	 * @param <I>
+	 *            the type of inferences used in proofs
 	 * @param <A>
 	 *            the type of axioms used by the inferences
 	 */
-	private static class Factory<C, A>
-			implements MinimalSubsetsFromProofs.Factory<C, A> {
+	private static class Factory<C, I extends Inference<? extends C>, A>
+			implements MinimalSubsetsFromProofs.Factory<C, I, A> {
 
 		@Override
 		public MinimalSubsetEnumerator.Factory<C, A> create(
-				final Proof<C> proof,
-				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+				final Proof<? extends I> proof,
+				final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
 			return new MinPremisesBottomUp<>(proof, justifier, monitor);
 		}

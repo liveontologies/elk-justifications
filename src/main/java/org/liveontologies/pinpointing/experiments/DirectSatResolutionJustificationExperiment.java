@@ -11,6 +11,7 @@ import java.util.Set;
 import org.liveontologies.pinpointing.DirectSatEncodingUsingElkCsvQuery;
 import org.liveontologies.pinpointing.Utils;
 import org.liveontologies.proofs.adapters.DirectSatEncodingProofAdapter;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
@@ -20,8 +21,8 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-public class DirectSatResolutionJustificationExperiment
-		extends ResolutionJustificationExperiment<Integer, Integer> {
+public class DirectSatResolutionJustificationExperiment extends
+		ResolutionJustificationExperiment<Integer, Inference<Integer>, Integer> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(DirectSatResolutionJustificationExperiment.class);
@@ -89,7 +90,7 @@ public class DirectSatResolutionJustificationExperiment
 	}
 
 	@Override
-	protected Proof<Integer> newProof(final Integer query)
+	protected Proof<Inference<Integer>> newProof(final Integer query)
 			throws ExperimentException {
 
 		InputStream cnf = null;
@@ -101,7 +102,7 @@ public class DirectSatResolutionJustificationExperiment
 
 			LOGGER_.info("Loading proof ...");
 			long start = System.currentTimeMillis();
-			final Proof<Integer> result = DirectSatEncodingProofAdapter
+			final Proof<Inference<Integer>> result = DirectSatEncodingProofAdapter
 					.load(assumptions, cnf);
 			LOGGER_.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
@@ -117,7 +118,7 @@ public class DirectSatResolutionJustificationExperiment
 	}
 
 	@Override
-	protected InferenceJustifier<Integer, ? extends Set<? extends Integer>> newJustifier()
+	protected InferenceJustifier<Inference<? extends Integer>, ? extends Set<Integer>> newJustifier()
 			throws ExperimentException {
 		return DirectSatEncodingProofAdapter.JUSTIFIER;
 	}

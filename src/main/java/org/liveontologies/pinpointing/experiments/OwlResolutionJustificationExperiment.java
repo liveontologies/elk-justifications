@@ -4,9 +4,10 @@ import java.io.File;
 import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceJustifiers;
 import org.liveontologies.puli.Proof;
-import org.liveontologies.puli.Proofs;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.IRI;
@@ -15,7 +16,6 @@ import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
-import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +24,8 @@ import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-public class OwlResolutionJustificationExperiment
-		extends ResolutionJustificationExperiment<OWLAxiom, OWLAxiom> {
+public class OwlResolutionJustificationExperiment extends
+		ResolutionJustificationExperiment<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(OwlResolutionJustificationExperiment.class);
@@ -114,16 +114,15 @@ public class OwlResolutionJustificationExperiment
 	}
 
 	@Override
-	protected Proof<OWLAxiom> newProof(final OWLAxiom query)
-			throws ExperimentException {
-		return Proofs.addAssertedInferences(getReasoner().getProof(query),
-				getReasoner().getRootOntology().getAxioms(Imports.EXCLUDED));
+	protected Proof<? extends Inference<OWLAxiom>> newProof(
+			final OWLAxiom query) throws ExperimentException {
+		return getReasoner().getProof(query);
 	}
 
 	@Override
-	protected InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> newJustifier()
+	protected InferenceJustifier<Inference<OWLAxiom>, ? extends Set<? extends OWLAxiom>> newJustifier()
 			throws ExperimentException {
-		return Proofs.justifyAssertedInferences();
+		return InferenceJustifiers.justifyAssertedInferences();
 	}
 
 }

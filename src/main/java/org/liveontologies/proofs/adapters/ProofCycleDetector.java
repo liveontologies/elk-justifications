@@ -19,9 +19,10 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Yevgeny Kazakov
  *
- * @param <C>
+ * @param <I>
+ *            the type of inferences in the proof
  */
-public class ProofCycleDetector<C> {
+public class ProofCycleDetector<I extends Inference<?>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(ProofCycleDetector.class);
@@ -29,36 +30,36 @@ public class ProofCycleDetector<C> {
 	/**
 	 * inferences that are filtered
 	 */
-	private final Proof<C> originalInferences_;
+	private final Proof<I> originalProof_;
 
 	/**
 	 * verified conclusions with cyclic proofs will be collected here
 	 */
-	private final Set<C> visitedCyclic_ = new HashSet<C>();
+	private final Set<Object> visitedCyclic_ = new HashSet<>();
 
 	/**
 	 * verified conclusions without cyclic proofs will be collected here
 	 */
-	private final Set<C> visitedNonCyclic_ = new HashSet<C>();
+	private final Set<Object> visitedNonCyclic_ = new HashSet<>();
 
 	/**
 	 * conclusions on the current proof path, for cycle detection
 	 */
-	private final Set<C> conclusionsOnPath_ = new HashSet<C>();
+	private final Set<Object> conclusionsOnPath_ = new HashSet<>();
 
 	/**
 	 * the current stack of conclusions together with the iterators over
 	 * inferences
 	 */
-	private final Deque<ConclusionRecord<C>> conclusionStack_ = new LinkedList<ConclusionRecord<C>>();
+	private final Deque<ConclusionRecord<I>> conclusionStack_ = new LinkedList<>();
 
 	/**
 	 * the current stack of inferences together with the iterators over premises
 	 */
-	private final Deque<InferenceRecord<C>> inferenceStack_ = new LinkedList<InferenceRecord<C>>();
+	private final Deque<InferenceRecord<I>> inferenceStack_ = new LinkedList<>();
 
-	ProofCycleDetector(final Proof<C> originalInferences) {
-		this.originalInferences_ = originalInferences;
+	ProofCycleDetector(final Proof<I> originalProof) {
+		this.originalProof_ = originalProof;
 	}
 
 	/**
@@ -68,7 +69,7 @@ public class ProofCycleDetector<C> {
 	 *         of the premises in the proof can be derived from itself using the
 	 *         inferences in this proof
 	 */
-	public boolean hasCyclicProofFor(C conclusion) {
+	public boolean hasCyclicProofFor(Object conclusion) {
 		if (visitedNonCyclic_.contains(conclusion)) {
 			return false;
 		}
@@ -79,7 +80,7 @@ public class ProofCycleDetector<C> {
 
 	private boolean checkCycles() {
 		for (;;) {
-			ConclusionRecord<C> conclRec = conclusionStack_.peek();
+			ConclusionRecord<I> conclRec = conclusionStack_.peek();
 			if (conclRec == null) {
 				return false;
 			}
@@ -90,7 +91,7 @@ public class ProofCycleDetector<C> {
 				// no more inferences
 				popNonCyclic();
 			}
-			InferenceRecord<C> infRec = inferenceStack_.peek();
+			InferenceRecord<I> infRec = inferenceStack_.peek();
 			if (infRec == null) {
 				return false;
 			}
@@ -101,7 +102,7 @@ public class ProofCycleDetector<C> {
 					break;
 				}
 				// else
-				C premise = infRec.premiseIterator_.next();
+				Object premise = infRec.premiseIterator_.next();
 				if (visitedNonCyclic_.contains(premise)) {
 					// already checked
 					LOGGER_.trace("{}: already visited", premise);
@@ -125,52 +126,52 @@ public class ProofCycleDetector<C> {
 
 	}
 
-	private boolean push(C conclusion) {
+	private boolean push(Object conclusion) {
 		if (visitedCyclic_.contains(conclusion)
 				|| !conclusionsOnPath_.add(conclusion)) {
 			return false;
 		}
 		// else
 		conclusionStack_
-				.push(new ConclusionRecord<>(originalInferences_, conclusion));
+				.push(new ConclusionRecord<>(originalProof_, conclusion));
 		LOGGER_.trace("{}: conclusion pushed", conclusion);
 		return true;
 	}
 
-	private void push(final Inference<C> inf) {
+	private void push(final I inf) {
 		inferenceStack_.push(new InferenceRecord<>(inf));
 		LOGGER_.trace("{}: inference pushed", inf);
 	}
 
-	private ConclusionRecord<C> popNonCyclic() {
-		ConclusionRecord<C> result = conclusionStack_.pop();
+	private ConclusionRecord<I> popNonCyclic() {
+		ConclusionRecord<I> result = conclusionStack_.pop();
 		LOGGER_.trace("{}: conclusion popped, non-cyclic", result.conclusion_);
 		conclusionsOnPath_.remove(result.conclusion_);
 		visitedNonCyclic_.add(result.conclusion_);
 		return result;
 	}
 
-	private ConclusionRecord<C> popCyclic() {
-		ConclusionRecord<C> result = conclusionStack_.pop();
+	private ConclusionRecord<I> popCyclic() {
+		ConclusionRecord<I> result = conclusionStack_.pop();
 		LOGGER_.trace("{}: conclusion popped, cyclic", result.conclusion_);
 		conclusionsOnPath_.remove(result.conclusion_);
 		visitedCyclic_.add(result.conclusion_);
 		return result;
 	}
 
-	private InferenceRecord<C> popInference() {
-		InferenceRecord<C> result = inferenceStack_.pop();
+	private InferenceRecord<I> popInference() {
+		InferenceRecord<I> result = inferenceStack_.pop();
 		LOGGER_.trace("{}: inference popped", result.inference_);
 		return result;
 	}
 
-	private static class ConclusionRecord<C> {
+	private static class ConclusionRecord<I extends Inference<?>> {
 
-		private final C conclusion_;
+		private final Object conclusion_;
 
-		private final Iterator<? extends Inference<C>> inferenceIterator_;
+		private final Iterator<? extends I> inferenceIterator_;
 
-		ConclusionRecord(final Proof<C> proof, final C conclusion) {
+		ConclusionRecord(final Proof<I> proof, final Object conclusion) {
 			this.conclusion_ = conclusion;
 			this.inferenceIterator_ = proof.getInferences(conclusion)
 					.iterator();
@@ -178,13 +179,13 @@ public class ProofCycleDetector<C> {
 
 	}
 
-	private static class InferenceRecord<C> {
+	private static class InferenceRecord<I extends Inference<?>> {
 
-		Inference<C> inference_;
+		I inference_;
 
-		private final Iterator<? extends C> premiseIterator_;
+		private final Iterator<?> premiseIterator_;
 
-		InferenceRecord(Inference<C> inference) {
+		InferenceRecord(I inference) {
 			this.inference_ = inference;
 			this.premiseIterator_ = inference.getPremises().iterator();
 		}

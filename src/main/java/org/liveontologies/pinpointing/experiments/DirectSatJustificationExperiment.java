@@ -7,13 +7,14 @@ import java.util.Set;
 
 import org.liveontologies.pinpointing.Utils;
 import org.liveontologies.proofs.adapters.DirectSatEncodingProofAdapter;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DirectSatJustificationExperiment
-		extends BaseJustificationExperiment<Integer, Integer> {
+public class DirectSatJustificationExperiment extends
+		BaseJustificationExperiment<Integer, Inference<? extends Integer>, Integer> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(DirectSatJustificationExperiment.class);
@@ -46,8 +47,8 @@ public class DirectSatJustificationExperiment
 	}
 
 	@Override
-	protected Proof<Integer> newProof(final Integer query)
-			throws ExperimentException {
+	protected Proof<? extends Inference<? extends Integer>> newProof(
+			final Integer query) throws ExperimentException {
 
 		InputStream cnf = null;
 		InputStream assumptions = null;
@@ -59,7 +60,7 @@ public class DirectSatJustificationExperiment
 
 			LOG.info("Loading CNF ...");
 			final long start = System.currentTimeMillis();
-			final Proof<Integer> result = DirectSatEncodingProofAdapter
+			final Proof<? extends Inference<? extends Integer>> result = DirectSatEncodingProofAdapter
 					.load(assumptions, cnf);
 			LOG.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
@@ -76,7 +77,7 @@ public class DirectSatJustificationExperiment
 	}
 
 	@Override
-	protected InferenceJustifier<Integer, ? extends Set<? extends Integer>> newJustifier()
+	protected InferenceJustifier<? super Inference<? extends Integer>, ? extends Set<Integer>> newJustifier()
 			throws ExperimentException {
 		return DirectSatEncodingProofAdapter.JUSTIFIER;
 	}

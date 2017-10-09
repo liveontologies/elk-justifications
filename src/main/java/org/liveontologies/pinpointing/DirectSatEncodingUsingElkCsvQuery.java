@@ -22,7 +22,6 @@ import java.util.TreeMap;
 import org.liveontologies.pinpointing.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.liveontologies.pinpointing.experiments.CsvQueryDecoder;
 import org.liveontologies.proofs.TracingInferenceJustifier;
-import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.Proof;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -37,6 +36,7 @@ import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -216,8 +216,8 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 		final String queryName = Utils.toFileName(line);
 		// @formatter:off
-//		final String queryName = String.format(
-//				"%0" + Integer.toString(queryCount).length() + "d", queryIndex);
+		// final String queryName = String.format(
+		// "%0" + Integer.toString(queryCount).length() + "d", queryIndex);
 		// @formatter:on
 		final File outDir = new File(outputDirectory, queryName);
 		final File hFile = new File(outDir, FILE_NAME + SUFFIX_H);
@@ -245,14 +245,14 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 			final Conclusion expression = Utils
 					.getFirstDerivedConclusionForSubsumption(reasoner, query);
-			final Proof<Conclusion> proof = reasoner.getProof();
+			final Proof<TracingInference> proof = reasoner.getProof();
 			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 			final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
 			final Set<Conclusion> conclusions = new HashSet<Conclusion>();
 
 			Utils.traverseProofs(expression, proof, justifier,
-					Functions.<Inference<Conclusion>> identity(),
+					Functions.<TracingInference> identity(),
 					new Function<Conclusion, Void>() {
 						@Override
 						public Void apply(final Conclusion expr) {
@@ -281,9 +281,9 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 			// cnf
 			Utils.traverseProofs(expression, proof, justifier,
-					new Function<Inference<Conclusion>, Void>() {
+					new Function<TracingInference, Void>() {
 						@Override
-						public Void apply(final Inference<Conclusion> inf) {
+						public Void apply(final TracingInference inf) {
 
 							LOG_.trace("processing {}", inf);
 

@@ -4,9 +4,10 @@ import java.io.File;
 import java.util.Set;
 
 import org.liveontologies.owlapi.proof.OWLProver;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.InferenceJustifiers;
 import org.liveontologies.puli.Proof;
-import org.liveontologies.puli.Proofs;
 import org.semanticweb.elk.owlapi.ElkProverFactory;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.IRI;
@@ -15,13 +16,12 @@ import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
-import org.semanticweb.owlapi.model.parameters.Imports;
 import org.semanticweb.owlapi.reasoner.InferenceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OwlJustificationExperiment
-		extends ReasonerJustificationExperiment<OWLAxiom, OWLAxiom, OWLProver> {
+public class OwlJustificationExperiment extends
+		ReasonerJustificationExperiment<OWLAxiom, Inference<OWLAxiom>, OWLAxiom, OWLProver> {
 
 	private static final Logger LOG = LoggerFactory
 			.getLogger(OwlJustificationExperiment.class);
@@ -91,16 +91,15 @@ public class OwlJustificationExperiment
 	}
 
 	@Override
-	protected Proof<OWLAxiom> newProof(final OWLAxiom query)
-			throws ExperimentException {
-		return Proofs.addAssertedInferences(getReasoner().getProof(query),
-				getReasoner().getRootOntology().getAxioms(Imports.EXCLUDED));
+	protected Proof<? extends Inference<OWLAxiom>> newProof(
+			final OWLAxiom query) throws ExperimentException {
+		return getReasoner().getProof(query);
 	}
 
 	@Override
-	protected InferenceJustifier<OWLAxiom, ? extends Set<? extends OWLAxiom>> newJustifier()
+	protected InferenceJustifier<Inference<OWLAxiom>, ? extends Set<? extends OWLAxiom>> newJustifier()
 			throws ExperimentException {
-		return Proofs.justifyAssertedInferences();
+		return InferenceJustifiers.justifyAssertedInferences();
 	}
 
 }

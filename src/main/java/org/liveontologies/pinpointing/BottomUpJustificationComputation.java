@@ -28,18 +28,18 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 
-public class BottomUpJustificationComputation<C, A>
-		extends MinimalSubsetsFromProofs<C, A> {
+public class BottomUpJustificationComputation<C, I extends Inference<? extends C>, A>
+		extends MinimalSubsetsFromProofs<C, I, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(BottomUpJustificationComputation.class);
 
-	private static final BottomUpJustificationComputation.Factory<?, ?> FACTORY_ = new Factory<Object, Object>();
+	private static final BottomUpJustificationComputation.Factory<?, ?, ?> FACTORY_ = new Factory<>();
 
 	/**
 	 * conclusions for which computation of justifications has been initialized
 	 */
-	private final Set<C> initialized_ = new HashSet<C>();
+	private final Set<C> initialized_ = new HashSet<>();
 
 	/**
 	 * a map from conclusions to their justifications
@@ -57,7 +57,7 @@ public class BottomUpJustificationComputation<C, A>
 	/**
 	 * a map from premises to inferences for relevant conclusions
 	 */
-	private final Multimap<C, Inference<C>> inferencesByPremises_ = ArrayListMultimap
+	private final Multimap<C, I> inferencesByPremises_ = ArrayListMultimap
 			.create();
 
 	// Statistics
@@ -65,8 +65,8 @@ public class BottomUpJustificationComputation<C, A>
 	private int countInferences_ = 0, countConclusions_ = 0,
 			countJustificationCandidates_ = 0;
 
-	private BottomUpJustificationComputation(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	private BottomUpJustificationComputation(final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final InterruptMonitor monitor) {
 		super(proof, justifier, monitor);
 	}
@@ -133,8 +133,8 @@ public class BottomUpJustificationComputation<C, A>
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <C, A> MinimalSubsetsFromProofs.Factory<C, A> getFactory() {
-		return (Factory<C, A>) FACTORY_;
+	public static <C, I extends Inference<? extends C>, A> MinimalSubsetsFromProofs.Factory<C, I, A> getFactory() {
+		return (Factory<C, I, A>) FACTORY_;
 	}
 
 	@SafeVarargs
@@ -159,12 +159,12 @@ public class BottomUpJustificationComputation<C, A>
 		 * justifications, i.e., those from which the conclusion for which the
 		 * justifications are computed can be derived
 		 */
-		private final Set<C> relevant_ = new HashSet<C>();
+		private final Set<C> relevant_ = new HashSet<>();
 
 		/**
 		 * temporary queue to compute {@link #relevant_}
 		 */
-		private final Queue<C> toDo_ = new LinkedList<C>();
+		private final Queue<C> toDo_ = new LinkedList<>();
 
 		/**
 		 * newly computed justifications to be propagated
@@ -201,7 +201,7 @@ public class BottomUpJustificationComputation<C, A>
 					.equals(priorityComparator)) {
 				// Visit already computed justifications. They should be in the
 				// correct order.
-				for (final Justification<C, A> just : justifications_
+				for (final Justification<?, A> just : justifications_
 						.get(conclusion_)) {
 					listener.newMinimalSubset(just);
 				}
@@ -230,13 +230,12 @@ public class BottomUpJustificationComputation<C, A>
 			C conclusion;
 			while ((conclusion = toDo_.poll()) != null) {
 
-				final Collection<? extends Inference<C>> infs = getInferences(
-						conclusion);
+				final Collection<? extends I> infs = getInferences(conclusion);
 				if (infs.isEmpty()) {
 					LOGGER_.warn("{}: lemma not derived!", conclusion);
 				}
 
-				for (final Inference<C> inf : infs) {
+				for (final I inf : infs) {
 					LOGGER_.trace("{}: new inference", inf);
 					countInferences_++;
 					for (final C premise : inf.getPremises()) {
@@ -250,10 +249,11 @@ public class BottomUpJustificationComputation<C, A>
 							"{}: computation of justifiations initialized",
 							conclusion);
 					// propagate existing justifications for premises
-					for (final Inference<C> inf : infs) {
-						List<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
-						conclusionJusts.add(createJustification(
-								inf.getConclusion(), getJustification(inf)));
+					for (final I inf : infs) {
+						List<Justification<C, A>> conclusionJusts = new ArrayList<>();
+						conclusionJusts.add(
+								createJustification((C) inf.getConclusion(),
+										getJustification(inf)));
 						for (final C premise : inf.getPremises()) {
 							conclusionJusts = Utils.join(conclusionJusts,
 									justifications_.get(premise));
@@ -322,7 +322,7 @@ public class BottomUpJustificationComputation<C, A>
 				if (just.isEmpty()) {
 					// all justifications are computed,
 					// the inferences are not needed anymore
-					for (final Inference<C> inf : getInferences(conclusion)) {
+					for (final I inf : getInferences(conclusion)) {
 						for (C premise : inf.getPremises()) {
 							inferencesByPremises_.remove(premise, inf);
 						}
@@ -332,10 +332,9 @@ public class BottomUpJustificationComputation<C, A>
 				/*
 				 * propagating justification over inferences
 				 */
-				for (final Inference<C> inf : inferencesByPremises_
-						.get(conclusion)) {
+				for (final I inf : inferencesByPremises_.get(conclusion)) {
 
-					Collection<Justification<C, A>> conclusionJusts = new ArrayList<Justification<C, A>>();
+					Collection<Justification<C, A>> conclusionJusts = new ArrayList<>();
 					Justification<C, A> conclusionJust = just
 							.copyTo(inf.getConclusion())
 							.addElements(getJustification(inf));
@@ -416,18 +415,18 @@ public class BottomUpJustificationComputation<C, A>
 	 * 
 	 * @author Yevgeny Kazakov
 	 *
-	 * @param <C>
-	 *            the type of conclusion and premises used by the inferences
+	 * @param <I>
+	 *            the type of inferences used in the proof
 	 * @param <A>
 	 *            the type of axioms used by the inferences
 	 */
-	private static class Factory<C, A>
-			implements MinimalSubsetsFromProofs.Factory<C, A> {
+	private static class Factory<C, I extends Inference<? extends C>, A>
+			implements MinimalSubsetsFromProofs.Factory<C, I, A> {
 
 		@Override
 		public MinimalSubsetEnumerator.Factory<C, A> create(
-				final Proof<C> proof,
-				final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+				final Proof<? extends I> proof,
+				final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 				final InterruptMonitor monitor) {
 			return new BottomUpJustificationComputation<>(proof, justifier,
 					monitor);

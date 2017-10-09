@@ -41,6 +41,7 @@ import org.semanticweb.elk.reasoner.indexing.model.IndexedContextRoot;
 import org.semanticweb.elk.reasoner.saturation.conclusions.model.ClassConclusion;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
 import org.semanticweb.elk.reasoner.tracing.DummyConclusionVisitor;
+import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -256,7 +257,7 @@ public class CollectStatisticsUsingElk {
 
 		final Conclusion expression = Utils
 				.getFirstDerivedConclusionForSubsumption(reasoner, conclusion);
-		final Proof<Conclusion> proof = reasoner.getProof();
+		final Proof<TracingInference> proof = reasoner.getProof();
 		final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
 
 		final Set<ElkAxiom> axiomExprs = new HashSet<ElkAxiom>();

@@ -19,27 +19,29 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Yevgeny Kazakov
  *
- * @param <C>
+ * @param <I>
+ *            type of inferences used in the proof
  * @param <A>
+ *            type of axioms used in justifications
  */
-public class ProofInfoForConclusion<C, A> {
+public class ProofInfoForConclusion<I extends Inference<?>, A> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(ProofInfoForConclusion.class);
 
-	private final Set<C> usedConclusions_ = new HashSet<>();
+	private final Set<Object> usedConclusions_ = new HashSet<>();
 	private final Set<A> usedAxioms_ = new HashSet<>();
-	private final List<Inference<C>> usedInferences_ = new ArrayList<>();
+	private final List<I> usedInferences_ = new ArrayList<>();
 
-	private final Queue<C> toDo_ = new LinkedList<C>();
+	private final Queue<Object> toDo_ = new LinkedList<>();
 
-	private final Proof<C> inferences_;
-	private final InferenceJustifier<C, ? extends Set<? extends A>> justifier_;
+	private final Proof<I> proof_;
+	private final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier_;
 
-	ProofInfoForConclusion(final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
-			C conclusion) {
-		this.inferences_ = proof;
+	ProofInfoForConclusion(final Proof<I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
+			Object conclusion) {
+		this.proof_ = proof;
 		this.justifier_ = justifier;
 		toDo(conclusion);
 		process();
@@ -48,14 +50,14 @@ public class ProofInfoForConclusion<C, A> {
 	/**
 	 * @return the inferences used in the proofs for the given conclusion
 	 */
-	public List<Inference<C>> getUsedInferences() {
+	public List<I> getUsedInferences() {
 		return usedInferences_;
 	}
 
 	/**
 	 * @return the conclusions used in the proofs for the given conclusion
 	 */
-	public Set<C> getUsedConclusions() {
+	public Set<?> getUsedConclusions() {
 		return usedConclusions_;
 	}
 
@@ -73,19 +75,19 @@ public class ProofInfoForConclusion<C, A> {
 		LOGGER_.debug("{} used axioms", usedAxioms_.size());
 	}
 
-	private void toDo(C conclusion) {
+	private void toDo(Object conclusion) {
 		if (usedConclusions_.add(conclusion)) {
 			toDo_.add(conclusion);
 		}
 	}
 
 	private void process() {
-		C next;
+		Object next;
 		while ((next = toDo_.poll()) != null) {
-			for (final Inference<C> inf : inferences_.getInferences(next)) {
+			for (final I inf : proof_.getInferences(next)) {
 				usedInferences_.add(inf);
 				usedAxioms_.addAll(justifier_.getJustification(inf));
-				for (C premise : inf.getPremises()) {
+				for (Object premise : inf.getPremises()) {
 					toDo(premise);
 				}
 			}

@@ -23,13 +23,15 @@ import org.slf4j.LoggerFactory;
  * overflow, recursive calls (usually used in the standard formulations) are
  * avoided by means of custom stacks.
  * 
+ * @param <C>
+ *            type of conclusions used in proofs
+ * @param <I>
+ *            type of inferences used in proofs
+ * 
  * @author Yevgeny Kazakov
  *
- * @param <C>
- *            the type of premises and conclusions of inferences over which to
- *            compute the components
  */
-public class StronglyConnectedComponentsComputation<C> {
+public class StronglyConnectedComponentsComputation<C, I extends Inference<? extends C>> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(StronglyConnectedComponentsComputation.class);
@@ -37,31 +39,31 @@ public class StronglyConnectedComponentsComputation<C> {
 	/**
 	 * the proof which induces the graph
 	 */
-	private Proof<C> inferences_;
+	private Proof<? extends I> proof_;
 
 	/**
 	 * conclusions on the current path, assume to alternate with elements of
 	 * {@link #inferenceStack_}
 	 */
-	private final Deque<ConclusionRecord<C>> conclusionStack_ = new LinkedList<ConclusionRecord<C>>();
+	private final Deque<ConclusionRecord<C, I>> conclusionStack_ = new LinkedList<>();
 
 	/**
 	 * inferences on the current path, assume to alternate with elements of
 	 * {@link #conclusionStack_}
 	 */
-	private final Deque<InferenceRecord<C>> inferenceStack_ = new LinkedList<InferenceRecord<C>>();
+	private final Deque<InferenceRecord<C, I>> inferenceStack_ = new LinkedList<>();
 
 	/**
 	 * accumulates the current component candidates
 	 */
-	private final Deque<C> stack_ = new LinkedList<C>();
+	private final Deque<C> stack_ = new LinkedList<>();
 
 	/**
 	 * components of visited elements not in {@link #stack_} in topological
 	 * order: child components come before parent components reachable from them
 	 * by means of inferences
 	 */
-	private final List<List<C>> components_ = new ArrayList<List<C>>();
+	private final List<List<C>> components_ = new ArrayList<>();
 
 	/**
 	 * the number to be assigned to the next visited element, increases with
@@ -76,7 +78,7 @@ public class StronglyConnectedComponentsComputation<C> {
 	 * {@link #stack_} represents the component ID of the element, i.e., the
 	 * index of the list in {@link #components_} in which the element occurs
 	 */
-	private final Map<C, Integer> index_ = new HashMap<C, Integer>();
+	private final Map<C, Integer> index_ = new HashMap<>();
 
 	/**
 	 * assigns to elements on #stack_ the minimal identifier of the reachable
@@ -84,9 +86,9 @@ public class StronglyConnectedComponentsComputation<C> {
 	 */
 	private final Map<C, Integer> lowlink_ = new HashMap<C, Integer>();
 
-	public StronglyConnectedComponentsComputation(final Proof<C> root,
+	public StronglyConnectedComponentsComputation(final Proof<? extends I> root,
 			C conclusion) {
-		this.inferences_ = root;
+		this.proof_ = root;
 		toDo(conclusion);
 		process();
 	}
@@ -104,10 +106,10 @@ public class StronglyConnectedComponentsComputation<C> {
 	 *         inferences; root appears in the last component
 	 */
 	public static <C> StronglyConnectedComponents<C> computeComponents(
-			final Proof<C> inferences, C root) {
-		StronglyConnectedComponentsComputation<C> computation = new StronglyConnectedComponentsComputation<>(
+			final Proof<? extends Inference<? extends C>> inferences, C root) {
+		StronglyConnectedComponentsComputation<C, ?> computation = new StronglyConnectedComponentsComputation<>(
 				inferences, root);
-		return new StronglyConnectedComponents<>(computation.components_,
+		return new StronglyConnectedComponents<C>(computation.components_,
 				computation.index_);
 	}
 
@@ -116,18 +118,18 @@ public class StronglyConnectedComponentsComputation<C> {
 		lowlink_.put(conclusion, id_);
 		id_++;
 		stack_.push(conclusion);
-		conclusionStack_.push(new ConclusionRecord<C>(conclusion, this));
+		conclusionStack_.push(new ConclusionRecord<>(conclusion, this));
 		LOGGER_.trace("{}: conclusion pushed", conclusion);
 	}
 
-	private void toDo(final Inference<C> inf) {
+	private void toDo(final I inf) {
 		inferenceStack_.push(new InferenceRecord<>(inf));
 		LOGGER_.trace("{}: inference pushed", inf);
 	}
 
 	private void process() {
 		for (;;) {
-			ConclusionRecord<C> conclRec = conclusionStack_.peek();
+			ConclusionRecord<C, I> conclRec = conclusionStack_.peek();
 			if (conclRec == null) {
 				return;
 			}
@@ -157,7 +159,7 @@ public class StronglyConnectedComponentsComputation<C> {
 					LOGGER_.trace("component #{}: {}", componentId, component);
 				}
 			}
-			InferenceRecord<C> infRec = inferenceStack_.peek();
+			InferenceRecord<C, I> infRec = inferenceStack_.peek();
 			if (infRec == null) {
 				return;
 			}
@@ -193,28 +195,28 @@ public class StronglyConnectedComponentsComputation<C> {
 
 	}
 
-	private static class ConclusionRecord<C> {
+	private static class ConclusionRecord<C, I extends Inference<? extends C>> {
 
 		private final C conclusion_;
 
-		private final Iterator<? extends Inference<C>> inferenceIterator_;
+		private final Iterator<? extends I> inferenceIterator_;
 
 		ConclusionRecord(C conclusion,
-				StronglyConnectedComponentsComputation<C> computation) {
+				StronglyConnectedComponentsComputation<C, I> computation) {
 			this.conclusion_ = conclusion;
-			this.inferenceIterator_ = computation.inferences_
+			this.inferenceIterator_ = computation.proof_
 					.getInferences(conclusion).iterator();
 		}
 
 	}
 
-	private static class InferenceRecord<C> {
+	private static class InferenceRecord<C, I extends Inference<? extends C>> {
 
-		private final Inference<C> inference_;
+		private final I inference_;
 
 		private final Iterator<? extends C> premiseIterator_;
 
-		InferenceRecord(final Inference<C> inference) {
+		InferenceRecord(final I inference) {
 			this.inference_ = inference;
 			this.premiseIterator_ = inference.getPremises().iterator();
 		}

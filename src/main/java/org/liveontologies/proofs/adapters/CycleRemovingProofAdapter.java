@@ -11,8 +11,8 @@ import java.util.Queue;
 import java.util.Set;
 
 import org.liveontologies.puli.BaseProof;
-import org.liveontologies.puli.GenericProof;
 import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,16 +26,13 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Yevgeny Kazakov
  *
- * @param <C>
- *            the type of conclusion and premises used by the inferences
  * @param <I>
  *            The type of the inferences.
  * @param <A>
  *            the type of axioms used by the inferences
  * 
  */
-class CycleRemovingProofAdapter<C, I extends Inference<C>>
-		extends BaseProof<C, I> {
+class CycleRemovingProofAdapter<I extends Inference<?>> extends BaseProof<I> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(CycleRemovingProofAdapter.class);
@@ -43,24 +40,24 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 	/**
 	 * inferences that are filtered
 	 */
-	private final GenericProof<C, I> originalInferences_;
+	private final Proof<I> originalInferences_;
 
 	/**
 	 * conclusions for which to process inferences recursively
 	 */
-	private final Queue<C> toDoConclusions_ = new LinkedList<C>();
+	private final Queue<Object> toDoConclusions_ = new LinkedList<Object>();
 
 	/**
 	 * caches the processed conclusions and {@link #toDoConclusions_}
 	 */
-	private final Set<C> doneConclusions_ = new HashSet<C>();
+	private final Set<Object> doneConclusions_ = new HashSet<Object>();
 
 	/**
 	 * inferences indexed by a premise that cannot be (currently) obtained as a
 	 * conclusion of an inference in this inference that does not use the
 	 * conclusion of the inference as one of the premises
 	 */
-	private final Map<C, List<I>> blocked_ = new HashMap<C, List<I>>();
+	private final Map<Object, List<I>> blocked_ = new HashMap<Object, List<I>>();
 
 	/**
 	 * the inferences that are (no longer) blocked as a result of adding other
@@ -68,25 +65,25 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 	 */
 	private final Queue<I> unblocked_ = new LinkedList<I>();
 
-	CycleRemovingProofAdapter(final GenericProof<C, I> originalInferences) {
+	CycleRemovingProofAdapter(final Proof<I> originalInferences) {
 		this.originalInferences_ = originalInferences;
 	}
 
 	@Override
-	public Collection<? extends I> getInferences(C conclusion) {
+	public Collection<? extends I> getInferences(Object conclusion) {
 		toDo(conclusion);
 		process();
 		return super.getInferences(conclusion);
 	}
 
-	private void toDo(C conclusion) {
+	private void toDo(Object conclusion) {
 		if (doneConclusions_.add(conclusion)) {
 			toDoConclusions_.add(conclusion);
 		}
 	}
 
 	private void process() {
-		C conclusion;
+		Object conclusion;
 		while ((conclusion = toDoConclusions_.poll()) != null) {
 			for (final I inf : originalInferences_.getInferences(conclusion)) {
 				process(inf);
@@ -95,7 +92,7 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 	}
 
 	private void process(I next) {
-		for (C premise : next.getPremises()) {
+		for (Object premise : next.getPremises()) {
 			toDo(premise);
 		}
 		checkBlocked(next);
@@ -117,7 +114,7 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 			LOGGER_.trace("{}: permanently blocked", next);
 			return;
 		}
-		C blockedPremise = getBlockedPremise(next);
+		Object blockedPremise = getBlockedPremise(next);
 		if (blockedPremise == null) {
 			LOGGER_.trace("{}: unblocked", next);
 			unblocked_.add(next);
@@ -127,7 +124,7 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 		}
 	}
 
-	private void block(final I inference, C conclusion) {
+	private void block(final I inference, Object conclusion) {
 		List<I> blockedForConclusion = blocked_.get(conclusion);
 		if (blockedForConclusion == null) {
 			blockedForConclusion = new ArrayList<I>();
@@ -142,9 +139,9 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 	 *         that do not use the conclusion of this inference as one of the
 	 *         premises; returns {@code null} if such a premise does not exist
 	 */
-	private C getBlockedPremise(final I next) {
-		C conclusion = next.getConclusion();
-		for (C premise : next.getPremises()) {
+	private Object getBlockedPremise(final I next) {
+		Object conclusion = next.getConclusion();
+		for (Object premise : next.getPremises()) {
 			if (!derivableWithoutPremise(premise, conclusion)) {
 				return premise;
 			}
@@ -159,7 +156,8 @@ class CycleRemovingProofAdapter<C, I extends Inference<C>>
 	 * @return {@code true} if there exists an inference in {@link #output_}
 	 *         with the given conclusion which does not use the given premise
 	 */
-	private boolean derivableWithoutPremise(C conclusion, C nonpremise) {
+	private boolean derivableWithoutPremise(Object conclusion,
+			Object nonpremise) {
 		boolean derivable = false;
 		for (final I inf : getInferences(conclusion)) {
 			if (derivable |= !inf.getPremises().contains(nonpremise)) {

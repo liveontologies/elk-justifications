@@ -51,7 +51,7 @@ public class CollectStatisticsUsingDirectSat {
 			Utils.recursiveDelete(recordFile);
 		}
 
-		final InferenceJustifier<Integer, ? extends Set<? extends Integer>> justifier = DirectSatEncodingProofAdapter.JUSTIFIER;
+		final InferenceJustifier<Inference<? extends Integer>, ? extends Set<? extends Integer>> justifier = DirectSatEncodingProofAdapter.JUSTIFIER;
 
 		final File[] queryDirs = new File(inputDirName).listFiles();
 		Arrays.sort(queryDirs);
@@ -104,7 +104,7 @@ public class CollectStatisticsUsingDirectSat {
 					assumptions = new FileInputStream(new File(queryDir,
 							ENCODING_NAME + SUFFIX_ASSUMPTIONS));
 
-					final Proof<Integer> proof = DirectSatEncodingProofAdapter
+					final Proof<Inference<Integer>> proof = DirectSatEncodingProofAdapter
 							.load(assumptions, cnf);
 
 					collectStatistics(question, proof, justifier, stats);
@@ -130,19 +130,19 @@ public class CollectStatisticsUsingDirectSat {
 
 	}
 
-	private static <C, A> void collectStatistics(final C expression,
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
+	private static <C, I extends Inference<? extends C>, A> void collectStatistics(
+			final C expression, final Proof<? extends I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
 			final PrintWriter stats) {
 
-		final Set<A> axiomExprs = new HashSet<A>();
-		final Set<C> lemmaExprs = new HashSet<C>();
-		final Set<Inference<C>> inferences = new HashSet<Inference<C>>();
+		final Set<A> axiomExprs = new HashSet<>();
+		final Set<C> lemmaExprs = new HashSet<>();
+		final Set<I> inferences = new HashSet<>();
 
 		Utils.traverseProofs(expression, proof, justifier,
-				new Function<Inference<C>, Void>() {
+				new Function<I, Void>() {
 					@Override
-					public Void apply(final Inference<C> inf) {
+					public Void apply(final I inf) {
 						inferences.add(inf);
 						return null;
 					}

@@ -1,7 +1,9 @@
 package org.liveontologies.pinpointing.experiments;
 
-public abstract class ReasonerJustificationExperiment<C, A, R>
-		extends BaseJustificationExperiment<C, A> {
+import org.liveontologies.puli.Inference;
+
+public abstract class ReasonerJustificationExperiment<C, I extends Inference<? extends C>, A, R>
+		extends BaseJustificationExperiment<C, I, A> {
 
 	private R reasoner_;
 

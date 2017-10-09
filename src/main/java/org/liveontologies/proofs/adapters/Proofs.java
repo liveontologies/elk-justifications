@@ -3,7 +3,6 @@ package org.liveontologies.proofs.adapters;
 import java.util.List;
 import java.util.Set;
 
-import org.liveontologies.puli.GenericProof;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
@@ -16,37 +15,38 @@ import org.liveontologies.puli.Proof;
  */
 public class Proofs {
 
-	public static <C> Proof<List<C>> binarize(final Proof<C> inferences) {
-		return new BinarizedProofAdapter<C>(inferences);
+	public static <C, I extends Inference<? extends C>> Proof<Inference<List<C>>> binarize(
+			final Proof<? extends I> proof) {
+		return new BinarizedProofAdapter<C, I>(proof);
 	}
 
-	public static <C, A> InferenceJustifier<List<C>, Set<? extends A>> binarize(
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
-		return new BinarizedProofAdapter.Justifier<C, A>(justifier);
+	public static <C, I extends Inference<? extends C>, A> InferenceJustifier<Inference<List<C>>, Set<? extends A>> binarize(
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier) {
+		return new BinarizedProofAdapter.Justifier<C, I, A>(justifier);
 	}
 
-	public static <C, I extends Inference<C>> GenericProof<C, I> eliminateCycles(
-			final GenericProof<C, I> inferences) {
-		return new CycleRemovingProofAdapter<C, I>(inferences);
+	public static <I extends Inference<?>> Proof<I> eliminateCycles(
+			final Proof<I> inferences) {
+		return new CycleRemovingProofAdapter<I>(inferences);
 	}
 
-	public static <C, A> Proof<C> eliminateTautologyInferences(
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier) {
-		return new TautologyRemovingProofAdapter<C, A>(proof, justifier);
+	public static <I extends Inference<?>, A> Proof<I> eliminateTautologyInferences(
+			final Proof<I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier) {
+		return new TautologyRemovingProofAdapter<I, A>(proof, justifier);
 	}
 
-	public static <C> boolean hasCycle(final Proof<C> inferences,
-			final C conclusion) {
-		return (new ProofCycleDetector<C>(inferences))
+	public static <I extends Inference<?>> boolean hasCycle(
+			final Proof<I> inferences, final Object conclusion) {
+		return (new ProofCycleDetector<I>(inferences))
 				.hasCyclicProofFor(conclusion);
 	}
 
-	public static <C, A> ProofInfoForConclusion<C, A> getInfo(
-			final Proof<C> proof,
-			final InferenceJustifier<C, ? extends Set<? extends A>> justifier,
-			C conclusion) {
-		return new ProofInfoForConclusion<C, A>(proof, justifier, conclusion);
+	public static <I extends Inference<?>, A> ProofInfoForConclusion<I, A> getInfo(
+			final Proof<I> proof,
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier,
+			Object conclusion) {
+		return new ProofInfoForConclusion<I, A>(proof, justifier, conclusion);
 	}
 
 }
