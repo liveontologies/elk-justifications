@@ -2,11 +2,9 @@ package org.liveontologies.pinpointing;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collection;
@@ -15,23 +13,16 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.liveontologies.pinpointing.experiments.CsvQueryDecoder;
-import org.liveontologies.proofs.TracingInferenceJustifier;
-import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.Proof;
+import org.liveontologies.pinpointing.experiments.ExperimentException;
+import org.liveontologies.proofs.CsvQueryProofProvider;
+import org.liveontologies.proofs.ElkProofProvider;
+import org.liveontologies.proofs.JustificationCompleteProof;
+import org.liveontologies.proofs.ProofProvider;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.pinpointing.InterruptMonitor;
-import org.semanticweb.elk.exceptions.ElkException;
-import org.semanticweb.elk.loading.AxiomLoader;
-import org.semanticweb.elk.loading.Owl2StreamLoader;
-import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
-import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
+import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
-import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
-import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.ReasonerFactory;
-import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,28 +53,12 @@ public class CollectJustificationStatisticsUsingElk {
 		final String ontologyFileName = args[4];
 		final String conclusionsFileName = args[5];
 
-		final ElkObjectBaseFactory factory = new ElkObjectBaseFactory();
-
 		final long timeOutCheckInterval = Math.min(timeOut / 4, 1000);
 
-		InputStream ontologyIS = null;
 		BufferedReader conclusionReader = null;
 		PrintWriter record = null;
 
 		try {
-
-			ontologyIS = new FileInputStream(ontologyFileName);
-
-			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
-					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory()
-					.createReasoner(loader);
-
-			LOG.info("Classifying ...");
-			long start = System.currentTimeMillis();
-			reasoner.getTaxonomy();
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
 
 			record = new PrintWriter(recordFile);
 			record.println(
@@ -103,6 +78,27 @@ public class CollectJustificationStatisticsUsingElk {
 
 					try {
 
+						final ElkProofProvider elkProofProvider = new ElkProofProvider(
+								new File(ontologyFileName));
+						final ElkObject.Factory factory = elkProofProvider
+								.getReasoner().getElkFactory();
+
+						final CsvQueryDecoder.Factory<ElkAxiom> decoder = new CsvQueryDecoder.Factory<ElkAxiom>() {
+
+							@Override
+							public ElkAxiom createQuery(final String subIri,
+									final String supIri) {
+								return factory.getSubClassOfAxiom(
+										factory.getClass(
+												new ElkFullIri(subIri)),
+										factory.getClass(
+												new ElkFullIri(supIri)));
+							}
+
+						};
+						final ProofProvider<String, Object, Inference<Object>, ElkAxiom> proofProvider = new CsvQueryProofProvider<>(
+								decoder, elkProofProvider);
+
 						String line;
 						while ((line = conclReader.readLine()) != null) {
 							final long currentRunTime = System
@@ -112,30 +108,9 @@ public class CollectJustificationStatisticsUsingElk {
 								break;
 							}
 
-							final ElkSubClassOfAxiom conclusion = CsvQueryDecoder
-									.decode(line,
-											new CsvQueryDecoder.Factory<ElkSubClassOfAxiom>() {
-
-												@Override
-												public ElkSubClassOfAxiom createQuery(
-														final String subIri,
-														final String supIri) {
-													return factory
-															.getSubClassOfAxiom(
-																	factory.getClass(
-																			new ElkFullIri(
-																					subIri)),
-																	factory.getClass(
-																			new ElkFullIri(
-																					supIri)));
-												}
-
-											});
-
 							System.gc();
 
-							LOG.info("Collecting statistics for {}",
-									conclusion);
+							LOG.info("Collecting statistics for {}", line);
 							if (globalTimeOut != 0) {
 								LOG.info("{}s left until global timeout",
 										(globalTimeOut - currentRunTime)
@@ -146,18 +121,13 @@ public class CollectJustificationStatisticsUsingElk {
 							monitor.startTime.set(System.currentTimeMillis());
 
 							final long startTime = System.nanoTime();
+							final JustificationCompleteProof<Object, Inference<Object>, ElkAxiom> proof = proofProvider
+									.getProof(line);
 
-							final Object expression = Utils
-									.getFirstDerivedConclusionForSubsumption(
-											reasoner, conclusion);
-							final Proof<TracingInference> proof = reasoner
-									.getProof();
-							final InferenceJustifier<TracingInference, ? extends Set<? extends ElkAxiom>> justifier = TracingInferenceJustifier.INSTANCE;
-
-							final MinimalSubsetCollector<Conclusion, TracingInference, ElkAxiom> collector = new MinimalSubsetCollector<>(
+							final MinimalSubsetCollector<Object, Inference<Object>, ElkAxiom> collector = new MinimalSubsetCollector<>(
 									BottomUpJustificationComputation
-											.<Conclusion, TracingInference, ElkAxiom> getFactory(),
-									proof, justifier);
+											.<Object, Inference<Object>, ElkAxiom> getFactory(),
+									proof.getProof(), proof.getJustifier());
 
 							final int sizeLimit = justificationSizeLimit <= 0
 									? Integer.MAX_VALUE
@@ -166,11 +136,11 @@ public class CollectJustificationStatisticsUsingElk {
 							final List<Long> productSum = Arrays.asList(0l);
 							final List<Long> minProductSum = Arrays.asList(0l);
 							final List<Long> minSum = Arrays.asList(0l);
-							Utils.traverseProofs(expression, proof, justifier,
-									new Function<TracingInference, Void>() {
+							Utils.traverseProofs(proof,
+									new Function<Inference<Object>, Void>() {
 										@Override
 										public Void apply(
-												final TracingInference inf) {
+												final Inference<Object> inf) {
 											if (monitor.isInterrupted()) {
 												return null;
 											}
@@ -183,7 +153,7 @@ public class CollectJustificationStatisticsUsingElk {
 											long product = 1;
 											long minProduct = 1;
 											long sum = 0;
-											for (final Conclusion premise : inf
+											for (final Object premise : inf
 													.getPremises()) {
 
 												final Collection<? extends Set<ElkAxiom>> js = collector
@@ -195,10 +165,10 @@ public class CollectJustificationStatisticsUsingElk {
 												long count = 0;
 												for (final Set<ElkAxiom> just : js) {
 													if (Utils.isMinimal(
-															new BloomSet<>(inf
-																	.getConclusion(),
+															new BloomSet<>(
+																	inf.getConclusion(),
 																	just,
-																	justifier
+																	proof.getJustifier()
 																			.getJustification(
 																					inf)),
 															conclJs)) {
@@ -234,7 +204,7 @@ public class CollectJustificationStatisticsUsingElk {
 							}
 
 							rec.print("\"");
-							rec.print(conclusion);
+							rec.print(line);
 							rec.print("\",");
 							rec.flush();
 							rec.print(didTimeOut ? "TRUE" : "FALSE");
@@ -248,7 +218,9 @@ public class CollectJustificationStatisticsUsingElk {
 
 						}
 
-					} catch (final IOException | ElkException e) {
+					} catch (final IOException e) {
+						throw new RuntimeException(e);
+					} catch (final ExperimentException e) {
 						throw new RuntimeException(e);
 					}
 
@@ -272,28 +244,9 @@ public class CollectJustificationStatisticsUsingElk {
 		} catch (final FileNotFoundException e) {
 			LOG.error("File not found!", e);
 			System.exit(2);
-		} catch (final ElkInconsistentOntologyException e) {
-			LOG.error("Inconsistent ontology!", e);
-			System.exit(2);
-		} catch (final ElkException e) {
-			LOG.error("Could not classify the ontology!", e);
-			System.exit(2);
 		} finally {
-			if (ontologyIS != null) {
-				try {
-					ontologyIS.close();
-				} catch (final IOException e) {
-				}
-			}
-			if (conclusionReader != null) {
-				try {
-					conclusionReader.close();
-				} catch (final IOException e) {
-				}
-			}
-			if (record != null) {
-				record.close();
-			}
+			Utils.closeQuietly(conclusionReader);
+			Utils.closeQuietly(record);
 		}
 
 	}

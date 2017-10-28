@@ -6,10 +6,10 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.junit.runners.Parameterized.Parameters;
+import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.owlapi.model.OWLAxiom;
-import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 
 public class SimpleOwlJustificationComputationTest
 		extends OwlJustificationComputationTest {
@@ -24,7 +24,7 @@ public class SimpleOwlJustificationComputationTest
 	public SimpleOwlJustificationComputationTest(
 			final MinimalSubsetsFromProofs.Factory<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
-			throws OWLOntologyCreationException {
+			throws ExperimentException {
 		super(factory, ontoFile, entailFilesPerJustFile);
 	}
 

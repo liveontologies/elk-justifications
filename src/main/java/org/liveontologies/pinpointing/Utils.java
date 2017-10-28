@@ -16,24 +16,10 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import org.liveontologies.proofs.JustificationCompleteProof;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
-import org.semanticweb.elk.exceptions.ElkException;
-import org.semanticweb.elk.exceptions.ElkRuntimeException;
-import org.semanticweb.elk.owl.interfaces.ElkAxiom;
-import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.entailments.model.Entailment;
-import org.semanticweb.elk.reasoner.entailments.model.EntailmentInference;
-import org.semanticweb.elk.reasoner.entailments.model.HasReason;
-import org.semanticweb.elk.reasoner.query.ElkQueryException;
-import org.semanticweb.elk.reasoner.query.EntailmentQueryResult;
-import org.semanticweb.elk.reasoner.query.ProperEntailmentQueryResult;
-import org.semanticweb.elk.reasoner.query.UnsupportedIndexingEntailmentQueryResult;
-import org.semanticweb.elk.reasoner.query.UnsupportedQueryTypeEntailmentQueryResult;
-import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.util.collections.ArrayHashSet;
-import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -87,6 +73,15 @@ public final class Utils {
 
 	public static int digitCount(final int x) {
 		return (int) Math.floor(Math.log10(x) + 1);
+	}
+
+	public static <C, I extends Inference<? extends C>, A, IO, CO, AO> void traverseProofs(
+			final JustificationCompleteProof<C, I, A> proof,
+			final Function<? super I, IO> perInference,
+			final Function<C, CO> perConclusion,
+			final Function<A, AO> perAxiom) {
+		traverseProofs(proof.getQuery(), proof.getProof(), proof.getJustifier(),
+				perInference, perConclusion, perAxiom);
 	}
 
 	public static <C, I extends Inference<? extends C>, A, IO, CO, AO> void traverseProofs(
@@ -254,92 +249,6 @@ public final class Utils {
 		}
 
 		return result;
-	}
-
-	public static Conclusion getFirstDerivedConclusionForSubsumption(
-			Reasoner reasoner, final ElkAxiom axiom) throws ElkException {
-		final List<Conclusion> conclusions = new ArrayList<Conclusion>(1);
-
-		final EntailmentQueryResult result = reasoner.isEntailed(axiom);
-		result.accept(
-				new EntailmentQueryResult.Visitor<Void, ElkQueryException>() {
-
-					@Override
-					public Void visit(final ProperEntailmentQueryResult result)
-							throws ElkQueryException {
-						try {
-							collectReasons(result.getEntailment(),
-									result.getEvidence(true), conclusions);
-						} finally {
-							result.unlock();
-						}
-						return null;
-					}
-
-					@Override
-					public Void visit(
-							final UnsupportedIndexingEntailmentQueryResult result) {
-						throw new ElkRuntimeException(
-								UnsupportedIndexingEntailmentQueryResult.class
-										.getSimpleName());
-					}
-
-					@Override
-					public Void visit(
-							final UnsupportedQueryTypeEntailmentQueryResult result) {
-						throw new ElkRuntimeException(
-								UnsupportedQueryTypeEntailmentQueryResult.class
-										.getSimpleName());
-					}
-
-				});
-
-		return conclusions.get(0);
-	}
-
-	private static void collectReasons(final Entailment goal,
-			final Proof<EntailmentInference> evidence,
-			final Collection<Conclusion> result) {
-
-		final Set<Entailment> done = new ArrayHashSet<Entailment>();
-		final Queue<Entailment> toDo = new LinkedList<Entailment>();
-
-		if (done.add(goal)) {
-			toDo.offer(goal);
-		}
-
-		Entailment entailment;
-		while ((entailment = toDo.poll()) != null) {
-			for (final EntailmentInference inf : evidence
-					.getInferences(entailment)) {
-
-				if (inf instanceof HasReason) {
-					final Object reason = ((HasReason<?>) inf).getReason();
-					if (reason instanceof Conclusion) {
-						result.add((Conclusion) reason);
-					}
-				}
-
-				for (final Entailment premise : inf.getPremises()) {
-					if (done.add(premise)) {
-						toDo.offer(premise);
-					}
-				}
-
-			}
-		}
-
-	}
-
-	public static InterruptMonitor getDummyInterruptMonitor() {
-		return new InterruptMonitor() {
-
-			@Override
-			public boolean isInterrupted() {
-				return false;
-			}
-		};
-
 	}
 
 	public static class Counter implements Function<Object, Integer> {

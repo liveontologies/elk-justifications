@@ -19,13 +19,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.liveontologies.proofs.JustificationCompleteProof;
+import org.liveontologies.proofs.ProofProvider;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.liveontologies.puli.pinpointing.ResolutionJustificationComputation;
 import org.liveontologies.puli.pinpointing.TopDownRepairComputation;
 
 @RunWith(Parameterized.class)
-public abstract class BaseJustificationComputationTest<C, I extends Inference<? extends C>, A> {
+public abstract class BaseJustificationComputationTest<Q, C, I extends Inference<? extends C>, A> {
 
 	public static List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> getJustificationComputationFactories() {
 		final List<MinimalSubsetsFromProofs.Factory<?, ?, ?>> computations = new ArrayList<MinimalSubsetsFromProofs.Factory<?, ?, ?>>();
@@ -68,14 +70,17 @@ public abstract class BaseJustificationComputationTest<C, I extends Inference<? 
 		return result;
 	}
 
+	private final ProofProvider<Q, C, I, A> proofProvider_;
 	private final MinimalSubsetsFromProofs.Factory<C, I, A> factory_;
 	private final File ontoFile_;
 	private final Map<File, File[]> entailFilesPerJustFile_;
 
 	public BaseJustificationComputationTest(
+			final ProofProvider<Q, C, I, A> proofProvider,
 			final MinimalSubsetsFromProofs.Factory<C, I, A> factory,
 			final File ontoFile,
 			final Map<File, File[]> entailFilesPerJustFile) {
+		this.proofProvider_ = proofProvider;
 		this.factory_ = factory;
 		this.ontoFile_ = ontoFile;
 		this.entailFilesPerJustFile_ = entailFilesPerJustFile;
@@ -93,17 +98,28 @@ public abstract class BaseJustificationComputationTest<C, I extends Inference<? 
 		return entailFilesPerJustFile_;
 	}
 
-	public void setUp() {
+	protected void setUp() {
 		// Empty default.
 	}
 
-	public abstract Set<? extends Set<? extends A>> getActualJustifications(
-			final File entailFile) throws Exception;
+	protected abstract Q getQuery(final File entailFile) throws Exception;
 
-	public abstract Set<? extends Set<? extends A>> getExpectedJustifications(
+	private Set<? extends Set<? extends A>> getActualJustifications(
+			final File entailFile) throws Exception {
+
+		final JustificationCompleteProof<C, I, A> proof = proofProvider_
+				.getProof(getQuery(entailFile));
+
+		final MinimalSubsetCollector<C, I, A> collector = new MinimalSubsetCollector<>(
+				getFactory(), proof.getProof(), proof.getJustifier());
+
+		return new HashSet<>(collector.collect(proof.getQuery()));
+	}
+
+	protected abstract Set<? extends Set<? extends A>> getExpectedJustifications(
 			final File[] justFiles) throws Exception;
 
-	public void dispose() {
+	protected void dispose() {
 		// Empty default.
 	}
 
@@ -159,6 +175,7 @@ public abstract class BaseJustificationComputationTest<C, I extends Inference<? 
 
 	@After
 	public void after() {
+		proofProvider_.dispose();
 		dispose();
 	}
 

@@ -1,104 +1,74 @@
 package org.liveontologies.pinpointing.experiments;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.util.Set;
+import java.io.File;
 
-import org.liveontologies.pinpointing.Utils;
-import org.liveontologies.proofs.TracingInferenceJustifier;
-import org.liveontologies.puli.InferenceJustifier;
-import org.liveontologies.puli.Proof;
-import org.semanticweb.elk.exceptions.ElkException;
-import org.semanticweb.elk.loading.AxiomLoader;
-import org.semanticweb.elk.loading.Owl2StreamLoader;
+import org.liveontologies.proofs.CsvQueryProofProvider;
+import org.liveontologies.proofs.ElkProofProvider;
+import org.liveontologies.proofs.ProofProvider;
+import org.liveontologies.puli.Inference;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
-import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.ReasonerFactory;
-import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ElkJustificationExperiment extends
-		ReasonerJustificationExperiment<Conclusion, TracingInference, ElkAxiom, Reasoner> {
+import net.sourceforge.argparse4j.annotation.Arg;
+import net.sourceforge.argparse4j.impl.Arguments;
+import net.sourceforge.argparse4j.inf.ArgumentParser;
 
-	private static final Logger LOG = LoggerFactory
+public abstract class ElkJustificationExperiment<O extends ElkJustificationExperiment.Options>
+		extends
+		BaseJustificationExperiment<O, Object, Inference<Object>, ElkAxiom> {
+
+	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(ElkJustificationExperiment.class);
 
+	public static final String ONTOLOGY_OPT = "ontology";
+
+	public static class Options extends BaseJustificationExperiment.Options {
+		@Arg(dest = ONTOLOGY_OPT)
+		public File ontologyFile;
+	}
+
+	private File ontologyFile_;
+
 	@Override
-	protected Reasoner loadAndClassifyOntology(final String ontologyFileName)
-			throws ExperimentException {
-
-		InputStream ontologyIS = null;
-
-		try {
-
-			ontologyIS = new FileInputStream(ontologyFileName);
-
-			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
-					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory()
-					.createReasoner(loader);
-
-			LOG.info("Classifying ...");
-			long start = System.currentTimeMillis();
-			reasoner.getTaxonomy();
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
-
-			return reasoner;
-		} catch (final FileNotFoundException e) {
-			throw new ExperimentException(e);
-		} catch (final ElkException e) {
-			throw new ExperimentException(e);
-		} finally {
-			Utils.closeQuietly(ontologyIS);
-		}
-
+	protected void addArguments(final ArgumentParser parser) {
+		parser.addArgument(ONTOLOGY_OPT)
+				.type(Arguments.fileType().verifyExists().verifyCanRead())
+				.help("ontology file");
 	}
 
 	@Override
-	protected Conclusion decodeQuery(final String query)
-			throws ExperimentException {
-		return CsvQueryDecoder.decode(query,
-				new CsvQueryDecoder.Factory<Conclusion>() {
-
-					@Override
-					public Conclusion createQuery(final String subIri,
-							final String supIri) {
-
-						final ElkObject.Factory factory = getReasoner()
-								.getElkFactory();
-						final ElkAxiom query = factory.getSubClassOfAxiom(
-								factory.getClass(new ElkFullIri(subIri)),
-								factory.getClass(new ElkFullIri(supIri)));
-
-						try {
-							return Utils
-									.getFirstDerivedConclusionForSubsumption(
-											getReasoner(), query);
-						} catch (final ElkException e) {
-							throw new RuntimeException(e);
-						}
-					}
-
-				});
+	protected void init(final O options) throws ExperimentException {
+		LOGGER_.info("ontologyFile: {}", options.ontologyFile);
+		this.ontologyFile_ = options.ontologyFile;
 	}
 
 	@Override
-	protected Proof<TracingInference> newProof(final Conclusion query)
+	protected ProofProvider<String, Object, Inference<Object>, ElkAxiom> newProofProvider()
 			throws ExperimentException {
-		return getReasoner().getProof();
-	}
 
-	@Override
-	protected InferenceJustifier<TracingInference, Set<? extends ElkAxiom>> newJustifier()
-			throws ExperimentException {
-		return TracingInferenceJustifier.INSTANCE;
+		final ElkProofProvider elkProofProvider = new ElkProofProvider(
+				ontologyFile_);
+		final ElkObject.Factory factory = elkProofProvider.getReasoner()
+				.getElkFactory();
+
+		final CsvQueryDecoder.Factory<ElkAxiom> decoder = new CsvQueryDecoder.Factory<ElkAxiom>() {
+
+			@Override
+			public ElkAxiom createQuery(final String subIri,
+					final String supIri) {
+				return factory.getSubClassOfAxiom(
+						factory.getClass(new ElkFullIri(subIri)),
+						factory.getClass(new ElkFullIri(supIri)));
+			}
+
+		};
+		final ProofProvider<String, Object, Inference<Object>, ElkAxiom> proofProvider = new CsvQueryProofProvider<>(
+				decoder, elkProofProvider);
+
+		return proofProvider;
 	}
 
 }

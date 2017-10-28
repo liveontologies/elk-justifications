@@ -1,52 +1,34 @@
 package org.liveontologies.pinpointing;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.liveontologies.proofs.TracingInferenceJustifier;
+import org.liveontologies.proofs.ElkProofProvider;
+import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.pinpointing.MinimalSubsetsFromProofs;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkDeclarationAxiom;
 import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
-import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.reasoner.TestReasonerUtils;
-import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInference;
 
 public abstract class TracingJustificationComputationTest extends
-		BaseJustificationComputationTest<Conclusion, TracingInference, ElkAxiom> {
-
-	private final Reasoner reasoner_;
+		BaseJustificationComputationTest<ElkAxiom, Object, Inference<Object>, ElkAxiom> {
 
 	public TracingJustificationComputationTest(
-			final MinimalSubsetsFromProofs.Factory<Conclusion, TracingInference, ElkAxiom> factory,
+			final MinimalSubsetsFromProofs.Factory<Object, Inference<Object>, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
-		super(factory, ontoFile, entailFilesPerJustFile);
-
-		this.reasoner_ = TestReasonerUtils
-				.createTestReasoner(new FileInputStream(ontoFile));
-
+		super(new ElkProofProvider(ontoFile), factory, ontoFile,
+				entailFilesPerJustFile);
 	}
 
 	@Override
-	public Set<? extends Set<? extends ElkAxiom>> getActualJustifications(
-			final File entailFile) throws Exception {
-
-		final ElkAxiom entailment = filterLogical(
-				TestReasonerUtils.loadAxioms(entailFile)).iterator().next();
-
-		final Conclusion conclusion = Utils
-				.getFirstDerivedConclusionForSubsumption(reasoner_, entailment);
-		final MinimalSubsetCollector<Conclusion, TracingInference, ElkAxiom> collector = new MinimalSubsetCollector<>(
-				getFactory(), reasoner_.getProof(),
-				TracingInferenceJustifier.INSTANCE);
-
-		return new HashSet<>(collector.collect(conclusion));
+	protected ElkAxiom getQuery(final File entailFile) throws Exception {
+		return filterLogical(TestReasonerUtils.loadAxioms(entailFile))
+				.iterator().next();
 	}
 
 	@Override

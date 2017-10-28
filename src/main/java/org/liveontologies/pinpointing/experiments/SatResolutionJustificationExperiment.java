@@ -8,22 +8,21 @@ import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.pinpointing.InterruptMonitor;
 import org.liveontologies.puli.pinpointing.MinimalSubsetEnumerator.Factory;
 import org.liveontologies.puli.pinpointing.ResolutionJustificationComputation;
-import org.semanticweb.owlapi.model.OWLAxiom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.sourceforge.argparse4j.annotation.Arg;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 
-public class OwlResolutionJustificationExperiment extends
-		OwlJustificationExperiment<OwlResolutionJustificationExperiment.Options> {
+public class SatResolutionJustificationExperiment extends
+		SatJustificationExperiment<SatResolutionJustificationExperiment.Options> {
 
 	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(OwlResolutionJustificationExperiment.class);
 
 	public static final String SELECTION_OPT = "selection";
 
-	public static class Options extends OwlJustificationExperiment.Options {
+	public static class Options extends SatJustificationExperiment.Options {
 		@Arg(dest = SELECTION_OPT)
 		public ResolutionJustificationComputation.SelectionType selectionType;
 	}
@@ -39,7 +38,7 @@ public class OwlResolutionJustificationExperiment extends
 	protected void addArguments(final ArgumentParser parser) {
 		super.addArguments(parser);
 		parser.description(
-				"Experiment using Resolutionun Justification Computation and OWL API proofs from ELK.");
+				"Experiment using Resolutionun Justification Computation and proofs from SAT encoding.");
 		parser.addArgument(SELECTION_OPT)
 				.type(ResolutionJustificationComputation.SelectionType.class)
 				.help("selection type");
@@ -53,12 +52,12 @@ public class OwlResolutionJustificationExperiment extends
 	}
 
 	@Override
-	protected Factory<OWLAxiom, OWLAxiom> newComputation(
-			final Proof<? extends Inference<OWLAxiom>> proof,
-			final InferenceJustifier<? super Inference<OWLAxiom>, ? extends Set<? extends OWLAxiom>> justifier,
+	protected Factory<Integer, Integer> newComputation(
+			final Proof<? extends Inference<Integer>> proof,
+			final InferenceJustifier<? super Inference<Integer>, ? extends Set<? extends Integer>> justifier,
 			final InterruptMonitor monitor) throws ExperimentException {
 		return ResolutionJustificationComputation
-				.<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> getFactory()
+				.<Integer, Inference<Integer>, Integer> getFactory()
 				.create(proof, justifier, monitor, selectionType_);
 	}
 

@@ -1,8 +1,7 @@
-package org.liveontologies.pinpointing;
+package org.liveontologies.pinpointing.experiments;
 
 import java.io.File;
 
-import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.proofs.ProofProvider;
 import org.liveontologies.proofs.SatProofProvider;
 import org.liveontologies.puli.Inference;
@@ -13,23 +12,21 @@ import net.sourceforge.argparse4j.annotation.Arg;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 
-public class CollectStatisticsUsingDirectSat extends
-		StatisticsCollector<CollectStatisticsUsingDirectSat.Options, Integer, Inference<Integer>, Integer> {
+public abstract class SatJustificationExperiment<O extends SatJustificationExperiment.Options>
+		extends
+		BaseJustificationExperiment<O, Integer, Inference<Integer>, Integer> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(CollectStatisticsUsingDirectSat.class);
+			.getLogger(SatJustificationExperiment.class);
 
 	public static final String INPUT_DIR_OPT = "input";
 
-	public static class Options extends StatisticsCollector.Options {
+	public static class Options extends BaseJustificationExperiment.Options {
 		@Arg(dest = INPUT_DIR_OPT)
 		public File inputDir;
 	}
 
-	@Override
-	protected Options newOptions() {
-		return new Options();
-	}
+	private File inputDir_;
 
 	@Override
 	protected void addArguments(final ArgumentParser parser) {
@@ -39,10 +36,15 @@ public class CollectStatisticsUsingDirectSat extends
 	}
 
 	@Override
-	protected ProofProvider<String, Integer, Inference<Integer>, Integer> init(
-			final Options options) throws ExperimentException {
+	protected void init(final O options) throws ExperimentException {
 		LOGGER_.info("inputDir: {}", options.inputDir);
-		return new SatProofProvider(options.inputDir);
+		this.inputDir_ = options.inputDir;
+	}
+
+	@Override
+	protected ProofProvider<String, Integer, Inference<Integer>, Integer> newProofProvider()
+			throws ExperimentException {
+		return new SatProofProvider(inputDir_);
 	}
 
 }

@@ -1,4 +1,4 @@
-package org.liveontologies.pinpointing.experiments;
+package org.liveontologies.proofs;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -6,49 +6,31 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Set;
 
 import org.liveontologies.pinpointing.DirectSatEncodingUsingElkCsvQuery;
 import org.liveontologies.pinpointing.Utils;
+import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.proofs.adapters.DirectSatEncodingProofAdapter;
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.sourceforge.argparse4j.impl.Arguments;
-import net.sourceforge.argparse4j.inf.ArgumentParser;
-import net.sourceforge.argparse4j.inf.Namespace;
-
-public class DirectSatResolutionJustificationExperiment extends
-		ResolutionJustificationExperiment<Integer, Inference<Integer>, Integer> {
+public class SatProofProvider
+		implements ProofProvider<String, Integer, Inference<Integer>, Integer> {
 
 	private static final Logger LOGGER_ = LoggerFactory
-			.getLogger(DirectSatResolutionJustificationExperiment.class);
+			.getLogger(SatProofProvider.class);
 
-	public static final String INPUT_DIR_OPT = "input";
+	private final File inputDir_;
 
-	private File inputDir_ = null;
-
-	private File cnfFile_ = null;
-	private File assumptionsFile_ = null;
-
-	@Override
-	protected void addArguments(final ArgumentParser parser) {
-		parser.addArgument(INPUT_DIR_OPT)
-				.type(Arguments.fileType().verifyExists().verifyIsDirectory())
-				.help("directory with the input");
+	public SatProofProvider(final File inputDir) {
+		this.inputDir_ = inputDir;
 	}
 
 	@Override
-	protected void init(final Namespace options) throws ExperimentException {
-		inputDir_ = options.get(INPUT_DIR_OPT);
-	}
-
-	@Override
-	protected Integer decodeQuery(final String query)
-			throws ExperimentException {
+	public JustificationCompleteProof<Integer, Inference<Integer>, Integer> getProof(
+			final String query) throws ExperimentException {
 
 		LOGGER_.info("Decoding query {} ...", query);
 		long start = System.currentTimeMillis();
@@ -74,39 +56,35 @@ public class DirectSatResolutionJustificationExperiment extends
 		} finally {
 			Utils.closeQuietly(qReader);
 		}
+		final Integer goal = Integer.valueOf(decoded);
 
-		cnfFile_ = new File(queryDir,
+		final File cnfFile = new File(queryDir,
 				DirectSatEncodingUsingElkCsvQuery.FILE_NAME
 						+ DirectSatEncodingUsingElkCsvQuery.SUFFIX_CNF);
 
-		assumptionsFile_ = new File(queryDir,
+		final File assumptionsFile = new File(queryDir,
 				DirectSatEncodingUsingElkCsvQuery.FILE_NAME
 						+ DirectSatEncodingUsingElkCsvQuery.SUFFIX_ASSUMPTIONS);
 
 		LOGGER_.info("... took {}s",
 				(System.currentTimeMillis() - start) / 1000.0);
 
-		return Integer.valueOf(decoded);
-	}
-
-	@Override
-	protected Proof<Inference<Integer>> newProof(final Integer query)
-			throws ExperimentException {
-
 		InputStream cnf = null;
 		InputStream assumptions = null;
 		try {
 
-			cnf = new FileInputStream(cnfFile_);
-			assumptions = new FileInputStream(assumptionsFile_);
+			cnf = new FileInputStream(cnfFile);
+			assumptions = new FileInputStream(assumptionsFile);
 
 			LOGGER_.info("Loading proof ...");
-			long start = System.currentTimeMillis();
-			final Proof<Inference<Integer>> result = DirectSatEncodingProofAdapter
+			start = System.currentTimeMillis();
+			final Proof<Inference<Integer>> proof = DirectSatEncodingProofAdapter
 					.load(assumptions, cnf);
 			LOGGER_.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
-			return result;
+
+			return new BaseJustificationCompleteProof<>(goal, proof,
+					DirectSatEncodingProofAdapter.JUSTIFIER);
 
 		} catch (final IOException e) {
 			throw new ExperimentException(e);
@@ -118,9 +96,8 @@ public class DirectSatResolutionJustificationExperiment extends
 	}
 
 	@Override
-	protected InferenceJustifier<Inference<? extends Integer>, ? extends Set<Integer>> newJustifier()
-			throws ExperimentException {
-		return DirectSatEncodingProofAdapter.JUSTIFIER;
+	public void dispose() {
+		// Empty.
 	}
 
 }

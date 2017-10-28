@@ -1,9 +1,7 @@
 package org.liveontologies.proofs.browser;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
 import java.util.Set;
 
@@ -17,23 +15,17 @@ import javax.swing.tree.TreePath;
 import org.liveontologies.pinpointing.BottomUpJustificationComputation;
 import org.liveontologies.pinpointing.MinimalSubsetCollector;
 import org.liveontologies.pinpointing.Utils;
-import org.liveontologies.proofs.TracingInferenceJustifier;
+import org.liveontologies.pinpointing.experiments.ExperimentException;
+import org.liveontologies.proofs.ElkProofProvider;
+import org.liveontologies.proofs.JustificationCompleteProof;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
-import org.semanticweb.elk.exceptions.ElkException;
-import org.semanticweb.elk.loading.AxiomLoader;
-import org.semanticweb.elk.loading.Owl2StreamLoader;
-import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
+import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
-import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
-import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.ReasonerFactory;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,46 +46,31 @@ public class ProofBrowser {
 		final String subFullIri = args[2];
 		final String supFullIri = args[3];
 
-		final ElkObjectBaseFactory factory = new ElkObjectBaseFactory();
-
-		InputStream ontologyIS = null;
-
 		try {
 
-			ontologyIS = new FileInputStream(ontologyFileName);
-
-			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
-					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory()
-					.createReasoner(loader);
-
-			LOG.info("Classifying ...");
-			long start = System.currentTimeMillis();
-			reasoner.getTaxonomy();
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
+			final ElkProofProvider elkProofProvider = new ElkProofProvider(
+					new File(ontologyFileName));
+			final ElkObject.Factory factory = elkProofProvider.getReasoner()
+					.getElkFactory();
 
 			final ElkSubClassOfAxiom conclusion = factory.getSubClassOfAxiom(
 					factory.getClass(new ElkFullIri(subFullIri)),
 					factory.getClass(new ElkFullIri(supFullIri)));
+			//
+			final JustificationCompleteProof<Object, Inference<Object>, ElkAxiom> proof = elkProofProvider
+					.getProof(conclusion);
 
-			final Conclusion expression = Utils
-					.getFirstDerivedConclusionForSubsumption(reasoner,
-							conclusion);
-			final Proof<TracingInference> proof = reasoner.getProof();
-			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
-
-			final MinimalSubsetCollector<Conclusion, TracingInference, ElkAxiom> collector = new MinimalSubsetCollector<>(
+			final MinimalSubsetCollector<Object, Inference<Object>, ElkAxiom> collector = new MinimalSubsetCollector<>(
 					BottomUpJustificationComputation
-							.<Conclusion, TracingInference, ElkAxiom> getFactory(),
-					proof, justifier);
+							.<Object, Inference<Object>, ElkAxiom> getFactory(),
+					proof.getProof(), proof.getJustifier());
 
 			for (int size = startingSizeLimit; size <= Integer.MAX_VALUE; size++) {
 
 				final int sizeLimit = size;
 
 				final Collection<? extends Set<ElkAxiom>> justs = collector
-						.collect(expression, sizeLimit);
+						.collect(proof.getQuery(), sizeLimit);
 
 				final TreeNodeLabelProvider decorator = new TreeNodeLabelProvider() {
 					@Override
@@ -168,8 +145,9 @@ public class ProofBrowser {
 					}
 				};
 
-				showProofBrowser(proof, justifier, expression,
-						"size " + sizeLimit, decorator, toolTipProvider);
+				showProofBrowser(proof.getProof(), proof.getJustifier(),
+						proof.getQuery(), "size " + sizeLimit, decorator,
+						toolTipProvider);
 
 				try {
 					System.out.print("Press ENTER to continue: ");
@@ -187,22 +165,9 @@ public class ProofBrowser {
 
 			}
 
-		} catch (final FileNotFoundException e) {
-			LOG.error("File Not Found!", e);
-			System.exit(2);
-		} catch (final ElkInconsistentOntologyException e) {
-			LOG.error("The ontology is inconsistent!", e);
-			System.exit(2);
-		} catch (final ElkException e) {
+		} catch (final ExperimentException e) {
 			LOG.error("Could not classify the ontology!", e);
 			System.exit(2);
-		} finally {
-			if (ontologyIS != null) {
-				try {
-					ontologyIS.close();
-				} catch (final IOException e) {
-				}
-			}
 		}
 
 	}

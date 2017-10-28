@@ -2,11 +2,9 @@ package org.liveontologies.pinpointing;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,29 +12,23 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
 import org.liveontologies.pinpointing.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.liveontologies.pinpointing.experiments.CsvQueryDecoder;
-import org.liveontologies.proofs.TracingInferenceJustifier;
-import org.liveontologies.puli.Proof;
-import org.semanticweb.elk.exceptions.ElkException;
-import org.semanticweb.elk.loading.AxiomLoader;
-import org.semanticweb.elk.loading.Owl2StreamLoader;
-import org.semanticweb.elk.owl.implementation.ElkObjectBaseFactory;
+import org.liveontologies.pinpointing.experiments.ExperimentException;
+import org.liveontologies.proofs.CsvQueryProofProvider;
+import org.liveontologies.proofs.ElkProofProvider;
+import org.liveontologies.proofs.JustificationCompleteProof;
+import org.liveontologies.proofs.ProofProvider;
+import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkClassAxiom;
-import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
+import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
-import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
-import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
-import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.ReasonerFactory;
-import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,8 +91,6 @@ public class DirectSatEncodingUsingElkCsvQuery {
 	private static final Logger LOG_ = LoggerFactory
 			.getLogger(DirectSatEncodingUsingElkCsvQuery.class);
 
-	private static final ElkObjectBaseFactory FACTORY_ = new ElkObjectBaseFactory();
-
 	public static final String ONTOLOGY_OPT = "ontology";
 	public static final String QUERIES_OPT = "queries";
 	public static final String OUTDIR_OPT = "outdir";
@@ -129,7 +119,6 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		parser.addArgument(OUTDIR_OPT).type(File.class)
 				.help("output directory");
 
-		InputStream ontologyIS = null;
 		BufferedReader queryReader = null;
 
 		try {
@@ -142,18 +131,24 @@ public class DirectSatEncodingUsingElkCsvQuery {
 				System.exit(2);
 			}
 
-			ontologyIS = new FileInputStream(opt.ontologyFile);
+			final ElkProofProvider elkProofProvider = new ElkProofProvider(
+					opt.ontologyFile);
+			final ElkObject.Factory factory = elkProofProvider.getReasoner()
+					.getElkFactory();
 
-			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
-					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory()
-					.createReasoner(loader);
+			final CsvQueryDecoder.Factory<ElkAxiom> decoder = new CsvQueryDecoder.Factory<ElkAxiom>() {
 
-			LOG_.info("Classifying ...");
-			long start = System.currentTimeMillis();
-			reasoner.getTaxonomy();
-			LOG_.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
+				@Override
+				public ElkAxiom createQuery(final String subIri,
+						final String supIri) {
+					return factory.getSubClassOfAxiom(
+							factory.getClass(new ElkFullIri(subIri)),
+							factory.getClass(new ElkFullIri(supIri)));
+				}
+
+			};
+			final ProofProvider<String, Object, Inference<Object>, ElkAxiom> proofProvider = new CsvQueryProofProvider<>(
+					decoder, elkProofProvider);
 
 			queryReader = new BufferedReader(new FileReader(opt.queriesFile));
 			int queryCount = 0;
@@ -171,17 +166,15 @@ public class DirectSatEncodingUsingElkCsvQuery {
 				LOG_.debug("Encoding {} of {}: {}", queryIndex, queryCount,
 						line);
 
-				encode(line, reasoner, opt.outDir, queryCount, queryIndex++);
+				encode(line, proofProvider, opt.outDir, queryCount,
+						queryIndex++);
 
 			}
 
 		} catch (final FileNotFoundException e) {
 			LOG_.error("File Not Found!", e);
 			System.exit(2);
-		} catch (final ElkInconsistentOntologyException e) {
-			LOG_.error("The ontology is inconsistent!", e);
-			System.exit(2);
-		} catch (final ElkException e) {
+		} catch (final ExperimentException e) {
 			LOG_.error("Could not classify the ontology!", e);
 			System.exit(2);
 		} catch (final IOException e) {
@@ -191,33 +184,21 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			parser.handleError(e);
 			System.exit(2);
 		} finally {
-			Utils.closeQuietly(ontologyIS);
 			Utils.closeQuietly(queryReader);
 		}
 
 	}
 
-	private static void encode(final String line, final Reasoner reasoner,
+	private static <C, I extends Inference<? extends C>, A> void encode(
+			final String line,
+			final ProofProvider<String, C, I, A> proofProvider,
 			final File outputDirectory, final int queryCount,
-			final int queryIndex) throws ElkException, IOException {
-
-		final ElkSubClassOfAxiom query = CsvQueryDecoder.decode(line,
-				new CsvQueryDecoder.Factory<ElkSubClassOfAxiom>() {
-
-					@Override
-					public ElkSubClassOfAxiom createQuery(final String subIri,
-							final String supIri) {
-						return FACTORY_.getSubClassOfAxiom(
-								FACTORY_.getClass(new ElkFullIri(subIri)),
-								FACTORY_.getClass(new ElkFullIri(supIri)));
-					}
-
-				});
+			final int queryIndex) throws IOException, ExperimentException {
 
 		final String queryName = Utils.toFileName(line);
 		// @formatter:off
-		// final String queryName = String.format(
-		// "%0" + Integer.toString(queryCount).length() + "d", queryIndex);
+//		final String queryName = String.format(
+//				"%0" + Integer.toString(queryCount).length() + "d", queryIndex);
 		// @formatter:on
 		final File outDir = new File(outputDirectory, queryName);
 		final File hFile = new File(outDir, FILE_NAME + SUFFIX_H);
@@ -243,25 +224,24 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			hWriter = new PrintWriter(hFile);
 			final PrintWriter cnf = cnfWriter;
 
-			final Conclusion expression = Utils
-					.getFirstDerivedConclusionForSubsumption(reasoner, query);
-			final Proof<TracingInference> proof = reasoner.getProof();
-			final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
+			final JustificationCompleteProof<C, I, A> proof = proofProvider
+					.getProof(line);
+			final InferenceJustifier<? super I, ? extends Set<? extends A>> justifier = proof
+					.getJustifier();
 
-			final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
-			final Set<Conclusion> conclusions = new HashSet<Conclusion>();
+			final Set<A> axioms = new HashSet<A>();
+			final Set<C> conclusions = new HashSet<C>();
 
-			Utils.traverseProofs(expression, proof, justifier,
-					Functions.<TracingInference> identity(),
-					new Function<Conclusion, Void>() {
+			Utils.traverseProofs(proof.getQuery(), proof.getProof(), justifier,
+					Functions.<I> identity(), new Function<C, Void>() {
 						@Override
-						public Void apply(final Conclusion expr) {
+						public Void apply(final C expr) {
 							conclusions.add(expr);
 							return null;
 						}
-					}, new Function<ElkAxiom, Void>() {
+					}, new Function<A, Void>() {
 						@Override
-						public Void apply(final ElkAxiom axiom) {
+						public Void apply(final A axiom) {
 							axioms.add(axiom);
 							return null;
 						}
@@ -270,30 +250,30 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			final Utils.Counter literalCounter = new Utils.Counter(1);
 			final Utils.Counter clauseCounter = new Utils.Counter();
 
-			final Map<ElkAxiom, Integer> axiomIndex = new HashMap<ElkAxiom, Integer>();
-			for (final ElkAxiom axiom : axioms) {
+			final Map<A, Integer> axiomIndex = new HashMap<A, Integer>();
+			for (final A axiom : axioms) {
 				axiomIndex.put(axiom, literalCounter.next());
 			}
-			final Map<Conclusion, Integer> conclusionIndex = new HashMap<Conclusion, Integer>();
-			for (final Conclusion conclusion : conclusions) {
+			final Map<C, Integer> conclusionIndex = new HashMap<C, Integer>();
+			for (final C conclusion : conclusions) {
 				conclusionIndex.put(conclusion, literalCounter.next());
 			}
 
 			// cnf
-			Utils.traverseProofs(expression, proof, justifier,
-					new Function<TracingInference, Void>() {
+			Utils.traverseProofs(proof.getQuery(), proof.getProof(), justifier,
+					new Function<I, Void>() {
 						@Override
-						public Void apply(final TracingInference inf) {
+						public Void apply(final I inf) {
 
 							LOG_.trace("processing {}", inf);
 
-							for (final ElkAxiom axiom : justifier
+							for (final A axiom : justifier
 									.getJustification(inf)) {
 								cnf.print(-axiomIndex.get(axiom));
 								cnf.print(" ");
 							}
 
-							for (final Conclusion premise : inf.getPremises()) {
+							for (final C premise : inf.getPremises()) {
 								cnf.print(-conclusionIndex.get(premise));
 								cnf.print(" ");
 							}
@@ -304,8 +284,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 
 							return null;
 						}
-					}, Functions.<Conclusion> identity(),
-					Functions.<ElkAxiom> identity());
+					}, Functions.<C> identity(), Functions.<A> identity());
 
 			final int lastLiteral = literalCounter.next();
 
@@ -326,22 +305,23 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			writeSpaceSeparated0Terminated(orderedAxioms, assumptionsFile);
 
 			// q
-			writeLines(Collections.singleton(conclusionIndex.get(expression)),
-					qFile);
+			writeLines(Collections
+					.singleton(conclusionIndex.get(proof.getQuery())), qFile);
 
 			// question
 			writeSpaceSeparated0Terminated(
-					Collections.singleton(-conclusionIndex.get(expression)),
+					Collections
+							.singleton(-conclusionIndex.get(proof.getQuery())),
 					questionFile);
 
 			// query
 			writeLines(Collections.singleton(line), queryFile);
 
 			// zzz
-			final SortedMap<Integer, ElkAxiom> gcis = new TreeMap<Integer, ElkAxiom>();
-			final SortedMap<Integer, ElkAxiom> ris = new TreeMap<Integer, ElkAxiom>();
-			for (final Entry<ElkAxiom, Integer> entry : axiomIndex.entrySet()) {
-				final ElkAxiom expr = entry.getKey();
+			final SortedMap<Integer, A> gcis = new TreeMap<Integer, A>();
+			final SortedMap<Integer, A> ris = new TreeMap<Integer, A>();
+			for (final Map.Entry<A, Integer> entry : axiomIndex.entrySet()) {
+				final A expr = entry.getKey();
 				final int lit = entry.getValue();
 				if (expr instanceof ElkClassAxiom) {
 					gcis.put(lit, expr);
@@ -349,16 +329,43 @@ public class DirectSatEncodingUsingElkCsvQuery {
 					ris.put(lit, expr);
 				}
 			}
-			final SortedMap<Integer, Conclusion> lemmas = new TreeMap<Integer, Conclusion>();
-			for (final Entry<Conclusion, Integer> entry : conclusionIndex
+			final SortedMap<Integer, C> lemmas = new TreeMap<Integer, C>();
+			for (final Map.Entry<C, Integer> entry : conclusionIndex
 					.entrySet()) {
 				lemmas.put(entry.getValue(), entry.getKey());
 			}
 
-			writeLines(Iterables.transform(gcis.entrySet(), PRINT2),
-					zzzgciFile);
-			writeLines(Iterables.transform(ris.entrySet(), PRINT2), zzzriFile);
-			writeLines(Iterables.transform(lemmas.entrySet(), PRINT), zzzFile);
+			final Function<Map.Entry<Integer, A>, String> print = new Function<Map.Entry<Integer, A>, String>() {
+
+				@Override
+				public String apply(final Map.Entry<Integer, A> entry) {
+					final StringBuilder result = new StringBuilder();
+					result.append(entry.getKey()).append(" ");
+					final A axiom = entry.getValue();
+					if (axiom instanceof ElkAxiom) {
+						((ElkAxiom) axiom)
+								.accept(new ElSatPrinterVisitor(result));
+						// Remove the last line end.
+						result.setLength(result.length() - 1);
+					} else {
+						result.append(axiom);
+					}
+					return result.toString();
+				}
+
+			};
+			writeLines(Iterables.transform(gcis.entrySet(), print), zzzgciFile);
+			writeLines(Iterables.transform(ris.entrySet(), print), zzzriFile);
+			writeLines(Iterables.transform(lemmas.entrySet(),
+					new Function<Map.Entry<Integer, C>, String>() {
+						@Override
+						public String apply(final Map.Entry<Integer, C> entry) {
+							final StringBuilder result = new StringBuilder();
+							result.append(entry.getKey()).append(" ")
+									.append(entry.getValue());
+							return result.toString();
+						}
+					}), zzzFile);
 
 		} finally {
 			Utils.closeQuietly(cnfWriter);
@@ -409,37 +416,5 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		}
 
 	}
-
-	private static final Function<Entry<Integer, Conclusion>, String> PRINT = new Function<Entry<Integer, Conclusion>, String>() {
-
-		@Override
-		public String apply(final Entry<Integer, Conclusion> entry) {
-			final StringBuilder result = new StringBuilder();
-
-			result.append(entry.getKey()).append(" ").append(entry.getValue());
-
-			return result.toString();
-		}
-
-	};
-
-	private static final Function<Entry<Integer, ElkAxiom>, String> PRINT2 = new Function<Entry<Integer, ElkAxiom>, String>() {
-
-		@Override
-		public String apply(final Entry<Integer, ElkAxiom> entry) {
-			final StringBuilder result = new StringBuilder();
-
-			result.append(entry.getKey()).append(" ");
-
-			final ElSatPrinterVisitor printer = new ElSatPrinterVisitor(result);
-
-			entry.getValue().accept(printer);
-
-			result.setLength(result.length() - 1);// Remove the last line end.
-
-			return result.toString();
-		}
-
-	};
 
 }

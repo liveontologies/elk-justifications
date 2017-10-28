@@ -2,7 +2,6 @@ package org.liveontologies.pinpointing;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -17,26 +16,20 @@ import java.util.Map;
 import java.util.Set;
 
 import org.liveontologies.pinpointing.experiments.CsvQueryDecoder;
-import org.liveontologies.proofs.TracingInferenceJustifier;
+import org.liveontologies.pinpointing.experiments.ExperimentException;
+import org.liveontologies.proofs.ElkProofProvider;
+import org.liveontologies.proofs.JustificationCompleteProof;
 import org.liveontologies.puli.Inference;
-import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.statistics.Stats;
-import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AbstractAxiomLoader;
 import org.semanticweb.elk.loading.AxiomLoader;
 import org.semanticweb.elk.loading.ElkLoadingException;
-import org.semanticweb.elk.loading.Owl2StreamLoader;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
-import org.semanticweb.elk.owl.parsing.javacc.Owl2FunctionalStyleParserFactory;
 import org.semanticweb.elk.owl.visitors.ElkAxiomProcessor;
-import org.semanticweb.elk.reasoner.ElkInconsistentOntologyException;
 import org.semanticweb.elk.reasoner.Reasoner;
-import org.semanticweb.elk.reasoner.ReasonerFactory;
-import org.semanticweb.elk.reasoner.tracing.Conclusion;
-import org.semanticweb.elk.reasoner.tracing.TracingInference;
 import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,30 +63,21 @@ public class ElkTracingExperiment {
 
 		try {
 
-			ontologyIS = new FileInputStream(ontologyFileName);
-
-			final AxiomLoader.Factory loader = new Owl2StreamLoader.Factory(
-					new Owl2FunctionalStyleParserFactory(), ontologyIS);
-			final Reasoner reasoner = new ReasonerFactory()
-					.createReasoner(loader);
-
-			LOG.info("Classifying ...");
-			long start = System.currentTimeMillis();
-			reasoner.getTaxonomy();
-			LOG.info("... took {}s",
-					(System.currentTimeMillis() - start) / 1000.0);
+			final ElkProofProvider elkProofProvider = new ElkProofProvider(
+					new File(ontologyFileName));
 
 			LOG.info("Warm up ...");
 			long warmUpEndTimeMillis = System.currentTimeMillis()
 					+ warmUpTimeoutMillis;
 			int iteration = 0;
 			while (warmUpEndTimeMillis < System.currentTimeMillis()) {
-				run(reasoner, queryFileName, iteration, new RecordProducer() {
-					@Override
-					public void produce(final Record record) {
-						// Empty.
-					}
-				});
+				run(elkProofProvider, queryFileName, iteration,
+						new RecordProducer() {
+							@Override
+							public void produce(final Record record) {
+								// Empty.
+							}
+						});
 				iteration++;
 			}
 			LOG.info("... and now the real stuff B-)");
@@ -103,13 +87,14 @@ public class ElkTracingExperiment {
 					.create();
 			for (int rep = 0; rep < repetitionCount; rep++) {
 				LOG.info("Repetition {} of {}", rep + 1, repetitionCount);
-				run(reasoner, queryFileName, iteration, new RecordProducer() {
-					@Override
-					public void produce(final Record record) {
-						queries.add(record.query);
-						recordsPerQuery.put(record.query, record);
-					}
-				});
+				run(elkProofProvider, queryFileName, iteration,
+						new RecordProducer() {
+							@Override
+							public void produce(final Record record) {
+								queries.add(record.query);
+								recordsPerQuery.put(record.query, record);
+							}
+						});
 				iteration++;
 			}
 
@@ -155,13 +140,12 @@ public class ElkTracingExperiment {
 										+ record.nConclusionsInAllProofs);
 					}
 					// @formatter:off
-					// if (nInferencesInAllProofs !=
-					// record.nInferencesInAllProofs) {
-					// throw new RuntimeException(
-					// "nInferencesInAllProofs differs "
-					// + nInferencesInAllProofs + " "
-					// + record.nInferencesInAllProofs);
-					// }
+//					if (nInferencesInAllProofs != record.nInferencesInAllProofs) {
+//						throw new RuntimeException(
+//								"nInferencesInAllProofs differs "
+//										+ nInferencesInAllProofs + " "
+//										+ record.nInferencesInAllProofs);
+//					}
 					// @formatter:on
 				}
 
@@ -205,10 +189,7 @@ public class ElkTracingExperiment {
 		} catch (final FileNotFoundException e) {
 			LOG.error("File Not Found!", e);
 			System.exit(2);
-		} catch (final ElkInconsistentOntologyException e) {
-			LOG.error("The ontology is inconsistent!", e);
-			System.exit(2);
-		} catch (final ElkException e) {
+		} catch (final ExperimentException e) {
 			LOG.error("Could not classify the ontology!", e);
 			System.exit(2);
 		} catch (final IOException e) {
@@ -221,13 +202,15 @@ public class ElkTracingExperiment {
 
 	}
 
-	private static void run(final Reasoner reasoner, final String queryFileName,
-			final int iteration, final RecordProducer producer)
-			throws ElkException, IOException {
+	private static void run(final ElkProofProvider elkProofProvider,
+			final String queryFileName, final int iteration,
+			final RecordProducer producer)
+			throws IOException, ExperimentException {
 
 		BufferedReader queryReader = null;
 		try {
 
+			final Reasoner reasoner = elkProofProvider.getReasoner();
 			final ElkObject.Factory factory = reasoner.getElkFactory();
 
 			// Reset tracing state!
@@ -289,27 +272,23 @@ public class ElkTracingExperiment {
 				LOG.info("Collecting statistics for {} ...", query);
 
 				final long startNanos = System.nanoTime();
-
-				final Conclusion conclusion = Utils
-						.getFirstDerivedConclusionForSubsumption(reasoner,
-								query);
-				final Proof<TracingInference> proof = reasoner.getProof();
-				final TracingInferenceJustifier justifier = TracingInferenceJustifier.INSTANCE;
+				final JustificationCompleteProof<Object, Inference<Object>, ElkAxiom> proof = elkProofProvider
+						.getProof(query);
 
 				final Set<ElkAxiom> axioms = new HashSet<ElkAxiom>();
-				final Set<Conclusion> conclusions = new HashSet<Conclusion>();
-				final Set<Inference<Conclusion>> inferences = new HashSet<Inference<Conclusion>>();
+				final Set<Object> conclusions = new HashSet<Object>();
+				final Set<Inference<Object>> inferences = new HashSet<Inference<Object>>();
 
-				Utils.traverseProofs(conclusion, proof, justifier,
-						new Function<Inference<Conclusion>, Void>() {
+				Utils.traverseProofs(proof,
+						new Function<Inference<Object>, Void>() {
 							@Override
-							public Void apply(final Inference<Conclusion> inf) {
+							public Void apply(final Inference<Object> inf) {
 								inferences.add(inf);
 								return null;
 							}
-						}, new Function<Conclusion, Void>() {
+						}, new Function<Object, Void>() {
 							@Override
-							public Void apply(final Conclusion expr) {
+							public Void apply(final Object expr) {
 								conclusions.add(expr);
 								return null;
 							}
