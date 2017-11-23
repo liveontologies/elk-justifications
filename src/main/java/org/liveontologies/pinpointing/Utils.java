@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.proofs.JustificationCompleteProof;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
@@ -78,8 +79,8 @@ public final class Utils {
 	public static <C, I extends Inference<? extends C>, A, IO, CO, AO> void traverseProofs(
 			final JustificationCompleteProof<C, I, A> proof,
 			final Function<? super I, IO> perInference,
-			final Function<C, CO> perConclusion,
-			final Function<A, AO> perAxiom) {
+			final Function<C, CO> perConclusion, final Function<A, AO> perAxiom)
+			throws ExperimentException {
 		traverseProofs(proof.getQuery(), proof.getProof(), proof.getJustifier(),
 				perInference, perConclusion, perAxiom);
 	}

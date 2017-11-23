@@ -63,13 +63,28 @@ public class OwlProofProvider implements
 	public JustificationCompleteProof<OWLAxiom, Inference<OWLAxiom>, OWLAxiom> getProof(
 			final OWLAxiom query) throws ExperimentException {
 
-		final Proof<? extends Inference<OWLAxiom>> proof = reasoner_
-				.getProof(query);
 		final InferenceJustifier<Inference<OWLAxiom>, ? extends Set<? extends OWLAxiom>> justifier = InferenceJustifiers
 				.justifyAssertedInferences();
 
-		return new BaseJustificationCompleteProof<OWLAxiom, Inference<OWLAxiom>, OWLAxiom>(
-				query, proof, justifier);
+		return new JustificationCompleteProof<OWLAxiom, Inference<OWLAxiom>, OWLAxiom>() {
+
+			@Override
+			public OWLAxiom getQuery() {
+				return query;
+			}
+
+			@Override
+			public Proof<? extends Inference<OWLAxiom>> getProof() {
+				return reasoner_.getProof(query);
+			}
+
+			@Override
+			public InferenceJustifier<? super Inference<OWLAxiom>, ? extends Set<? extends OWLAxiom>> getJustifier() {
+				return justifier;
+			}
+
+		};
+
 	}
 
 	@Override

@@ -4,10 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.util.Set;
 
 import org.liveontologies.pinpointing.Utils;
 import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.puli.Inference;
+import org.liveontologies.puli.InferenceJustifier;
+import org.liveontologies.puli.Proof;
 import org.liveontologies.puli.statistics.NestedStats;
 import org.semanticweb.elk.exceptions.ElkException;
 import org.semanticweb.elk.loading.AxiomLoader;
@@ -67,15 +70,32 @@ public class ElkProofProvider implements
 	public JustificationCompleteProof<Object, Inference<Object>, ElkAxiom> getProof(
 			final ElkAxiom query) throws ExperimentException {
 
-		try {
-			final InternalProof proof = new InternalProof(reasoner_, query);
-			final InternalJustifier justifier = new InternalJustifier();
+		final InternalJustifier justifier = new InternalJustifier();
 
-			return new BaseJustificationCompleteProof<Object, Inference<Object>, ElkAxiom>(
-					query, proof, justifier);
-		} catch (final ElkException e) {
-			throw new ExperimentException(e);
-		}
+		return new JustificationCompleteProof<Object, Inference<Object>, ElkAxiom>() {
+
+			@Override
+			public Object getQuery() {
+				return query;
+			}
+
+			@Override
+			public Proof<? extends Inference<Object>> getProof()
+					throws ExperimentException {
+				try {
+					return new InternalProof(reasoner_, query);
+				} catch (final ElkException e) {
+					throw new ExperimentException(e);
+				}
+			}
+
+			@Override
+			public InferenceJustifier<? super Inference<Object>, ? extends Set<? extends ElkAxiom>> getJustifier() {
+				return justifier;
+			}
+
+		};
+
 	}
 
 	@Override

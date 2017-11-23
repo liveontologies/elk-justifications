@@ -2,6 +2,7 @@ package org.liveontologies.proofs;
 
 import java.util.Set;
 
+import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.puli.Inference;
 import org.liveontologies.puli.InferenceJustifier;
 import org.liveontologies.puli.Proof;
@@ -34,8 +35,9 @@ public interface JustificationCompleteProof<C, I extends Inference<? extends C>,
 	 * @return Proof that, with the justifier returned by
 	 *         {@link #getJustifier()}, is complete w.r.t. justifications of the
 	 *         conclusion returned by {@link #getQuery()}.
+	 * @throws ExperimentException
 	 */
-	Proof<? extends I> getProof();
+	Proof<? extends I> getProof() throws ExperimentException;
 
 	/**
 	 * @return The justifier with which the proof returned by
