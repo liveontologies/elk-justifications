@@ -39,7 +39,7 @@ do
 	mkdir -p $LOG_DIR
 	
 	START_NANO=`date +%s%N`
-	timeout -s9 $(($TIMEOUT + 10)) $EXE -T $TIMEOUT $INPUT_FILE > $LOG_DIR/out.log 2> $LOG_DIR/err.log
+	timeout -s9 $(($TIMEOUT + 10)) $EXE -T $TIMEOUT $INPUT_FILE 2>&1 > $LOG_DIR/out.log | tee $LOG_DIR/err.log 1>&2
 	END_NANO=`date +%s%N`
 	
 	RUN_TIME_NANOS=$(($END_NANO - $START_NANO))

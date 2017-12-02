@@ -31,7 +31,7 @@ do
 	mkdir -p $LOG_DIR
 	
 	START_NANO=`date +%s%N`
-	timeout -s9 $(($TIMEOUT + 10)) $EXE $QUERY_DIR/encoding.cnf -assumptions=$QUERY_DIR/encoding.assumptions -question=$QUERY_DIR/encoding.question -cpu-lim=$TIMEOUT -rotate=1 -no-eldbg -reduce=0 -modelClauses -keepSearch -minimal > $LOG_DIR/out.log 2> $LOG_DIR/err.log
+	cat $QUERY_DIR/encoding.h $QUERY_DIR/encoding.cnf | timeout -s9 $(($TIMEOUT + 10)) $EXE -assumptions=$QUERY_DIR/encoding.assumptions -question=$QUERY_DIR/encoding.question -cpu-lim=$TIMEOUT -rotate=1 -no-eldbg -reduce=0 -modelClauses -keepSearch -minimal 2>&1 > $LOG_DIR/out.log | tee $LOG_DIR/err.log 1>&2
 	END_NANO=`date +%s%N`
 	
 	RUN_TIME_NANOS=$(($END_NANO - $START_NANO))
