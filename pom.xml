@@ -126,6 +126,8 @@
 				</configuration>
 			</plugin>
 			<plugin>
+				<!-- Makes information about the GIT repository available
+					during the build. -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
 				<version>2.2.3</version>
@@ -151,9 +153,12 @@
 							<mainClass>org.liveontologies.pinpointing.RunJustificationExperiments</mainClass>
 						</manifest>
 					</archive>
-					<descriptorRefs>
+<!--					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
+-->					<descriptors>
+						<descriptor>${basedir}/src/assembly/jar-with-dependencies.xml</descriptor>
+					</descriptors>
 				</configuration>
 				<executions>
 					<execution>
