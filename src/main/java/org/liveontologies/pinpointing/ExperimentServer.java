@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -31,6 +33,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 	public static final String OPT_PORT = "port";
 	public static final String OPT_RESULTS = "results";
+	public static final String OPT_ONTOLOGIES = "ontologies";
 	public static final String OPT_COMMAND = "command";
 
 	public static final Integer DEFAULT_PORT = 80;
@@ -40,6 +43,8 @@ public class ExperimentServer extends NanoHTTPD {
 		public Integer port;
 		@Arg(dest = OPT_RESULTS)
 		public File results;
+		@Arg(dest = OPT_ONTOLOGIES)
+		public File ontologies;
 		@Arg(dest = OPT_COMMAND)
 		public String[] command;
 	}
@@ -54,6 +59,9 @@ public class ExperimentServer extends NanoHTTPD {
 				.setDefault(DEFAULT_PORT)
 				.help("the port on which the server listens (default: "
 						+ DEFAULT_PORT + ")");
+		parser.addArgument("--" + OPT_ONTOLOGIES).type(File.class)
+				.required(true)
+				.help("the file into which the input ontologies are uploaded");
 		parser.addArgument("--" + OPT_RESULTS).type(File.class).required(true)
 				.help("the file into which the experiment saves its results");
 		parser.addArgument(OPT_COMMAND).nargs("+").help(
@@ -68,7 +76,8 @@ public class ExperimentServer extends NanoHTTPD {
 			parser.parseArgs(args, opt);
 
 			LOGGER_.info("Binding server to port {}", opt.port);
-			new ExperimentServer(opt.port, opt.results, opt.command);
+			new ExperimentServer(opt.port, opt.ontologies, opt.results,
+					opt.command);
 
 		} catch (final IOException e) {
 			LOGGER_.error("Cannot start server!", e);
@@ -79,15 +88,18 @@ public class ExperimentServer extends NanoHTTPD {
 		}
 	}
 
-	public ExperimentServer(final int port, final File resultsFile,
-			final String... command) throws IOException {
+	public ExperimentServer(final int port, final File ontologiesFile,
+			final File resultsFile, final String... command)
+			throws IOException {
 		super(port);
+		this.ontologiesFile_ = ontologiesFile;
 		this.resultsFile_ = resultsFile;
 		this.command_ = command;
 		start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 		LOGGER_.info("Server running ;-)");
 	}
 
+	private final File ontologiesFile_;
 	private final File resultsFile_;
 	private final String[] command_;
 
@@ -107,6 +119,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static final String FIELD_TIMEOUT_ = "timeout";
 	private static final String FIELD_GLOBAL_TIMEOUT_ = "global_timeout";
+	private static final String FIELD_ONTOLOGIES_ = "ontologies";
 
 	private static final int DEFAULT_TIMEOUT_ = 60;
 	private static final int DEFAULT_GLOBAL_TIMEOUT_ = 3600;
@@ -116,13 +129,17 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "<html>\n"
 			+ "<body>\n"
 			+ "  <h1>Choose experiment parameters:</h1>\n"
-			+ "  <form method=post>\n"
+			+ "  <form method='post' enctype='multipart/form-data'>\n"
 			+ "    <p><label for='" + FIELD_TIMEOUT_ + "'>Local timeout (seconds):</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='number' name='" + FIELD_TIMEOUT_ + "' required min='0' step='1' value='%s'></p>\n"
 			+ "    <p><label for='" + FIELD_GLOBAL_TIMEOUT_ + "'>Global timeout (seconds):</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='number' name='" + FIELD_GLOBAL_TIMEOUT_ + "' min='0' step='1' value='%s'></p>\n"
+			+ "    <p><label for='" + FIELD_ONTOLOGIES_ + "'>Archive with input ontologies (*.tar.gz):<br/>\n"
+			+ "      (The ontology files must be in the root of the archive!)</label><br/>\n"
+			+ "%s"// validation message
+			+ "    <input type='file' name='" + FIELD_ONTOLOGIES_ + "' required></p>\n"
 			+ "    <p><input type='submit' value='Submit'>\n"
 			+ "    <input type='reset'></p>\n"
 			+ "  </form>\n"
@@ -217,15 +234,19 @@ public class ExperimentServer extends NanoHTTPD {
 		final Map<String, String> validationMessages = new HashMap<>(2);
 		validationMessages.put(FIELD_TIMEOUT_, "");
 		validationMessages.put(FIELD_GLOBAL_TIMEOUT_, "");
+		validationMessages.put(FIELD_ONTOLOGIES_, "");
 		final String timeoutValue;
 		final int timeout;
 		final String globalTimeoutValue;
 		final int globalTimeout;
+		final String ontologiesFileName;
 		try {
 
-			session.parseBody(new HashMap<String, String>());
+			final Map<String, String> files = new HashMap<String, String>();
+			session.parseBody(files);
 			final Map<String, String> params = session.getParms();
 			LOGGER_.info("params: {}", params);
+			LOGGER_.info("files: {}", files);
 
 			if (params.containsKey(FIELD_TIMEOUT_)) {
 				timeoutValue = params.get(FIELD_TIMEOUT_);
@@ -269,6 +290,28 @@ public class ExperimentServer extends NanoHTTPD {
 			}
 			LOGGER_.info("globalTimeout: {}", globalTimeout);
 
+			if (params.containsKey(FIELD_ONTOLOGIES_)
+					&& files.containsKey(FIELD_ONTOLOGIES_)) {
+				ontologiesFileName = params.get(FIELD_ONTOLOGIES_);
+				final File ontolgiesTmpFile = new File(
+						files.get(FIELD_ONTOLOGIES_));
+				LOGGER_.info("ontolgiesTmpFile: {}", ontolgiesTmpFile);
+				if (ontolgiesTmpFile.exists()) {
+					LOGGER_.info("copying ontologies");
+					Files.copy(ontolgiesTmpFile.toPath(),
+							ontologiesFile_.toPath(),
+							StandardCopyOption.REPLACE_EXISTING);
+				} else {
+					formDataIsReady = false;
+					validationMessages.put(FIELD_ONTOLOGIES_,
+							"<strong>Ontologies archive not provided!</strong><br/>\n");
+				}
+			} else {
+				formDataIsReady = false;
+				ontologiesFileName = null;
+			}
+			LOGGER_.info("ontologiesFileName: {}", ontologiesFileName);
+
 		} catch (final IOException | ResponseException e) {
 			return newErrorResponse("Cannot parse the request!", e);
 		}
@@ -298,8 +341,8 @@ public class ExperimentServer extends NanoHTTPD {
 					}
 					// else
 					experimentLog_.setLength(0);
-					experimentProcess_ = new ProcessBuilder(
-							substituteCommand(command_, timeout, globalTimeout))
+					experimentProcess_ = new ProcessBuilder(substituteCommand(
+							command_, timeout, globalTimeout, ontologiesFile_))
 									.redirectErrorStream(true).start();
 				}
 
@@ -315,7 +358,8 @@ public class ExperimentServer extends NanoHTTPD {
 			return newFixedLengthResponse(String.format(TEMPLATE_INDEX_,
 					validationMessages.get(FIELD_TIMEOUT_), timeoutValue,
 					validationMessages.get(FIELD_GLOBAL_TIMEOUT_),
-					globalTimeoutValue));
+					globalTimeoutValue,
+					validationMessages.get(FIELD_ONTOLOGIES_)));
 		}
 
 	}
@@ -447,7 +491,8 @@ public class ExperimentServer extends NanoHTTPD {
 	}
 
 	private static String[] substituteCommand(final String[] command,
-			final int localTimeout, final int globalTimeout) {
+			final int localTimeout, final int globalTimeout,
+			final File ontologiesFile) {
 		final String[] result = new String[command.length];
 		for (int i = 0; i < command.length; i++) {
 			result[i] = substituteCommand(

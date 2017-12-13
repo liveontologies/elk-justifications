@@ -4,6 +4,8 @@ TIMEOUT=$1
 shift
 GLOBAL_TIMEOUT=$1
 shift
+ONTOLOGIES_ARCHIVE=$1
+shift
 ONTOLOGIES_DIR=$1
 shift
 QUERIES_DIR=$1
@@ -26,6 +28,26 @@ shift
 
 
 DATE=`date +%y-%m-%d`
+
+
+
+# Extract ontologies
+
+if [ -e $ONTOLOGIES_DIR ] && [ ! -d $ONTOLOGIES_DIR ]
+then
+	rm -rf $ONTOLOGIES_DIR
+fi
+mkdir -p $ONTOLOGIES_DIR
+
+echo "extracting the input ontologies"
+
+ABSPLUTE_ONTOLOGIES_ARCHIVE=`realpath $ONTOLOGIES_ARCHIVE`
+CURRENT_DIR=`pwd`
+cd $ONTOLOGIES_DIR
+
+tar xzf $ABSPLUTE_ONTOLOGIES_ARCHIVE
+
+cd $CURRENT_DIR
 
 
 
