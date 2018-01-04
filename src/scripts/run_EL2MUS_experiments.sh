@@ -1,11 +1,21 @@
 #!/bin/bash
 
 EXE=$1
-TIMEOUT=$2
-GLOBAL_TIMEOUT=$3
-QUERY_FILE=$4
-ENCODING_DIR=$5
-OUTPUT_DIR=$6
+shift
+TIMEOUT=$1
+shift
+GLOBAL_TIMEOUT=$1
+shift
+QUERY_FILE=$1
+shift
+ENCODING_DIR=$1
+shift
+SCRIPTS_DIR=$1
+shift
+TOOLS_DIR=$1
+shift
+OUTPUT_DIR=$1
+shift
 
 rm -rf $OUTPUT_DIR
 mkdir -p $OUTPUT_DIR
@@ -25,15 +35,14 @@ do
 		break
 	fi
 	
+	echo -n '"'`cat $QUERY_DIR/encoding.query`'"', >> $OUTPUT_DIR/record.csv
+	
 	LITERAL=`cat $QUERY_DIR/encoding.q`
 	INPUT_FILE=$QUERY_DIR/encoding.$LITERAL.wcnf
 	if [ ! -s $INPUT_FILE ]
 	then
-		>&2 echo "No Input File: " $INPUT_FILE
-		break
+		$SCRIPTS_DIR/create-wcnf encoding $QUERY_DIR $QUERY_DIR/encoding.q $QUERY_DIR $TOOLS_DIR no-opt
 	fi
-	
-	echo -n '"'`cat $QUERY_DIR/encoding.query`'"', >> $OUTPUT_DIR/record.csv
 	
 	LOG_DIR=$OUTPUT_DIR/$LINE
 	mkdir -p $LOG_DIR
