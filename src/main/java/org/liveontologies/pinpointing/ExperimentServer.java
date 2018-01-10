@@ -120,6 +120,10 @@ public class ExperimentServer extends NanoHTTPD {
 	private static final String FIELD_TIMEOUT_ = "timeout";
 	private static final String FIELD_GLOBAL_TIMEOUT_ = "global_timeout";
 	private static final String FIELD_ONTOLOGIES_ = "ontologies";
+	private static final String FIELD_DIRECT_ = "direct";
+	private static final String FIELD_UNTOLD_ = "untold";
+	private static final String FIELD_TAUT_ = "taut";
+	private static final String FIELD_NOBOTTOM_ = "nobottom";
 
 	private static final int DEFAULT_TIMEOUT_ = 60;
 	private static final int DEFAULT_GLOBAL_TIMEOUT_ = 3600;
@@ -140,6 +144,17 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "      (The ontology files must be in the root of the archive!)</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='file' name='" + FIELD_ONTOLOGIES_ + "' required></p>\n"
+			+ "    <p>Options for query generation<br/>\n"
+			+ "    (for which subsumptions should the justification be computed)<br/>\n"
+			+ "    <input type='checkbox' name='" + FIELD_DIRECT_ + "' checked value='" + FIELD_DIRECT_ + "'>\n"
+			+ "    <label for='" + FIELD_DIRECT_ + "'>only direct subsumptions</label><br/>\n"
+			+ "    <input type='checkbox' name='" + FIELD_UNTOLD_ + "' value='" + FIELD_UNTOLD_ + "'>\n"
+			+ "    <label for='" + FIELD_UNTOLD_ + "'>only subsumptions that are not asserted in the ontology</label><br/>\n"
+			+ "    <input type='checkbox' name='" + FIELD_TAUT_ + "' checked value='" + FIELD_TAUT_ + "'>\n"
+			+ "    <label for='" + FIELD_TAUT_ + "'>exclude obviously tautological subsumptions</label><br/>\n"
+			+ "    <input type='checkbox' name='" + FIELD_NOBOTTOM_ + "' checked value='" + FIELD_NOBOTTOM_ + "'>\n"
+			+ "    <label for='" + FIELD_NOBOTTOM_ + "'>exclude subsumptions involving inconsistent classes</label><br/>\n"
+			+ "    </p>\n"
 			+ "    <p><input type='submit' value='Submit'>\n"
 			+ "    <input type='reset'></p>\n"
 			+ "  </form>\n"
@@ -240,6 +255,7 @@ public class ExperimentServer extends NanoHTTPD {
 		final String globalTimeoutValue;
 		final int globalTimeout;
 		final String ontologiesFileName;
+		final String queryGenerationOptions;
 		try {
 
 			final Map<String, String> files = new HashMap<String, String>();
@@ -312,6 +328,12 @@ public class ExperimentServer extends NanoHTTPD {
 			}
 			LOGGER_.info("ontologiesFileName: {}", ontologiesFileName);
 
+			queryGenerationOptions = createQueryGenerationOptions(
+					params.containsKey(FIELD_DIRECT_),
+					params.containsKey(FIELD_UNTOLD_),
+					!params.containsKey(FIELD_TAUT_),
+					params.containsKey(FIELD_NOBOTTOM_));
+
 		} catch (final IOException | ResponseException e) {
 			return newErrorResponse("Cannot parse the request!", e);
 		}
@@ -341,9 +363,10 @@ public class ExperimentServer extends NanoHTTPD {
 					}
 					// else
 					experimentLog_.setLength(0);
-					experimentProcess_ = new ProcessBuilder(substituteCommand(
-							command_, timeout, globalTimeout, ontologiesFile_))
-									.redirectErrorStream(true).start();
+					experimentProcess_ = new ProcessBuilder(
+							substituteCommand(command_, timeout, globalTimeout,
+									queryGenerationOptions))
+											.redirectErrorStream(true).start();
 				}
 
 				final Response response = newFixedLengthResponse(
@@ -362,6 +385,24 @@ public class ExperimentServer extends NanoHTTPD {
 					validationMessages.get(FIELD_ONTOLOGIES_)));
 		}
 
+	}
+
+	private String createQueryGenerationOptions(final boolean direct,
+			final boolean untold, final boolean taut, final boolean nobottom) {
+		final StringBuilder result = new StringBuilder();
+		if (direct) {
+			result.append("--direct ");
+		}
+		if (untold) {
+			result.append("--untold ");
+		}
+		if (taut) {
+			result.append("--taut ");
+		}
+		if (nobottom) {
+			result.append("--nobottom ");
+		}
+		return result.toString();
 	}
 
 	private Response logView(final IHTTPSession session) {
@@ -478,6 +519,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static final String PATTERN_TIMEPUT_ = "<t>";
 	private static final String PATTERN_GLOBAL_TIMEPUT_ = "<g>";
+	private static final String PATTERN_QUERY_GENERATION_OPTIONS_ = "<q>";
 
 	private static String substituteCommand(final String command,
 			final String pattern, final String value) {
@@ -492,13 +534,16 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static String[] substituteCommand(final String[] command,
 			final int localTimeout, final int globalTimeout,
-			final File ontologiesFile) {
+			final String queryGenerationOptions) {
 		final String[] result = new String[command.length];
 		for (int i = 0; i < command.length; i++) {
 			result[i] = substituteCommand(
-					substituteCommand(command[i], PATTERN_TIMEPUT_,
-							"" + localTimeout),
-					PATTERN_GLOBAL_TIMEPUT_, "" + globalTimeout);
+					substituteCommand(
+							substituteCommand(command[i], PATTERN_TIMEPUT_,
+									"" + localTimeout),
+							PATTERN_GLOBAL_TIMEPUT_, "" + globalTimeout),
+					PATTERN_QUERY_GENERATION_OPTIONS_,
+					"" + queryGenerationOptions);
 		}
 		return result;
 	}

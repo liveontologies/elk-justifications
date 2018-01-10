@@ -18,6 +18,8 @@ WORKSPACE_DIR=$1
 shift
 RESULTS_ARCHIVE=$1
 shift
+QUERY_GENERATION_OPTIONS=$1
+shift
 
 ONTOLOGIES_DIR=$WORKSPACE_DIR/ontologies
 QUERIES_DIR=$WORKSPACE_DIR/queries
@@ -62,7 +64,8 @@ do
 	
 	NAME=`basename -s ".owl" $ONTOLOGY`
 	echo `date "$TIME_LOG_FORMAT"` "generating queries for $NAME"
-	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.ExtractSubsumptions --direct --nobottom --sort $ONTOLOGY $QUERIES_DIR/$NAME.queries.sorted 2>&1 > $QUERIES_DIR/$NAME.out.log | tee $QUERIES_DIR/$NAME.err.log 1>&2
+#	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.ExtractSubsumptions --direct --nobottom --sort $ONTOLOGY $QUERIES_DIR/$NAME.queries.sorted 2>&1 > $QUERIES_DIR/$NAME.out.log | tee $QUERIES_DIR/$NAME.err.log 1>&2
+	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.ExtractSubsumptions $QUERY_GENERATION_OPTIONS --sort $ONTOLOGY $QUERIES_DIR/$NAME.queries.sorted 2>&1 > $QUERIES_DIR/$NAME.out.log | tee $QUERIES_DIR/$NAME.err.log 1>&2
 	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.Shuffler 1 < $QUERIES_DIR/$NAME.queries.sorted > $QUERIES_DIR/$NAME.queries.seed1
 	
 done
