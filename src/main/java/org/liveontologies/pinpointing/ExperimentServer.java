@@ -1,8 +1,10 @@
 package org.liveontologies.pinpointing;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -33,6 +35,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 	public static final String OPT_PORT = "port";
 	public static final String OPT_RESULTS = "results";
+	public static final String OPT_PLOT = "plot";
 	public static final String OPT_ONTOLOGIES = "ontologies";
 	public static final String OPT_COMMAND = "command";
 
@@ -43,6 +46,8 @@ public class ExperimentServer extends NanoHTTPD {
 		public Integer port;
 		@Arg(dest = OPT_RESULTS)
 		public File results;
+		@Arg(dest = OPT_PLOT)
+		public File plot;
 		@Arg(dest = OPT_ONTOLOGIES)
 		public File ontologies;
 		@Arg(dest = OPT_COMMAND)
@@ -64,6 +69,8 @@ public class ExperimentServer extends NanoHTTPD {
 				.help("the file into which the input ontologies are uploaded");
 		parser.addArgument("--" + OPT_RESULTS).type(File.class).required(true)
 				.help("the file into which the experiment saves its results");
+		parser.addArgument("--" + OPT_PLOT).type(File.class).required(true)
+				.help("the file into which the results are plotted");
 		parser.addArgument(OPT_COMMAND).nargs("+").help(
 				"the command that starts the experiment and its arguments\n"
 						+ "(" + PATTERN_TIMEPUT_
@@ -77,7 +84,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 			LOGGER_.info("Binding server to port {}", opt.port);
 			new ExperimentServer(opt.port, opt.ontologies, opt.results,
-					opt.command);
+					opt.plot, opt.command);
 
 		} catch (final IOException e) {
 			LOGGER_.error("Cannot start server!", e);
@@ -89,17 +96,19 @@ public class ExperimentServer extends NanoHTTPD {
 	}
 
 	public ExperimentServer(final int port, final File ontologiesFile,
-			final File resultsFile, final String... command)
-			throws IOException {
+			final File resultsFile, final File plotFile,
+			final String... command) throws IOException {
 		super(port);
 		this.ontologiesFile_ = ontologiesFile;
 		this.resultsFile_ = resultsFile;
+		this.plotFile_ = plotFile;
 		this.command_ = command;
 		start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 		LOGGER_.info("Server running ;-)");
 	}
 
 	private final File ontologiesFile_;
+	private final File plotFile_;
 	private final File resultsFile_;
 	private final String[] command_;
 
@@ -184,6 +193,7 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "  <h1>Experiment finished</h1>\n"
 			+ "  <p>Download the results from <a href=/results.tar.gz>here</a>."
 			+ "  Or start from beginning <a href=/>here</a>.</p>\n"
+			+ "  %s\n"// The plot
 			+ "  <pre id='log'>%s</pre>\n"
 			+ "</body>\n"
 			+ "</html>";
@@ -412,8 +422,25 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private synchronized Response doneView(final IHTTPSession session) {
 		LOGGER_.info("done view");
-		return newFixedLengthResponse(
-				String.format(TEMPLATE_DONE_, experimentLog_.toString()));
+
+		// Paste the SVG plot into the template.
+		final StringBuilder plotString = new StringBuilder("<p>");
+		BufferedReader in = null;
+		try {
+			in = new BufferedReader(new FileReader(plotFile_));
+			String line = in.readLine();// skip the first line
+			while ((line = in.readLine()) != null) {
+				plotString.append(line);
+			}
+		} catch (IOException e) {
+			return newErrorResponse("Cannot read the plot!", e);
+		} finally {
+			Utils.closeQuietly(in);
+		}
+		plotString.append("</p>");
+
+		return newFixedLengthResponse(String.format(TEMPLATE_DONE_,
+				plotString.toString(), experimentLog_.toString()));
 	}
 
 	private Response killView(final IHTTPSession session) {

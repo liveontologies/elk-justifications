@@ -134,6 +134,11 @@ separator = "--"
 args <- commandArgs(TRUE)
 
 argIndex <- 1
+
+arg = args[argIndex]
+argIndex = argIndex + 1
+plot.filename=arg
+
 titles = c()
 while (argIndex <= length(args)) {
 	arg = args[argIndex]
@@ -150,10 +155,6 @@ if (argIndex >= length(args)) {
 }
 arg = args[argIndex]
 argIndex = argIndex + 1
-if (file.exists(arg)) {
-	cat(sprintf("Data file without legend: %s\n", arg))
-	q(status=1)
-}
 legends = arg
 arg = args[argIndex]
 argIndex = argIndex + 1
@@ -166,7 +167,11 @@ files = arg
 while (argIndex <= length(args)) {
 	arg = args[argIndex]
 	argIndex = argIndex + 1
-	if (file.exists(arg)) {
+	if (length(files) < length(titles)) {
+		if (!file.exists(arg)) {
+			cat(sprintf("Legend wuthout data file: %s\n", arg))
+			q(status=1)
+		}
 		files = c(files, arg)
 	} else {
 		if (length(files) != length(titles)) {
@@ -191,15 +196,20 @@ if (length(files) != length(titles)) {
 }
 
 
-#size = 5
-size = 1.61
+size = 5
+#size = 1.61
 footerRatio = 0.15
 #size = 1.61*1.7
 #footerRatio = 0.15/1.7
+from.prop=15
+to.prop=2
 
-pdf(width=length(titles)*size, height=size * (1 + footerRatio))
-colors = c("red", "green3", "blue", "magenta")
-lineTypes = c("44", "1343", "73", "2262")
+#pdf(filename=plot.filename, width=length(titles)*size, height=size * (1 + footerRatio))
+svg(filename=plot.filename, width=length(titles)*size, height=size * (1 + footerRatio))
+#colors = c("red", "green3", "blue", "magenta")
+#lineTypes = c("44", "1343", "73", "2262")
+colors = c("red", "green3", "blue", "cyan", "magenta", "yellow")
+lineTypes = c("44", "22", "1343", "73", "131343", "2262")
 
 #library(tikzDevice)
 
@@ -240,9 +250,9 @@ while (colIndex <= length(titles)) {
 	print(titles[colIndex])
 	print(fileArray[colIndex,])
 	par(fig=c((colIndex-1) / length(titles), colIndex / length(titles), footerRatio, 1), new=TRUE)
-#	par(fig=c((colIndex-1) / length(titles), colIndex / length(titles), 0, 1), new=TRUE)
 	plot.results(fileArray[colIndex,], isFirst=isFirst, main=titles[colIndex],
-			colors=colors, lineTypes=lineTypes, pixels.in.plot.size=pixelsInSize)
+			colors=colors, lineTypes=lineTypes, from.prop=from.prop, to.prop=to.prop,
+			pixels.in.plot.size=pixelsInSize)
 	colIndex = colIndex + 1
 	if (isFirst) {
 		isFirst = FALSE

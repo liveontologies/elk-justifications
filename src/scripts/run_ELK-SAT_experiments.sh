@@ -18,6 +18,8 @@ WORKSPACE_DIR=$1
 shift
 RESULTS_ARCHIVE=$1
 shift
+PLOT_FILE=$1
+shift
 QUERY_GENERATION_OPTIONS=$1
 shift
 
@@ -64,7 +66,6 @@ do
 	
 	NAME=`basename -s ".owl" $ONTOLOGY`
 	echo `date "$TIME_LOG_FORMAT"` "generating queries for $NAME"
-#	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.ExtractSubsumptions --direct --nobottom --sort $ONTOLOGY $QUERIES_DIR/$NAME.queries.sorted 2>&1 > $QUERIES_DIR/$NAME.out.log | tee $QUERIES_DIR/$NAME.err.log 1>&2
 	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.ExtractSubsumptions $QUERY_GENERATION_OPTIONS --sort $ONTOLOGY $QUERIES_DIR/$NAME.queries.sorted 2>&1 > $QUERIES_DIR/$NAME.out.log | tee $QUERIES_DIR/$NAME.err.log 1>&2
 	java -Xmx7G -Xms2G -cp $JAR org.liveontologies.pinpointing.Shuffler 1 < $QUERIES_DIR/$NAME.queries.sorted > $QUERIES_DIR/$NAME.queries.seed1
 	
@@ -120,6 +121,8 @@ done
 
 
 
+# Pack the results
+
 echo `date "$TIME_LOG_FORMAT"` "packing the results"
 
 CURRENT_DIR=`pwd`
@@ -128,6 +131,39 @@ cd $WORKSPACE_DIR
 tar czf $CURRENT_DIR/$RESULTS_ARCHIVE `basename $RESULTS_DIR`
 
 cd $CURRENT_DIR
+
+
+
+# Plot the plots
+
+echo `date "$TIME_LOG_FORMAT"` "plotting"
+
+PLOT_LEGEND=""
+PLOT_ARGS=""
+for EXPERIMENT in $EXPERIMENT_DIR/*
+do
+	
+	EXPERIMENT_NAME=`basename -s ".sh" $EXPERIMENT`
+	PLOT_ARGS="$PLOT_ARGS $EXPERIMENT_NAME"
+	
+	PLOT_LEGEND=""
+	for ONTOLOGY in $ONTOLOGIES_DIR/*
+	do
+
+		NAME=`basename -s ".owl" $ONTOLOGY`
+		PLOT_LEGEND="$PLOT_LEGEND $NAME"
+	
+		DIR_NAME=$DATE.$NAME.$EXPERIMENT_NAME.$MACHINE_NAME.elk_sat
+		RECORD=$LOGS_DIR/$DIR_NAME/record.csv
+		
+		PLOT_ARGS="$PLOT_ARGS $RECORD"
+	
+	done
+	
+done
+
+#echo `date "$TIME_LOG_FORMAT"` "./$SCRIPTS_DIR/plot_row.r $PLOT_FILE $PLOT_LEGEND -- $PLOT_ARGS"
+./$SCRIPTS_DIR/plot_row.r $PLOT_FILE $PLOT_LEGEND -- $PLOT_ARGS
 
 
 
