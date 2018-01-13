@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -34,6 +35,7 @@ public class ExperimentServer extends NanoHTTPD {
 			.getLogger(ExperimentServer.class);
 
 	public static final String OPT_PORT = "port";
+	public static final String OPT_RESULTS_DIR = "resultsdir";
 	public static final String OPT_RESULTS = "results";
 	public static final String OPT_PLOT = "plot";
 	public static final String OPT_ONTOLOGIES = "ontologies";
@@ -44,12 +46,14 @@ public class ExperimentServer extends NanoHTTPD {
 	public static class Options {
 		@Arg(dest = OPT_PORT)
 		public Integer port;
+		@Arg(dest = OPT_ONTOLOGIES)
+		public File ontologies;
+		@Arg(dest = OPT_RESULTS_DIR)
+		public File resultsDir;
 		@Arg(dest = OPT_RESULTS)
 		public File results;
 		@Arg(dest = OPT_PLOT)
 		public File plot;
-		@Arg(dest = OPT_ONTOLOGIES)
-		public File ontologies;
 		@Arg(dest = OPT_COMMAND)
 		public String[] command;
 	}
@@ -67,8 +71,11 @@ public class ExperimentServer extends NanoHTTPD {
 		parser.addArgument("--" + OPT_ONTOLOGIES).type(File.class)
 				.required(true)
 				.help("the file into which the input ontologies are uploaded");
+		parser.addArgument("--" + OPT_RESULTS_DIR).type(File.class)
+				.required(true)
+				.help("the directory into which the experiment saves its results");
 		parser.addArgument("--" + OPT_RESULTS).type(File.class).required(true)
-				.help("the file into which the experiment saves its results");
+				.help("the file into which the experiment packs the results");
 		parser.addArgument("--" + OPT_PLOT).type(File.class).required(true)
 				.help("the file into which the results are plotted");
 		parser.addArgument(OPT_COMMAND).nargs("+").help(
@@ -83,8 +90,13 @@ public class ExperimentServer extends NanoHTTPD {
 			parser.parseArgs(args, opt);
 
 			LOGGER_.info("Binding server to port {}", opt.port);
-			new ExperimentServer(opt.port, opt.ontologies, opt.results,
-					opt.plot, opt.command);
+			LOGGER_.info("ontologies={}", opt.ontologies);
+			LOGGER_.info("results={}", opt.results);
+			LOGGER_.info("resultsDir={}", opt.resultsDir);
+			LOGGER_.info("plot={}", opt.plot);
+			LOGGER_.info("command={}", Arrays.toString(opt.command));
+			new ExperimentServer(opt.port, opt.ontologies, opt.resultsDir,
+					opt.results, opt.plot, opt.command);
 
 		} catch (final IOException e) {
 			LOGGER_.error("Cannot start server!", e);
@@ -96,10 +108,11 @@ public class ExperimentServer extends NanoHTTPD {
 	}
 
 	public ExperimentServer(final int port, final File ontologiesFile,
-			final File resultsFile, final File plotFile,
+			final File resultsDir, final File resultsFile, final File plotFile,
 			final String... command) throws IOException {
 		super(port);
 		this.ontologiesFile_ = ontologiesFile;
+		this.resultsDir_ = resultsDir;
 		this.resultsFile_ = resultsFile;
 		this.plotFile_ = plotFile;
 		this.command_ = command;
@@ -109,6 +122,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private final File ontologiesFile_;
 	private final File plotFile_;
+	private final File resultsDir_;
 	private final File resultsFile_;
 	private final String[] command_;
 
@@ -116,15 +130,6 @@ public class ExperimentServer extends NanoHTTPD {
 	private Process experimentProcess_ = null;
 	@GuardedBy("this")
 	private StringBuilder experimentLog_ = new StringBuilder();
-
-	private static final Pattern URI_INDEX_ = Pattern.compile("^/$");
-	private static final Pattern URI_LOG_ = Pattern.compile("^/log/?$");
-	private static final Pattern URI_LOG_SOURCE_ = Pattern
-			.compile("^/log_source/?$");
-	private static final Pattern URI_DONE_ = Pattern.compile("^/done/?$");
-	private static final Pattern URI_KILL_ = Pattern.compile("^/kill/?$");
-	private static final Pattern URI_RESULTS_ = Pattern
-			.compile("^/results.tar.gz$");
 
 	private static final String FIELD_TIMEOUT_ = "timeout";
 	private static final String FIELD_GLOBAL_TIMEOUT_ = "global_timeout";
@@ -191,12 +196,38 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "<html>\n"
 			+ "<body>\n"
 			+ "  <h1>Experiment finished</h1>\n"
-			+ "  <p>Download the results from <a href=/results.tar.gz>here</a>."
+			+ "  <p>View the results <a href=/results/>here</a>."
+			+ "  Download the results from <a href=/results.tar.gz>here</a>."
 			+ "  Or start from beginning <a href=/>here</a>.</p>\n"
-			+ "  %s\n"// The plot
 			+ "  <pre id='log'>%s</pre>\n"
 			+ "</body>\n"
 			+ "</html>";
+	private static final String TEMPLATE_RESULTS_ = "<!doctype html>\n"
+			+ "<body>\n"
+			+ "  <h1>Experiment results</h1>\n"
+			+ "  <p>Download the results from <a href=/results.tar.gz>here</a>."
+			+ "  See the log <a href=/done/>here</a>.\n"
+			+ "  Or start from beginning <a href=/>here</a>.</p>\n"
+			+ "  %s\n"// The plot
+			+ "  %s\n"// The result list
+			+ "</body>";
+	private static final String TEMPLATE_RESULT_FILE_ = "<!doctype html>\n"
+			+ "<body>\n"
+			+ "  <h1>%s</h1>\n"// Title
+			+ "  <div id=\"handsontable-container\"></div>\n"
+			+ "  <pre id='data'>%s</pre>\n"// Result file
+			+ "  <script src=\"https://cdn.jsdelivr.net/handsontable/0.28.4/handsontable.full.min.js\"></script>\n"
+			+ "  <script src=\"https://cdn.jsdelivr.net/papaparse/4.1.2/papaparse.min.js\"></script>\n"
+			+ "  <script type='text/javascript'>\n"
+			+ "    var dataElement = document.getElementById('data')\n"
+			+ "    var dataString = dataElement.innerHTML\n"
+			+ "    dataElement.innerHTML = ''\n"
+			+ "    var data = Papa.parse(dataString, {header: true, skipEmptyLines: true})\n"
+			+ "    var handsontableContainer = document.getElementById('handsontable-container')\n"
+			+ "    Handsontable(handsontableContainer, {data: data.data, rowHeaders: true, colHeaders: data.meta.fields, columnSorting: true, wordWrap: false})\n"
+			+ "  </script>\n"
+			+ "  <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/handsontable/0.28.4/handsontable.full.min.css\">\n"
+			+ "</body>";
 	private static final String TEMPLATE_ALREADY_RUNNING_ = "<!DOCTYPE html>\n"
 			+ "<html>\n"
 			+ "<body>\n"
@@ -224,11 +255,25 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "</html>";
 	// @formatter:on
 
+	private static final Pattern URI_INDEX_ = Pattern.compile("^/$");
+	private static final Pattern URI_LOG_ = Pattern.compile("^/log/?$");
+	private static final Pattern URI_LOG_SOURCE_ = Pattern
+			.compile("^/log_source/?$");
+	private static final Pattern URI_DONE_ = Pattern.compile("^/done/?$");
+	private static final Pattern URI_KILL_ = Pattern.compile("^/kill/?$");
+	private static final Pattern URI_RESULTS_ = Pattern.compile("^/results/?$");
+	private static final Pattern URI_RESULTS_FILE_ = Pattern
+			.compile("^/results/(?<file>[^/]+)$");
+	private static final Pattern URI_RESULTS_ARCHIVE_ = Pattern
+			.compile("^/results.tar.gz$");
+
 	@Override
 	public Response serve(final IHTTPSession session) {
 		LOGGER_.info("request URI: {}", session.getUri());
 		try {
 			final URI requestUri = new URI(session.getUri());
+			final Matcher uriResultsFileMatcher = URI_RESULTS_FILE_
+					.matcher(requestUri.getPath());
 			if (URI_INDEX_.matcher(requestUri.getPath()).matches()) {
 				return indexView(session);
 			} else if (URI_LOG_.matcher(requestUri.getPath()).matches()) {
@@ -238,10 +283,16 @@ public class ExperimentServer extends NanoHTTPD {
 				return logSourceView(session);
 			} else if (URI_DONE_.matcher(requestUri.getPath()).matches()) {
 				return doneView(session);
-			} else if (URI_KILL_.matcher(requestUri.getPath()).matches()) {
-				return killView(session);
 			} else if (URI_RESULTS_.matcher(requestUri.getPath()).matches()) {
 				return resultsView(session);
+			} else if (uriResultsFileMatcher.matches()) {
+				return resultFileView(session,
+						uriResultsFileMatcher.group("file"));
+			} else if (URI_KILL_.matcher(requestUri.getPath()).matches()) {
+				return killView(session);
+			} else if (URI_RESULTS_ARCHIVE_.matcher(requestUri.getPath())
+					.matches()) {
+				return resultsArchiveView(session);
 			} else {
 				return newFixedLengthResponse(Status.NOT_FOUND,
 						NanoHTTPD.MIME_HTML, String.format(TEMPLATE_NOT_FOUND_,
@@ -422,6 +473,17 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private synchronized Response doneView(final IHTTPSession session) {
 		LOGGER_.info("done view");
+		return newFixedLengthResponse(String.format(TEMPLATE_DONE_,
+				experimentLog_.toString()));
+	}
+
+	private synchronized Response resultsView(final IHTTPSession session) {
+		LOGGER_.info("results view");
+
+		if (!resultsDir_.exists() || !resultsDir_.isDirectory()) {
+			return newErrorResponse("Results directory does not exist!");
+		}
+		// else
 
 		// Paste the SVG plot into the template.
 		final StringBuilder plotString = new StringBuilder("<p>");
@@ -439,8 +501,45 @@ public class ExperimentServer extends NanoHTTPD {
 		}
 		plotString.append("</p>");
 
-		return newFixedLengthResponse(String.format(TEMPLATE_DONE_,
-				plotString.toString(), experimentLog_.toString()));
+		final StringBuilder resultList = new StringBuilder("<ul>\n");
+		final String[] fileNames = resultsDir_.list();
+		Arrays.sort(fileNames);
+		for (final String fileName : fileNames) {
+			resultList.append("<li><a href='/results/");
+			resultList.append(fileName);
+			resultList.append("'>");
+			resultList.append(fileName);
+			resultList.append("</a></li>\n");
+		}
+		resultList.append("</ul>");
+
+		return newFixedLengthResponse(String.format(TEMPLATE_RESULTS_,
+				plotString.toString(), resultList.toString()));
+	}
+
+	private synchronized Response resultFileView(final IHTTPSession session,
+			final String fileName) {
+		LOGGER_.info("result file view: {}", fileName);
+
+		// Paste the file into the template.
+		// TODO: do this with streams!
+		final StringBuilder fileString = new StringBuilder();
+		BufferedReader in = null;
+		try {
+			in = new BufferedReader(
+					new FileReader(new File(resultsDir_, fileName)));
+			String line;
+			while ((line = in.readLine()) != null) {
+				fileString.append(line).append("\n");
+			}
+		} catch (IOException e) {
+			return newErrorResponse("Cannot read the result file!", e);
+		} finally {
+			Utils.closeQuietly(in);
+		}
+
+		return newFixedLengthResponse(String.format(TEMPLATE_RESULT_FILE_,
+				fileName, fileString.toString()));
 	}
 
 	private Response killView(final IHTTPSession session) {
@@ -502,8 +601,8 @@ public class ExperimentServer extends NanoHTTPD {
 
 	}
 
-	private Response resultsView(final IHTTPSession session) {
-		LOGGER_.info("results view");
+	private Response resultsArchiveView(final IHTTPSession session) {
+		LOGGER_.info("results archive view");
 		if (!resultsFile_.exists() || resultsFile_.isDirectory()) {
 			return newFixedLengthResponse(Status.NOT_FOUND, NanoHTTPD.MIME_HTML,
 					String.format(TEMPLATE_NOT_FOUND_, resultsFile_.getPath()));
@@ -534,6 +633,13 @@ public class ExperimentServer extends NanoHTTPD {
 			LOGGER_.debug("string: {}", s);
 			experimentLog_.append(s);
 		}
+	}
+
+	private Response newErrorResponse(final String message) {
+		LOGGER_.error(message);
+		return newFixedLengthResponse(Status.INTERNAL_ERROR,
+				NanoHTTPD.MIME_HTML,
+				String.format(TEMPLATE_INTERNAL_ERROR_, message, ""));
 	}
 
 	private Response newErrorResponse(final String message,
