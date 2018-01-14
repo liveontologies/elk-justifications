@@ -35,10 +35,7 @@ public class ExperimentServer extends NanoHTTPD {
 			.getLogger(ExperimentServer.class);
 
 	public static final String OPT_PORT = "port";
-	public static final String OPT_RESULTS_DIR = "resultsdir";
-	public static final String OPT_RESULTS = "results";
-	public static final String OPT_PLOT = "plot";
-	public static final String OPT_ONTOLOGIES = "ontologies";
+	public static final String OPT_WORKSPACE = "workspace";
 	public static final String OPT_COMMAND = "command";
 
 	public static final Integer DEFAULT_PORT = 80;
@@ -46,14 +43,8 @@ public class ExperimentServer extends NanoHTTPD {
 	public static class Options {
 		@Arg(dest = OPT_PORT)
 		public Integer port;
-		@Arg(dest = OPT_ONTOLOGIES)
-		public File ontologies;
-		@Arg(dest = OPT_RESULTS_DIR)
-		public File resultsDir;
-		@Arg(dest = OPT_RESULTS)
-		public File results;
-		@Arg(dest = OPT_PLOT)
-		public File plot;
+		@Arg(dest = OPT_WORKSPACE)
+		public File workspace;
 		@Arg(dest = OPT_COMMAND)
 		public String[] command;
 	}
@@ -68,16 +59,8 @@ public class ExperimentServer extends NanoHTTPD {
 				.setDefault(DEFAULT_PORT)
 				.help("the port on which the server listens (default: "
 						+ DEFAULT_PORT + ")");
-		parser.addArgument("--" + OPT_ONTOLOGIES).type(File.class)
-				.required(true)
-				.help("the file into which the input ontologies are uploaded");
-		parser.addArgument("--" + OPT_RESULTS_DIR).type(File.class)
-				.required(true)
-				.help("the directory into which the experiment saves its results");
-		parser.addArgument("--" + OPT_RESULTS).type(File.class).required(true)
-				.help("the file into which the experiment packs the results");
-		parser.addArgument("--" + OPT_PLOT).type(File.class).required(true)
-				.help("the file into which the results are plotted");
+		parser.addArgument("--" + OPT_WORKSPACE).type(File.class).required(true)
+				.help("the directory in which the experiment manipulates files");
 		parser.addArgument(OPT_COMMAND).nargs("+").help(
 				"the command that starts the experiment and its arguments\n"
 						+ "(" + PATTERN_TIMEPUT_
@@ -90,13 +73,9 @@ public class ExperimentServer extends NanoHTTPD {
 			parser.parseArgs(args, opt);
 
 			LOGGER_.info("Binding server to port {}", opt.port);
-			LOGGER_.info("ontologies={}", opt.ontologies);
-			LOGGER_.info("results={}", opt.results);
-			LOGGER_.info("resultsDir={}", opt.resultsDir);
-			LOGGER_.info("plot={}", opt.plot);
+			LOGGER_.info("workspace={}", opt.workspace);
 			LOGGER_.info("command={}", Arrays.toString(opt.command));
-			new ExperimentServer(opt.port, opt.ontologies, opt.resultsDir,
-					opt.results, opt.plot, opt.command);
+			new ExperimentServer(opt.port, opt.workspace, opt.command);
 
 		} catch (final IOException e) {
 			LOGGER_.error("Cannot start server!", e);
@@ -107,20 +86,28 @@ public class ExperimentServer extends NanoHTTPD {
 		}
 	}
 
-	public ExperimentServer(final int port, final File ontologiesFile,
-			final File resultsDir, final File resultsFile, final File plotFile,
+	private static final String WS_INPUT_ = "input";
+	private static final String WS_RESULTS_ = "results";
+	private static final String WS_RESULTS_ARCHIVE_ = "results.tar.gz";
+	private static final String WS_PLOT_ = "plot.svg";
+
+	public ExperimentServer(final int port, final File workspace,
 			final String... command) throws IOException {
 		super(port);
-		this.ontologiesFile_ = ontologiesFile;
-		this.resultsDir_ = resultsDir;
-		this.resultsFile_ = resultsFile;
-		this.plotFile_ = plotFile;
+		this.workspace_ = workspace;
+		Utils.cleanIfNotDir(this.workspace_);
+		this.inputDir_ = new File(workspace, WS_INPUT_);
+		Utils.cleanIfNotDir(this.inputDir_);
+		this.resultsDir_ = new File(workspace, WS_RESULTS_);
+		this.resultsFile_ = new File(workspace, WS_RESULTS_ARCHIVE_);
+		this.plotFile_ = new File(workspace, WS_PLOT_);
 		this.command_ = command;
 		start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
 		LOGGER_.info("Server running ;-)");
 	}
 
-	private final File ontologiesFile_;
+	private final File workspace_;
+	private final File inputDir_;
 	private final File plotFile_;
 	private final File resultsDir_;
 	private final File resultsFile_;
@@ -133,6 +120,9 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static final String FIELD_TIMEOUT_ = "timeout";
 	private static final String FIELD_GLOBAL_TIMEOUT_ = "global_timeout";
+	private static final String FIELD_SOURCE_ = "source";
+	private static final String FIELD_SOURCE_FILE_ = "file";
+	private static final String FIELD_SOURCE_WEB_ = "web";
 	private static final String FIELD_ONTOLOGIES_ = "ontologies";
 	private static final String FIELD_DIRECT_ = "direct";
 	private static final String FIELD_UNTOLD_ = "untold";
@@ -154,10 +144,16 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "    <p><label for='" + FIELD_GLOBAL_TIMEOUT_ + "'>Global timeout (seconds):</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='number' name='" + FIELD_GLOBAL_TIMEOUT_ + "' min='0' step='1' value='%s'></p>\n"
-			+ "    <p><label for='" + FIELD_ONTOLOGIES_ + "'>Archive with input ontologies (*.tar.gz):<br/>\n"
-			+ "      (The ontology files must be in the root of the archive!)</label><br/>\n"
+			+ "    <p><label for='" + FIELD_ONTOLOGIES_ + "'>Either an ontology file in functional style OWL,<br/>\n"
+			+ "      or an archive with input ontologies (*.tar.gz or *.zip)<br/>\n"
+			+ "      (The ontology files must be in the root of the archive!),<br/>\n"
+			+ "      or a link from which the ontology or an archive should be downloaded:</label><br/>\n"
 			+ "%s"// validation message
-			+ "    <input type='file' name='" + FIELD_ONTOLOGIES_ + "' required></p>\n"
+			+ "    <input type='radio' name='" + FIELD_SOURCE_ + "' value='" + FIELD_SOURCE_FILE_ + "' checked\n"
+			+ "      onclick=\"document.getElementById('onto_input').innerHTML = '<input type=\\'file\\' name=\\'" + FIELD_ONTOLOGIES_ + "\\' accept=\\'.tar.gz,.tgz,.zip,.owl\\' required>'\"> Upload a file\n"
+			+ "    <input type='radio' name='" + FIELD_SOURCE_ + "' value='" + FIELD_SOURCE_WEB_ + "'\n"
+			+ "      onclick=\"document.getElementById('onto_input').innerHTML = '<input type=\\'text\\' name=\\'" + FIELD_ONTOLOGIES_ + "\\' required>'\"> Download from web\n"
+			+ "    <span id='onto_input'><input type='file' name='" + FIELD_ONTOLOGIES_ + "' accept='.tar.gz,.tgz,.zip,.owl' required><span></p>\n"
 			+ "    <p>Options for query generation<br/>\n"
 			+ "    (for which subsumptions should the justification be computed)<br/>\n"
 			+ "    <input type='checkbox' name='" + FIELD_DIRECT_ + "' checked value='" + FIELD_DIRECT_ + "'>\n"
@@ -211,6 +207,7 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "  %s\n"// The plot
 			+ "  %s\n"// The result list
 			+ "</body>";
+	// The first line and no <html> tag seem to have huge impact on performance!
 	private static final String TEMPLATE_RESULT_FILE_ = "<!doctype html>\n"
 			+ "<body>\n"
 			+ "  <h1>%s</h1>\n"// Title
@@ -315,7 +312,8 @@ public class ExperimentServer extends NanoHTTPD {
 		final int timeout;
 		final String globalTimeoutValue;
 		final int globalTimeout;
-		final String ontologiesFileName;
+		final String sourceValue;
+		final String ontologies;
 		final String queryGenerationOptions;
 		try {
 
@@ -367,27 +365,53 @@ public class ExperimentServer extends NanoHTTPD {
 			}
 			LOGGER_.info("globalTimeout: {}", globalTimeout);
 
-			if (params.containsKey(FIELD_ONTOLOGIES_)
-					&& files.containsKey(FIELD_ONTOLOGIES_)) {
-				ontologiesFileName = params.get(FIELD_ONTOLOGIES_);
-				final File ontolgiesTmpFile = new File(
-						files.get(FIELD_ONTOLOGIES_));
-				LOGGER_.info("ontolgiesTmpFile: {}", ontolgiesTmpFile);
-				if (ontolgiesTmpFile.exists()) {
-					LOGGER_.info("copying ontologies");
-					Files.copy(ontolgiesTmpFile.toPath(),
-							ontologiesFile_.toPath(),
-							StandardCopyOption.REPLACE_EXISTING);
+			if (params.containsKey(FIELD_SOURCE_)) {
+				sourceValue = params.get(FIELD_SOURCE_);
+				if (FIELD_SOURCE_FILE_.equals(sourceValue)) {
+
+					if (params.containsKey(FIELD_ONTOLOGIES_)
+							&& files.containsKey(FIELD_ONTOLOGIES_)) {
+						Utils.cleanDir(inputDir_);
+						final File source = new File(
+								files.get(FIELD_ONTOLOGIES_));
+						final File target = new File(inputDir_,
+								params.get(FIELD_ONTOLOGIES_));
+						LOGGER_.info("ontolgiesTmpFile: {}", source);
+						if (source.exists()) {
+							LOGGER_.info("copying ontologies");
+							Files.copy(source.toPath(), target.toPath(),
+									StandardCopyOption.REPLACE_EXISTING);
+							ontologies = target.getAbsolutePath();
+						} else {
+							formDataIsReady = false;
+							ontologies = null;
+							validationMessages.put(FIELD_ONTOLOGIES_,
+									"<strong>Ontologies archive not provided!</strong><br/>\n");
+						}
+					} else {
+						formDataIsReady = false;
+						ontologies = null;
+					}
+
+				} else if (FIELD_SOURCE_WEB_.equals(sourceValue)) {
+
+					if (params.containsKey(FIELD_ONTOLOGIES_)) {
+						ontologies = params.get(FIELD_ONTOLOGIES_);
+					} else {
+						formDataIsReady = false;
+						ontologies = null;
+					}
+
 				} else {
-					formDataIsReady = false;
-					validationMessages.put(FIELD_ONTOLOGIES_,
-							"<strong>Ontologies archive not provided!</strong><br/>\n");
+					return newErrorResponse("Illegal value of field "
+							+ FIELD_SOURCE_ + ": " + params.get(FIELD_SOURCE_));
 				}
 			} else {
 				formDataIsReady = false;
-				ontologiesFileName = null;
+				sourceValue = null;
+				ontologies = null;
 			}
-			LOGGER_.info("ontologiesFileName: {}", ontologiesFileName);
+			LOGGER_.info("ontologiesValue: {}", ontologies);
 
 			queryGenerationOptions = createQueryGenerationOptions(
 					params.containsKey(FIELD_DIRECT_),
@@ -424,10 +448,10 @@ public class ExperimentServer extends NanoHTTPD {
 					}
 					// else
 					experimentLog_.setLength(0);
-					experimentProcess_ = new ProcessBuilder(
-							substituteCommand(command_, timeout, globalTimeout,
-									queryGenerationOptions))
-											.redirectErrorStream(true).start();
+					experimentProcess_ = new ProcessBuilder(substituteCommand(
+							command_, timeout, globalTimeout, sourceValue,
+							ontologies, queryGenerationOptions))
+									.redirectErrorStream(true).start();
 				}
 
 				final Response response = newFixedLengthResponse(
@@ -473,8 +497,8 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private synchronized Response doneView(final IHTTPSession session) {
 		LOGGER_.info("done view");
-		return newFixedLengthResponse(String.format(TEMPLATE_DONE_,
-				experimentLog_.toString()));
+		return newFixedLengthResponse(
+				String.format(TEMPLATE_DONE_, experimentLog_.toString()));
 	}
 
 	private synchronized Response resultsView(final IHTTPSession session) {
@@ -652,6 +676,8 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static final String PATTERN_TIMEPUT_ = "<t>";
 	private static final String PATTERN_GLOBAL_TIMEPUT_ = "<g>";
+	private static final String PATTERN_SOURCE_ = "<s>";
+	private static final String PATTERN_ONTOLOGIES_ = "<o>";
 	private static final String PATTERN_QUERY_GENERATION_OPTIONS_ = "<q>";
 
 	private static String substituteCommand(final String command,
@@ -667,16 +693,22 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static String[] substituteCommand(final String[] command,
 			final int localTimeout, final int globalTimeout,
+			final String source, final String ontologies,
 			final String queryGenerationOptions) {
 		final String[] result = new String[command.length];
 		for (int i = 0; i < command.length; i++) {
 			result[i] = substituteCommand(
 					substituteCommand(
-							substituteCommand(command[i], PATTERN_TIMEPUT_,
-									"" + localTimeout),
-							PATTERN_GLOBAL_TIMEPUT_, "" + globalTimeout),
-					PATTERN_QUERY_GENERATION_OPTIONS_,
-					"" + queryGenerationOptions);
+							substituteCommand(
+									substituteCommand(
+											substituteCommand(command[i],
+													PATTERN_TIMEPUT_,
+													"" + localTimeout),
+											PATTERN_GLOBAL_TIMEPUT_,
+											"" + globalTimeout),
+									PATTERN_SOURCE_, source),
+							PATTERN_ONTOLOGIES_, ontologies),
+					PATTERN_QUERY_GENERATION_OPTIONS_, queryGenerationOptions);
 		}
 		return result;
 	}

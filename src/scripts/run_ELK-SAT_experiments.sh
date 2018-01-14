@@ -4,9 +4,9 @@ TIMEOUT=$1
 shift
 GLOBAL_TIMEOUT=$1
 shift
-ONTOLOGIES_ARCHIVE=$1
+SOURCE=$1
 shift
-EXPERIMENT_DIR=$1
+INPUT=$1
 shift
 MACHINE_NAME=$1
 shift
@@ -16,18 +16,18 @@ SCRIPTS_DIR=$1
 shift
 WORKSPACE_DIR=$1
 shift
-RESULTS_ARCHIVE=$1
-shift
-PLOT_FILE=$1
-shift
 QUERY_GENERATION_OPTIONS=$1
 shift
 
+INPUT_DIR=$WORKSPACE_DIR/input
 ONTOLOGIES_DIR=$WORKSPACE_DIR/ontologies
 QUERIES_DIR=$WORKSPACE_DIR/queries
 ENCODING_DIR=$WORKSPACE_DIR/elk_sat
+EXPERIMENT_DIR=$WORKSPACE_DIR/experiments
 LOGS_DIR=$WORKSPACE_DIR/logs
 RESULTS_DIR=$WORKSPACE_DIR/results
+PLOT_FILE=$WORKSPACE_DIR/plot.svg
+RESULTS_ARCHIVE=$WORKSPACE_DIR/results.tar.gz
 
 
 
@@ -36,20 +36,71 @@ TIME_LOG_FORMAT='+%y-%m-%d %H:%M:%S'
 
 
 
-# Extract ontologies
+# Obtain the ontologies
+
+INPUT_FILE=""
+if [ $SOURCE == "file" ]
+then
+	
+	INPUT_FILE=$INPUT
+	
+elif [ $SOURCE == "web" ]
+then
+	
+	echo `date "$TIME_LOG_FORMAT"` "downloading the input ontologies"
+	
+	rm -rf $INPUT_DIR
+	mkdir -p $INPUT_DIR
+	
+	CURRENT_DIR=`pwd`
+	cd $INPUT_DIR
+
+	wget -nv $INPUT
+	INPUT_FILE=$(realpath $(ls -1 | head -n1))
+
+	cd $CURRENT_DIR
+	
+else
+	
+	>&2 echo `date "$TIME_LOG_FORMAT"` "Wrong option for the 3rd argument! Must be one of {file,web}."
+	exit 2
+	
+fi
 
 rm -rf $ONTOLOGIES_DIR
 mkdir -p $ONTOLOGIES_DIR
 
-echo `date "$TIME_LOG_FORMAT"` "extracting the input ontologies"
-
-ABSPLUTE_ONTOLOGIES_ARCHIVE=`realpath $ONTOLOGIES_ARCHIVE`
-CURRENT_DIR=`pwd`
-cd $ONTOLOGIES_DIR
-
-tar xzf $ABSPLUTE_ONTOLOGIES_ARCHIVE
-
-cd $CURRENT_DIR
+if [[ $INPUT_FILE == *.tar.gz ]] ||  [[ $INPUT_FILE == *.tgz ]]
+then
+	
+	echo `date "$TIME_LOG_FORMAT"` "extracting the input ontologies"
+	
+	ABSPLUTE_ONTOLOGIES_ARCHIVE=`realpath $INPUT_FILE`
+	CURRENT_DIR=`pwd`
+	cd $ONTOLOGIES_DIR
+	
+	tar xzf $ABSPLUTE_ONTOLOGIES_ARCHIVE
+	
+	cd $CURRENT_DIR
+	
+elif [[ $INPUT_FILE == *.zip ]]
+then
+	
+	echo `date "$TIME_LOG_FORMAT"` "extracting the input ontologies"
+	
+	ABSPLUTE_ONTOLOGIES_ARCHIVE=`realpath $INPUT_FILE`
+	CURRENT_DIR=`pwd`
+	cd $ONTOLOGIES_DIR
+	
+	unzip -q $ABSPLUTE_ONTOLOGIES_ARCHIVE
+	
+	cd $CURRENT_DIR
+	
+else
+	
+	cp $INPUT_FILE $ONTOLOGIES_DIR
+	
+fi
 
 
 
@@ -138,6 +189,8 @@ cd $CURRENT_DIR
 
 echo `date "$TIME_LOG_FORMAT"` "plotting"
 
+echo "" > $PLOT_FILE
+
 PLOT_LEGEND=""
 PLOT_ARGS=""
 for EXPERIMENT in $EXPERIMENT_DIR/*
@@ -162,8 +215,7 @@ do
 	
 done
 
-#echo `date "$TIME_LOG_FORMAT"` "./$SCRIPTS_DIR/plot_row.r $PLOT_FILE $PLOT_LEGEND -- $PLOT_ARGS"
-./$SCRIPTS_DIR/plot_row.r $PLOT_FILE $PLOT_LEGEND -- $PLOT_ARGS
+./$SCRIPTS_DIR/plot_row.r $PLOT_FILE $PLOT_LEGEND -- $PLOT_ARGS >/dev/null 2>/dev/null
 
 
 

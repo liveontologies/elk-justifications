@@ -39,6 +39,18 @@ public final class Utils {
 		return dir.mkdirs() && success;
 	}
 
+	public static boolean cleanIfNotDir(final File dir) {
+		boolean success = true;
+		if (dir.exists()) {
+			if (!dir.isDirectory()) {
+				success = recursiveDelete(dir) && success;
+			}
+		} else {
+			success = dir.mkdirs() && success;
+		}
+		return dir.mkdirs();
+	}
+
 	public static boolean recursiveDelete(final File file) {
 		boolean success = true;
 		if (file.isDirectory()) {
