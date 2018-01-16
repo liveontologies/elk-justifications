@@ -1,6 +1,8 @@
 package org.liveontologies.pinpointing;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -14,6 +16,7 @@ import org.semanticweb.elk.owl.interfaces.ElkDeclarationAxiom;
 import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
 import org.semanticweb.elk.reasoner.TestReasonerUtils;
 import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 
 public abstract class TracingJustificationComputationTest extends
@@ -70,6 +73,16 @@ public abstract class TracingJustificationComputationTest extends
 			});
 		}
 		return result;
+	}
+
+	@Override
+	public void dispose() {
+		super.dispose();
+		final Collection<OWLOntology> ontologies = new ArrayList<>(
+				OWL_MANAGER_.getOntologies());
+		for (final OWLOntology ontology : ontologies) {
+			OWL_MANAGER_.removeOntology(ontology);
+		}
 	}
 
 }

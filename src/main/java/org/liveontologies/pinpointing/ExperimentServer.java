@@ -88,7 +88,7 @@ public class ExperimentServer extends NanoHTTPD {
 
 	private static final String WS_INPUT_ = "input";
 	private static final String WS_RESULTS_ = "results";
-	private static final String WS_RESULTS_ARCHIVE_ = "results.tar.gz";
+	private static final String WS_RESULTS_ARCHIVE_ = "results.zip";
 	private static final String WS_PLOT_ = "plot.svg";
 
 	public ExperimentServer(final int port, final File workspace,
@@ -193,7 +193,7 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "<body>\n"
 			+ "  <h1>Experiment finished</h1>\n"
 			+ "  <p>View the results <a href=/results/>here</a>."
-			+ "  Download the results from <a href=/results.tar.gz>here</a>."
+			+ "  Download the results from <a href=/results.zip>here</a>."
 			+ "  Or start from beginning <a href=/>here</a>.</p>\n"
 			+ "  <pre id='log'>%s</pre>\n"
 			+ "</body>\n"
@@ -201,7 +201,7 @@ public class ExperimentServer extends NanoHTTPD {
 	private static final String TEMPLATE_RESULTS_ = "<!doctype html>\n"
 			+ "<body>\n"
 			+ "  <h1>Experiment results</h1>\n"
-			+ "  <p>Download the results from <a href=/results.tar.gz>here</a>."
+			+ "  <p>Download the results from <a href=/results.zip>here</a>."
 			+ "  See the log <a href=/done/>here</a>.\n"
 			+ "  Or start from beginning <a href=/>here</a>.</p>\n"
 			+ "  %s\n"// The plot
@@ -262,7 +262,7 @@ public class ExperimentServer extends NanoHTTPD {
 	private static final Pattern URI_RESULTS_FILE_ = Pattern
 			.compile("^/results/(?<file>[^/]+)$");
 	private static final Pattern URI_RESULTS_ARCHIVE_ = Pattern
-			.compile("^/results.tar.gz$");
+			.compile("^/results.zip$");
 
 	@Override
 	public Response serve(final IHTTPSession session) {
@@ -637,7 +637,7 @@ public class ExperimentServer extends NanoHTTPD {
 			final Response response = newChunkedResponse(Status.OK,
 					"application/octet-stream", data);
 			response.addHeader("Content-Disposition",
-					"attachment; filename=\"results.tar.gz\"");
+					"attachment; filename=\"results.zip\"");
 			return response;
 		} catch (final FileNotFoundException e) {
 			return newErrorResponse("Cannot find the results file!", e);
