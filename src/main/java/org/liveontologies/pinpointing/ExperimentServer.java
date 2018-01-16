@@ -138,15 +138,15 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "<body>\n"
 			+ "  <h1>Choose experiment parameters:</h1>\n"
 			+ "  <form method='post' enctype='multipart/form-data'>\n"
-			+ "    <p><label for='" + FIELD_TIMEOUT_ + "'>Local timeout (seconds):</label><br/>\n"
+			+ "    <p><label for='" + FIELD_TIMEOUT_ + "'>Local timeout (seconds, 0 for no timeout):</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='number' name='" + FIELD_TIMEOUT_ + "' required min='0' step='1' value='%s'></p>\n"
-			+ "    <p><label for='" + FIELD_GLOBAL_TIMEOUT_ + "'>Global timeout (seconds):</label><br/>\n"
+			+ "    <p><label for='" + FIELD_GLOBAL_TIMEOUT_ + "'>Global timeout (seconds, 0 for no timeout):</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='number' name='" + FIELD_GLOBAL_TIMEOUT_ + "' min='0' step='1' value='%s'></p>\n"
 			+ "    <p><label for='" + FIELD_ONTOLOGIES_ + "'>Either an ontology loadable by OWL API,<br/>\n"
 			+ "      or an archive with input ontologies (*.tar.gz or *.zip)<br/>\n"
-			+ "      (The ontology files must be in the root of the archive!),<br/>\n"
+			+ "      (the ontology files must be in the root of the archive),<br/>\n"
 			+ "      or a link from which the ontology or an archive should be downloaded:</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='radio' name='" + FIELD_SOURCE_ + "' value='" + FIELD_SOURCE_FILE_ + "' checked\n"
@@ -334,7 +334,11 @@ public class ExperimentServer extends NanoHTTPD {
 					validationMessages.put(FIELD_TIMEOUT_,
 							"<strong>Local timeout is not a number!</strong><br/>\n");
 				}
-				timeout = t;
+				if (t == 0) {
+					timeout = Integer.MAX_VALUE;
+				} else {
+					timeout = t;
+				}
 			} else {
 				formDataIsReady = false;
 				timeoutValue = "" + DEFAULT_TIMEOUT_;
@@ -356,7 +360,11 @@ public class ExperimentServer extends NanoHTTPD {
 						validationMessages.put(FIELD_GLOBAL_TIMEOUT_,
 								"<strong>Global timeout is not a number!</strong><br/>\n");
 					}
-					globalTimeout = t;
+					if (t == 0) {
+						globalTimeout = Integer.MAX_VALUE;
+					} else {
+						globalTimeout = t;
+					}
 				}
 			} else {
 				formDataIsReady = false;
