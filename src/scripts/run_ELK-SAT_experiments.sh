@@ -172,19 +172,6 @@ done
 
 
 
-# Pack the results
-
-echo `date "$TIME_LOG_FORMAT"` "packing the results"
-
-CURRENT_DIR=`pwd`
-cd $WORKSPACE_DIR
-
-tar czf $CURRENT_DIR/$RESULTS_ARCHIVE `basename $RESULTS_DIR`
-
-cd $CURRENT_DIR
-
-
-
 # Plot the plots
 
 echo `date "$TIME_LOG_FORMAT"` "plotting"
@@ -216,6 +203,21 @@ do
 done
 
 ./$SCRIPTS_DIR/plot_row.r $PLOT_FILE $PLOT_LEGEND -- $PLOT_ARGS >/dev/null 2>/dev/null
+
+cp $PLOT_FILE $RESULTS_DIR
+
+
+
+# Pack the results
+
+echo `date "$TIME_LOG_FORMAT"` "packing the results"
+
+CURRENT_DIR=`pwd`
+cd $WORKSPACE_DIR
+
+tar czf $CURRENT_DIR/$RESULTS_ARCHIVE `basename $RESULTS_DIR`
+
+cd $CURRENT_DIR
 
 
 
