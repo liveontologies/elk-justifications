@@ -23,6 +23,8 @@ import org.liveontologies.puli.pinpointing.InterruptMonitor;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +55,9 @@ public class CollectJustificationStatisticsUsingElk {
 		final String ontologyFileName = args[4];
 		final String conclusionsFileName = args[5];
 
+		final OWLOntologyManager manager = OWLManager
+				.createOWLOntologyManager();
+
 		final long timeOutCheckInterval = Math.min(timeOut / 4, 1000);
 
 		BufferedReader conclusionReader = null;
@@ -79,7 +84,7 @@ public class CollectJustificationStatisticsUsingElk {
 					try {
 
 						final ElkProofProvider elkProofProvider = new ElkProofProvider(
-								new File(ontologyFileName));
+								new File(ontologyFileName), manager);
 						final ElkObject.Factory factory = elkProofProvider
 								.getReasoner().getElkFactory();
 
@@ -165,8 +170,8 @@ public class CollectJustificationStatisticsUsingElk {
 												long count = 0;
 												for (final Set<ElkAxiom> just : js) {
 													if (Utils.isMinimal(
-															new BloomSet<>(
-																	inf.getConclusion(),
+															new BloomSet<>(inf
+																	.getConclusion(),
 																	just,
 																	proof.getJustifier()
 																			.getJustification(

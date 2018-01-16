@@ -11,6 +11,8 @@ import org.liveontologies.puli.Inference;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,15 @@ public class CollectStatisticsUsingElk extends
 			.getLogger(CollectStatisticsUsingElk.class);
 
 	public static final String ONTOLOGY_OPT = "ontology";
+
+	private OWLOntologyManager manager_ = null;
+
+	private OWLOntologyManager getManager() {
+		if (manager_ == null) {
+			manager_ = OWLManager.createOWLOntologyManager();
+		}
+		return manager_;
+	}
 
 	public static class Options extends StatisticsCollector.Options {
 		@Arg(dest = ONTOLOGY_OPT)
@@ -49,7 +60,7 @@ public class CollectStatisticsUsingElk extends
 		LOGGER_.info("ontologyFile: {}", options.ontologyFile);
 
 		final ElkProofProvider elkProofProvider = new ElkProofProvider(
-				options.ontologyFile);
+				options.ontologyFile, getManager());
 		final ElkObject.Factory factory = elkProofProvider.getReasoner()
 				.getElkFactory();
 

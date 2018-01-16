@@ -26,6 +26,8 @@ import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.interfaces.ElkSubClassOfAxiom;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.reasoner.tracing.Conclusion;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +48,13 @@ public class ProofBrowser {
 		final String subFullIri = args[2];
 		final String supFullIri = args[3];
 
+		final OWLOntologyManager manager = OWLManager
+				.createOWLOntologyManager();
+
 		try {
 
 			final ElkProofProvider elkProofProvider = new ElkProofProvider(
-					new File(ontologyFileName));
+					new File(ontologyFileName), manager);
 			final ElkObject.Factory factory = elkProofProvider.getReasoner()
 					.getElkFactory();
 

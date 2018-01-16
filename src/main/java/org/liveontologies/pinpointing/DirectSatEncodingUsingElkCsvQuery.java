@@ -29,6 +29,8 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkClassAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,6 +121,9 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		parser.addArgument(OUTDIR_OPT).type(File.class)
 				.help("output directory");
 
+		final OWLOntologyManager manager = OWLManager
+				.createOWLOntologyManager();
+
 		BufferedReader queryReader = null;
 
 		try {
@@ -132,7 +137,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			}
 
 			final ElkProofProvider elkProofProvider = new ElkProofProvider(
-					opt.ontologyFile);
+					opt.ontologyFile, manager);
 			final ElkObject.Factory factory = elkProofProvider.getReasoner()
 					.getElkFactory();
 

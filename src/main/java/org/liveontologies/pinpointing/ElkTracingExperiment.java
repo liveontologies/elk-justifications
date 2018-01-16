@@ -31,6 +31,8 @@ import org.semanticweb.elk.owl.iris.ElkFullIri;
 import org.semanticweb.elk.owl.visitors.ElkAxiomProcessor;
 import org.semanticweb.elk.reasoner.Reasoner;
 import org.semanticweb.elk.util.concurrent.computation.InterruptMonitor;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,13 +60,16 @@ public class ElkTracingExperiment {
 		final String ontologyFileName = args[3];
 		final String queryFileName = args[4];
 
+		final OWLOntologyManager manager = OWLManager
+				.createOWLOntologyManager();
+
 		InputStream ontologyIS = null;
 		PrintWriter stats = null;
 
 		try {
 
 			final ElkProofProvider elkProofProvider = new ElkProofProvider(
-					new File(ontologyFileName));
+					new File(ontologyFileName), manager);
 
 			LOG.info("Warm up ...");
 			long warmUpEndTimeMillis = System.currentTimeMillis()

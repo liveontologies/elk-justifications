@@ -9,6 +9,8 @@ import org.liveontologies.puli.Inference;
 import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkObject;
 import org.semanticweb.elk.owl.iris.ElkFullIri;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,14 @@ public abstract class ElkJustificationExperiment<O extends ElkJustificationExper
 
 	private File ontologyFile_;
 
+	private OWLOntologyManager manager_ = null;
+	private OWLOntologyManager getManager() {
+		if (manager_ == null) {
+			manager_ = OWLManager.createOWLOntologyManager();
+		}
+		return manager_;
+	}
+
 	@Override
 	protected void addArguments(final ArgumentParser parser) {
 		parser.addArgument(ONTOLOGY_OPT)
@@ -50,7 +60,7 @@ public abstract class ElkJustificationExperiment<O extends ElkJustificationExper
 			throws ExperimentException {
 
 		final ElkProofProvider elkProofProvider = new ElkProofProvider(
-				ontologyFile_);
+				ontologyFile_, getManager());
 		final ElkObject.Factory factory = elkProofProvider.getReasoner()
 				.getElkFactory();
 

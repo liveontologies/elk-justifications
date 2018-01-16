@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 public class OwlProofProvider implements
 		ProofProvider<OWLAxiom, OWLAxiom, Inference<OWLAxiom>, OWLAxiom> {
 
-	private static final Logger LOG = LoggerFactory
+	private static final Logger LOGGER_ = LoggerFactory
 			.getLogger(OwlProofProvider.class);
 
 	private final OWLProver reasoner_;
@@ -32,20 +32,20 @@ public class OwlProofProvider implements
 
 		try {
 
-			LOG.info("Loading ontology ...");
+			LOGGER_.info("Loading ontology ...");
 			long start = System.currentTimeMillis();
 			final OWLOntology ont = manager
 					.loadOntologyFromOntologyDocument(ontologyFile);
-			LOG.info("... took {}s",
+			LOGGER_.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
-			LOG.info("Loaded ontology: {}", ont.getOntologyID());
+			LOGGER_.info("Loaded ontology: {}", ont.getOntologyID());
 
 			reasoner_ = new ElkProverFactory().createReasoner(ont);
 
-			LOG.info("Classifying ...");
+			LOGGER_.info("Classifying ...");
 			start = System.currentTimeMillis();
 			reasoner_.precomputeInferences(InferenceType.CLASS_HIERARCHY);
-			LOG.info("... took {}s",
+			LOGGER_.info("... took {}s",
 					(System.currentTimeMillis() - start) / 1000.0);
 
 		} catch (final OWLOntologyCreationException e) {

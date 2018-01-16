@@ -13,15 +13,20 @@ import org.semanticweb.elk.owl.interfaces.ElkAxiom;
 import org.semanticweb.elk.owl.interfaces.ElkDeclarationAxiom;
 import org.semanticweb.elk.owl.visitors.DummyElkAxiomVisitor;
 import org.semanticweb.elk.reasoner.TestReasonerUtils;
+import org.semanticweb.owlapi.apibinding.OWLManager;
+import org.semanticweb.owlapi.model.OWLOntologyManager;
 
 public abstract class TracingJustificationComputationTest extends
 		BaseJustificationComputationTest<ElkAxiom, Object, Inference<Object>, ElkAxiom> {
+
+	private static final OWLOntologyManager OWL_MANAGER_ = OWLManager
+			.createOWLOntologyManager();
 
 	public TracingJustificationComputationTest(
 			final MinimalSubsetsFromProofs.Factory<Object, Inference<Object>, ElkAxiom> factory,
 			final File ontoFile, final Map<File, File[]> entailFilesPerJustFile)
 			throws Exception {
-		super(new ElkProofProvider(ontoFile), factory, ontoFile,
+		super(new ElkProofProvider(ontoFile, OWL_MANAGER_), factory, ontoFile,
 				entailFilesPerJustFile);
 	}
 

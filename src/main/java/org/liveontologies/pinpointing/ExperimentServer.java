@@ -144,7 +144,7 @@ public class ExperimentServer extends NanoHTTPD {
 			+ "    <p><label for='" + FIELD_GLOBAL_TIMEOUT_ + "'>Global timeout (seconds):</label><br/>\n"
 			+ "%s"// validation message
 			+ "    <input type='number' name='" + FIELD_GLOBAL_TIMEOUT_ + "' min='0' step='1' value='%s'></p>\n"
-			+ "    <p><label for='" + FIELD_ONTOLOGIES_ + "'>Either an ontology file in functional style OWL,<br/>\n"
+			+ "    <p><label for='" + FIELD_ONTOLOGIES_ + "'>Either an ontology loadable by OWL API,<br/>\n"
 			+ "      or an archive with input ontologies (*.tar.gz or *.zip)<br/>\n"
 			+ "      (The ontology files must be in the root of the archive!),<br/>\n"
 			+ "      or a link from which the ontology or an archive should be downloaded:</label><br/>\n"
