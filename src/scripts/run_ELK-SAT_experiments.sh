@@ -137,8 +137,8 @@ do
 	
 	NAME=`basename -s ".owl" $ONTOLOGY`
 	echo `date "$TIME_LOG_FORMAT"` "encoding $NAME"
-	PROPS='-Delk.reasoner.tracing.evictor=NQEvictor(25600,0.75,3500000,0.75)'
-	java -Xmx7G -Xms2G $PROPS -cp $JAR org.liveontologies.pinpointing.DirectSatEncodingUsingElkCsvQuery $ONTOLOGY $QUERIES_DIR/$NAME.queries.seed1 $ENCODING_DIR/$NAME.elk_sat 2>&1 > $ENCODING_DIR/$NAME.out.log | tee $ENCODING_DIR/$NAME.err.log 1>&2
+	PROPS='-Delk.reasoner.tracing.evictor=RecencyEvictor(16896,0.75)'
+	java -Xmx7G -Xms2G $PROPS -cp $JAR org.liveontologies.pinpointing.DirectSatEncodingUsingElkCsvQuery $ONTOLOGY $QUERIES_DIR/$NAME.queries.sorted $ENCODING_DIR/$NAME.elk_sat 2>&1 > $ENCODING_DIR/$NAME.out.log | tee $ENCODING_DIR/$NAME.err.log 1>&2
 	
 done
 
