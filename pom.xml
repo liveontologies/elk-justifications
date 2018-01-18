@@ -4,7 +4,7 @@
 
 	<groupId>org.liveontologies</groupId>
 	<artifactId>pinpointing-experiments</artifactId>
-	<version>0.1.1-SNAPSHOT</version>
+	<version>0.1.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>Axiom Pinpointing Experiments</name>
