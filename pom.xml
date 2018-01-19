@@ -132,6 +132,51 @@
 					<target>1.7</target>
 				</configuration>
 			</plugin>
+			<plugin>
+				<!-- Makes information about the GIT repository available
+					during the build. -->
+				<groupId>pl.project13.maven</groupId>
+				<artifactId>git-commit-id-plugin</artifactId>
+				<version>2.2.3</version>
+				<executions>
+					<execution>
+						<id>get-the-git-infos</id>
+						<goals>
+							<goal>revision</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<finalName>${project.artifactId}-${project.version}-${git.commit.id.abbrev}</finalName>
+					<archive>
+						<manifest>
+							<mainClass>org.liveontologies.pinpointing.RunJustificationExperiments</mainClass>
+						</manifest>
+					</archive>
+<!--					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+-->					<descriptors>
+						<descriptor>${basedir}/src/assembly/jar-with-dependencies.xml</descriptor>
+					</descriptors>
+				</configuration>
+				<executions>
+					<execution>
+						<id>create-jar-with-dependencies</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<!-- deplyoing to maven central -->
 			<plugin>
 				<groupId>org.sonatype.plugins</groupId>
