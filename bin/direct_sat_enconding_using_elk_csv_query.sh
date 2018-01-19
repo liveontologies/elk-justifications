@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MAIN_CLASS=org.liveontologies.pinpointing.RunJustificationExperiments
+MAIN_CLASS=org.liveontologies.pinpointing.DirectSatEncodingUsingElkCsvQuery
 
 POM="$(dirname "$(cd "$(dirname "$0")" && pwd)")/pom.xml"
 
