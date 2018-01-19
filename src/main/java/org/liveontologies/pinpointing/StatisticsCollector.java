@@ -90,8 +90,7 @@ public abstract class StatisticsCollector<O extends StatisticsCollector.Options,
 	public final void collectStatistics(final String[] args) {
 
 		final ArgumentParser parser = ArgumentParsers
-				.newArgumentParser(
-						CollectStatisticsUsingElk.class.getSimpleName())
+				.newArgumentParser(StatisticsCollector.class.getSimpleName())
 				.description("Collect proof statistics.");
 		parser.addArgument(QUERIES_OPT)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())

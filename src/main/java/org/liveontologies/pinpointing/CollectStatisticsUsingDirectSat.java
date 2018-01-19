@@ -67,4 +67,8 @@ public class CollectStatisticsUsingDirectSat extends
 		return new SatProofProvider(options.inputDir);
 	}
 
+	public static void main(final String[] args) {
+		new CollectStatisticsUsingDirectSat().collectStatistics(args);
+	}
+
 }

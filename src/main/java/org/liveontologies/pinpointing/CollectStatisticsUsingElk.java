@@ -103,4 +103,8 @@ public class CollectStatisticsUsingElk extends
 		return proofProvider;
 	}
 
+	public static void main(final String[] args) {
+		new CollectStatisticsUsingElk().collectStatistics(args);
+	}
+
 }
