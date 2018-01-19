@@ -24,7 +24,7 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
-	
+
 	<organization>
 		<name>Live Ontologies Project</name>
 		<url>http://liveontologies.org</url>
@@ -175,7 +175,15 @@
 					</execution>
 				</executions>
 			</plugin>
-			
+			<plugin>
+				<!-- executing java from shell scripts -->
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<configuration>
+					<cleanupDaemonThreads>false</cleanupDaemonThreads>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
