@@ -26,6 +26,8 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -85,6 +87,21 @@ public final class Utils {
 
 	public static String toFileName(final Object obj) {
 		return obj.toString().replaceAll("[^a-zA-Z0-9_.-]", "_");
+	}
+
+	public static String sha1hex(final String str) {
+		try {
+			final MessageDigest md = MessageDigest.getInstance("SHA-1");
+			final byte[] b = md.digest(str.getBytes());
+			final StringBuilder result = new StringBuilder();
+			for (int i = 0; i < b.length; i++) {
+				result.append(Integer.toString((b[i] & 0xff) + 0x100, 16)
+						.substring(1));
+			}
+			return result.toString();
+		} catch (final NoSuchAlgorithmException e) {
+			throw new RuntimeException();
+		}
 	}
 
 	public static void closeQuietly(final Closeable stream) {

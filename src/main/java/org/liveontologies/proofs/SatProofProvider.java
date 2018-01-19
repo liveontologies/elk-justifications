@@ -57,7 +57,7 @@ public class SatProofProvider
 		LOGGER_.info("Decoding query {} ...", query);
 		long start = System.currentTimeMillis();
 
-		final File queryDir = new File(inputDir_, Utils.toFileName(query));
+		final File queryDir = new File(inputDir_, Utils.sha1hex(query));
 
 		final File qFile = new File(queryDir,
 				DirectSatEncodingUsingElkCsvQuery.FILE_NAME

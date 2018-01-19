@@ -71,7 +71,7 @@ import net.sourceforge.argparse4j.inf.ArgumentParserException;
  * <p>
  * Proof of each query from the query file is exported into its query directory.
  * This query directory will be placed inside of the output directory and its
- * name will be derived from the query by {@link Utils#toFileName(Object)}.
+ * name will be derived from the query by {@link Utils#sha1hex(String)}.
  * <p>
  * Each conclusion and axiom occurring in a proof of a query is given a unique
  * positive integer that is called its atom. The files placed into the directory
@@ -222,8 +222,9 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			final File outputDirectory, final int queryCount,
 			final int queryIndex) throws IOException, ExperimentException {
 
-		final String queryName = Utils.toFileName(line);
+		final String queryName = Utils.sha1hex(line);
 		// @formatter:off
+//		final String queryName = Utils.toFileName(line);
 //		final String queryName = String.format(
 //				"%0" + Integer.toString(queryCount).length() + "d", queryIndex);
 		// @formatter:on
