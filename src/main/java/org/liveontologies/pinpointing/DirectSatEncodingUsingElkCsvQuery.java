@@ -1,5 +1,3 @@
-package org.liveontologies.pinpointing;
-
 /*-
  * #%L
  * Axiom Pinpointing Experiments
@@ -21,6 +19,7 @@ package org.liveontologies.pinpointing;
  * limitations under the License.
  * #L%
  */
+package org.liveontologies.pinpointing;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -115,17 +114,20 @@ public class DirectSatEncodingUsingElkCsvQuery {
 	private static final Logger LOG_ = LoggerFactory
 			.getLogger(DirectSatEncodingUsingElkCsvQuery.class);
 
-	public static final String ONTOLOGY_OPT = "ontology";
-	public static final String QUERIES_OPT = "queries";
-	public static final String OUTDIR_OPT = "outdir";
+	public static final String OPT_ONTOLOGY = "ontology";
+	public static final String OPT_QUERIES = "queries";
+	public static final String OPT_OUTDIR = "outdir";
+	public static final String OPT_MINIMAL = "minimal";
 
 	public static class Options {
-		@Arg(dest = ONTOLOGY_OPT)
+		@Arg(dest = OPT_ONTOLOGY)
 		public File ontologyFile;
-		@Arg(dest = QUERIES_OPT)
+		@Arg(dest = OPT_QUERIES)
 		public File queriesFile;
-		@Arg(dest = OUTDIR_OPT)
+		@Arg(dest = OPT_OUTDIR)
 		public File outDir;
+		@Arg(dest = OPT_MINIMAL)
+		public boolean minimal;
 	}
 
 	public static void main(final String[] args) {
@@ -134,14 +136,16 @@ public class DirectSatEncodingUsingElkCsvQuery {
 				.newArgumentParser(
 						DirectSatEncodingUsingElkCsvQuery.class.getSimpleName())
 				.description("Export proofs CNF files as produced by EL+SAT.");
-		parser.addArgument(ONTOLOGY_OPT)
+		parser.addArgument(OPT_ONTOLOGY)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())
 				.help("ontology file");
-		parser.addArgument(QUERIES_OPT)
+		parser.addArgument(OPT_QUERIES)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())
 				.help("query file");
-		parser.addArgument(OUTDIR_OPT).type(File.class)
+		parser.addArgument(OPT_OUTDIR).type(File.class)
 				.help("output directory");
+		parser.addArgument("--" + OPT_MINIMAL).action(Arguments.storeTrue())
+				.help("generate only necessary files");
 
 		final OWLOntologyManager manager = OWLManager
 				.createOWLOntologyManager();
@@ -193,7 +197,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 				LOG_.debug("Encoding {} of {}: {}", queryIndex, queryCount,
 						line);
 
-				encode(line, proofProvider, opt.outDir, queryCount,
+				encode(line, proofProvider, opt.outDir, opt.minimal, queryCount,
 						queryIndex++);
 
 			}
@@ -219,8 +223,9 @@ public class DirectSatEncodingUsingElkCsvQuery {
 	private static <C, I extends Inference<? extends C>, A> void encode(
 			final String line,
 			final ProofProvider<String, C, I, A> proofProvider,
-			final File outputDirectory, final int queryCount,
-			final int queryIndex) throws IOException, ExperimentException {
+			final File outputDirectory, final boolean minimal,
+			final int queryCount, final int queryIndex)
+			throws IOException, ExperimentException {
 
 		final String queryName = Utils.sha1hex(line);
 		// @formatter:off
@@ -321,7 +326,9 @@ public class DirectSatEncodingUsingElkCsvQuery {
 					"p cnf " + (lastLiteral - 1) + " " + clauseCounter.next());
 
 			// ppp
-			writeLines(axiomIndex.values(), pppFile);
+			if (!minimal) {
+				writeLines(axiomIndex.values(), pppFile);
+			}
 
 			// ppp.g.u
 			final List<Integer> orderedAxioms = new ArrayList<Integer>(
@@ -343,57 +350,65 @@ public class DirectSatEncodingUsingElkCsvQuery {
 					questionFile);
 
 			// query
-			writeLines(Collections.singleton(line), queryFile);
+			if (!minimal) {
+				writeLines(Collections.singleton(line), queryFile);
+			}
 
 			// zzz
-			final SortedMap<Integer, A> gcis = new TreeMap<Integer, A>();
-			final SortedMap<Integer, A> ris = new TreeMap<Integer, A>();
-			for (final Map.Entry<A, Integer> entry : axiomIndex.entrySet()) {
-				final A expr = entry.getKey();
-				final int lit = entry.getValue();
-				if (expr instanceof ElkClassAxiom) {
-					gcis.put(lit, expr);
-				} else {
-					ris.put(lit, expr);
-				}
-			}
-			final SortedMap<Integer, C> lemmas = new TreeMap<Integer, C>();
-			for (final Map.Entry<C, Integer> entry : conclusionIndex
-					.entrySet()) {
-				lemmas.put(entry.getValue(), entry.getKey());
-			}
-
-			final Function<Map.Entry<Integer, A>, String> print = new Function<Map.Entry<Integer, A>, String>() {
-
-				@Override
-				public String apply(final Map.Entry<Integer, A> entry) {
-					final StringBuilder result = new StringBuilder();
-					result.append(entry.getKey()).append(" ");
-					final A axiom = entry.getValue();
-					if (axiom instanceof ElkAxiom) {
-						((ElkAxiom) axiom)
-								.accept(new ElSatPrinterVisitor(result));
-						// Remove the last line end.
-						result.setLength(result.length() - 1);
+			if (!minimal) {
+				final SortedMap<Integer, A> gcis = new TreeMap<Integer, A>();
+				final SortedMap<Integer, A> ris = new TreeMap<Integer, A>();
+				for (final Map.Entry<A, Integer> entry : axiomIndex
+						.entrySet()) {
+					final A expr = entry.getKey();
+					final int lit = entry.getValue();
+					if (expr instanceof ElkClassAxiom) {
+						gcis.put(lit, expr);
 					} else {
-						result.append(axiom);
+						ris.put(lit, expr);
 					}
-					return result.toString();
+				}
+				final SortedMap<Integer, C> lemmas = new TreeMap<Integer, C>();
+				for (final Map.Entry<C, Integer> entry : conclusionIndex
+						.entrySet()) {
+					lemmas.put(entry.getValue(), entry.getKey());
 				}
 
-			};
-			writeLines(Iterables.transform(gcis.entrySet(), print), zzzgciFile);
-			writeLines(Iterables.transform(ris.entrySet(), print), zzzriFile);
-			writeLines(Iterables.transform(lemmas.entrySet(),
-					new Function<Map.Entry<Integer, C>, String>() {
-						@Override
-						public String apply(final Map.Entry<Integer, C> entry) {
-							final StringBuilder result = new StringBuilder();
-							result.append(entry.getKey()).append(" ")
-									.append(entry.getValue());
-							return result.toString();
+				final Function<Map.Entry<Integer, A>, String> print = new Function<Map.Entry<Integer, A>, String>() {
+
+					@Override
+					public String apply(final Map.Entry<Integer, A> entry) {
+						final StringBuilder result = new StringBuilder();
+						result.append(entry.getKey()).append(" ");
+						final A axiom = entry.getValue();
+						if (axiom instanceof ElkAxiom) {
+							((ElkAxiom) axiom)
+									.accept(new ElSatPrinterVisitor(result));
+							// Remove the last line end.
+							result.setLength(result.length() - 1);
+						} else {
+							result.append(axiom);
 						}
-					}), zzzFile);
+						return result.toString();
+					}
+
+				};
+				writeLines(Iterables.transform(gcis.entrySet(), print),
+						zzzgciFile);
+				writeLines(Iterables.transform(ris.entrySet(), print),
+						zzzriFile);
+				writeLines(Iterables.transform(lemmas.entrySet(),
+						new Function<Map.Entry<Integer, C>, String>() {
+							@Override
+							public String apply(
+									final Map.Entry<Integer, C> entry) {
+								final StringBuilder result = new StringBuilder();
+								result.append(entry.getKey()).append(" ")
+										.append(entry.getValue());
+								return result.toString();
+							}
+						}), zzzFile);
+			}
 
 		} finally {
 			Utils.closeQuietly(cnfWriter);
