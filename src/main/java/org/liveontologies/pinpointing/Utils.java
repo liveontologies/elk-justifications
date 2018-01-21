@@ -124,7 +124,14 @@ public final class Utils {
 	}
 
 	public static int digitCount(final int x) {
-		return (int) Math.floor(Math.log10(x) + 1);
+		if (x > 0) {
+			return (int) Math.floor(Math.log10(x) + 1);
+		} else if (x == 0) {
+			return 1;
+		} else {
+			throw new IllegalArgumentException(
+					"Argument must not be negative! x=" + x);
+		}
 	}
 
 	public static <C, I extends Inference<? extends C>, A, IO, CO, AO> void traverseProofs(

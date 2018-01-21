@@ -1,5 +1,3 @@
-package org.liveontologies.pinpointing;
-
 /*-
  * #%L
  * Axiom Pinpointing Experiments
@@ -21,12 +19,14 @@ package org.liveontologies.pinpointing;
  * limitations under the License.
  * #L%
  */
+package org.liveontologies.pinpointing;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.commons.io.output.NullOutputStream;
 import org.liveontologies.pinpointing.experiments.ExperimentException;
 import org.liveontologies.pinpointing.experiments.JustificationExperiment;
 import org.liveontologies.puli.pinpointing.InterruptMonitor;
@@ -58,6 +59,7 @@ public class RunJustificationExperiments {
 	public static final String WARMUP_TIMEOUT_OPT = "w";
 	public static final String GC_OPT = "gc";
 	public static final String ONE_JUST_OPT = "only1just";
+	public static final String OPT_PROGRESS = "progress";
 	public static final String RESET_INTERVAL_OPT = "ri";
 	public static final String QUERIES_OPT = "queries";
 	public static final String EXPERIMENT_OPT = "exp";
@@ -76,6 +78,8 @@ public class RunJustificationExperiments {
 		public boolean runGc;
 		@Arg(dest = ONE_JUST_OPT)
 		public boolean onlyOneJustification;
+		@Arg(dest = OPT_PROGRESS)
+		public boolean progress;
 		@Arg(dest = RESET_INTERVAL_OPT)
 		public Integer resetInterval;
 		@Arg(dest = QUERIES_OPT)
@@ -107,6 +111,8 @@ public class RunJustificationExperiments {
 				.help("run garbage collector before every query");
 		parser.addArgument("--" + ONE_JUST_OPT).action(Arguments.storeTrue())
 				.help("compute only one justification");
+		parser.addArgument("--" + OPT_PROGRESS).action(Arguments.storeTrue())
+				.help("print progress to stdout");
 		parser.addArgument("--" + RESET_INTERVAL_OPT).type(Integer.class)
 				.help("after how many queries should the experiment be reset");
 		parser.addArgument(QUERIES_OPT)
@@ -143,6 +149,8 @@ public class RunJustificationExperiments {
 			LOGGER_.info("runGc: {}", runGc);
 			final boolean onlyOneJustification = opt.onlyOneJustification;
 			LOGGER_.info("onlyOneJustification: {}", onlyOneJustification);
+			final boolean progress = opt.progress;
+			LOGGER_.info("progress: {}", progress);
 			final int resetInterval = opt.resetInterval == null
 					? Integer.MAX_VALUE
 					: opt.resetInterval;
@@ -159,17 +167,21 @@ public class RunJustificationExperiments {
 
 			recordWriter = new PrintWriter(recordFile);
 
+			final PrintStream nullPrintStream = new PrintStream(
+					new NullOutputStream());
+
 			if (warmupTimeOut > 0) {
 				LOGGER_.info("Warm Up");
 				run(experiment, experimentArgs, queryFile, timeOutMillis,
 						warmupTimeOut, 0, runGc, onlyOneJustification,
-						resetInterval, null);
+						resetInterval, nullPrintStream, null);
 			}
 
 			LOGGER_.info("Actual Experiment Run");
 			run(experiment, experimentArgs, queryFile, timeOutMillis,
 					globalTimeOutMillis, 0, runGc, onlyOneJustification,
-					resetInterval, recordWriter);
+					resetInterval, progress ? System.out : nullPrintStream,
+					recordWriter);
 
 		} catch (final ExperimentException e) {
 			LOGGER_.error(e.getMessage(), e);
@@ -232,14 +244,26 @@ public class RunJustificationExperiments {
 			final long timeOutMillis, final long globalTimeOutMillis,
 			final int maxIterations, final boolean runGc,
 			final boolean onlyOneJustification, final int resetInterval,
-			final PrintWriter recordWriter)
+			final PrintStream progressOut, final PrintWriter recordWriter)
 			throws IOException, ExperimentException {
 
 		experiment.init(experimentArgs);
 
+		Progress progress = null;
+
 		BufferedReader queryReader = null;
 
 		try {
+
+			queryReader = new BufferedReader(new FileReader(queryFile));
+			int queryCount = 0;
+			while (queryReader.readLine() != null) {
+				queryCount++;
+			}
+			queryReader.close();
+			final int total = maxIterations <= 0 ? queryCount
+					: Math.min(maxIterations, queryCount);
+			progress = new Progress(progressOut, total);
 
 			queryReader = new BufferedReader(new FileReader(queryFile));
 
@@ -349,11 +373,16 @@ public class RunJustificationExperiments {
 				}
 				recorder.flush();
 
+				progress.update();
+
 			}
 
 		} finally {
 			Utils.closeQuietly(queryReader);
 			experiment.dispose();
+			if (progress != null) {
+				progress.stop();
+			}
 		}
 
 	}

@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import org.apache.commons.io.output.NullOutputStream;
 import org.liveontologies.pinpointing.ConvertToElSatKrssInput.ElSatPrinterVisitor;
 import org.liveontologies.pinpointing.experiments.CsvQueryDecoder;
 import org.liveontologies.pinpointing.experiments.ExperimentException;
@@ -118,6 +120,7 @@ public class DirectSatEncodingUsingElkCsvQuery {
 	public static final String OPT_QUERIES = "queries";
 	public static final String OPT_OUTDIR = "outdir";
 	public static final String OPT_MINIMAL = "minimal";
+	public static final String OPT_PROGRESS = "progress";
 
 	public static class Options {
 		@Arg(dest = OPT_ONTOLOGY)
@@ -128,6 +131,8 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		public File outDir;
 		@Arg(dest = OPT_MINIMAL)
 		public boolean minimal;
+		@Arg(dest = OPT_PROGRESS)
+		public boolean progress;
 	}
 
 	public static void main(final String[] args) {
@@ -135,7 +140,8 @@ public class DirectSatEncodingUsingElkCsvQuery {
 		final ArgumentParser parser = ArgumentParsers
 				.newArgumentParser(
 						DirectSatEncodingUsingElkCsvQuery.class.getSimpleName())
-				.description("Export proofs CNF files as produced by EL+SAT.");
+				.description(
+						"Export proofs into CNF files as produced by EL+SAT.");
 		parser.addArgument(OPT_ONTOLOGY)
 				.type(Arguments.fileType().verifyExists().verifyCanRead())
 				.help("ontology file");
@@ -146,6 +152,8 @@ public class DirectSatEncodingUsingElkCsvQuery {
 				.help("output directory");
 		parser.addArgument("--" + OPT_MINIMAL).action(Arguments.storeTrue())
 				.help("generate only necessary files");
+		parser.addArgument("--" + OPT_PROGRESS).action(Arguments.storeTrue())
+				.help("print progress to stdout");
 
 		final OWLOntologyManager manager = OWLManager
 				.createOWLOntologyManager();
@@ -189,6 +197,14 @@ public class DirectSatEncodingUsingElkCsvQuery {
 			}
 			queryReader.close();
 
+			final Progress progress;
+			if (opt.progress) {
+				progress = new Progress(System.out, queryCount);
+			} else {
+				progress = new Progress(new PrintStream(new NullOutputStream()),
+						queryCount);
+			}
+
 			queryReader = new BufferedReader(new FileReader(opt.queriesFile));
 
 			int queryIndex = 0;
@@ -200,7 +216,10 @@ public class DirectSatEncodingUsingElkCsvQuery {
 				encode(line, proofProvider, opt.outDir, opt.minimal, queryCount,
 						queryIndex++);
 
+				progress.update();
 			}
+
+			progress.finish();
 
 		} catch (final FileNotFoundException e) {
 			LOG_.error("File Not Found!", e);
