@@ -182,7 +182,7 @@ public class PerQuery2DirectSat {
 			line = assumptionsReader.readLine();
 			for (final String a : line.split(" +", 0)) {
 				final int assumption = Integer.parseInt(a);
-				if (assumption >= 0) {
+				if (assumption > 0) {
 					pppguWriter.println(assumption);
 				}
 			}
